@@ -261,7 +261,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
     is_subscribed: false,
     trial_start: startDate.toISOString(),
     trial_end: endDate.toISOString(),
-    stripe_customer_id: null
+    stripe_customer_id: undefined
   };
 
   let user: User;

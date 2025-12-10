@@ -5,7 +5,7 @@ import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
 import SubscriptionModal from './components/SubscriptionModal';
 import AccountSettings from './components/AccountSettings';
-import { LogOut, MessageSquare, History, UserCircle, LockOpen, LogIn } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Unlock, LogIn } from 'lucide-react';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -171,7 +171,7 @@ const App: React.FC = () => {
             <div className="mb-4 p-3 bg-earth-50 rounded-lg border border-earth-100">
               <p className="text-xs text-earth-800 font-bold uppercase mb-1 flex items-center gap-1">
                 {user.is_subscribed ? (
-                  <> <LockOpen size={12} /> Healer Plan </>
+                  <> <Unlock size={12} /> Healer Plan </>
                 ) : (
                   <> <span className="w-2 h-2 rounded-full bg-gray-400"></span> Triage Plan </>
                 )}
