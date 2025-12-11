@@ -3,15 +3,18 @@ import { User, RemedyDocument, SearchSource, QueryUsage } from '../types';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 
 // Initialize Supabase Client
+// We use the variables injected via vite.config.ts
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://biblbpmlpchztyifoypt.supabase.co';
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYmxicG1scGNoenR5aWZveXB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODUxMjksImV4cCI6MjA3OTE2MTEyOX0.qmwrUIvkhjp7jB2Tb9E5ORQZPHVLyirjmhPe3tr9Lbk';
+
+console.log(`[Supabase] Initializing... URL configured: ${!!process.env.REACT_APP_SUPABASE_URL}`);
 
 const supabase = (supabaseUrl && supabaseKey && supabaseKey !== 'PASTE_YOUR_ANON_KEY_HERE') 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
 
 if (!supabase) {
-  console.warn("Supabase keys missing. App running in offline mode.");
+  console.warn("[Supabase] Keys missing. App running in offline mode.");
 }
 
 const CURRENT_USER_KEY = 'nature_nani_current_user';

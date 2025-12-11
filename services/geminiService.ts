@@ -7,13 +7,17 @@ let client: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 export const initializeGemini = () => {
-  // Try getting key from standard process.env (Vite define plugin)
+  // Try getting key from standard process.env (injected via Vite config)
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    console.error("API_KEY is missing from environment variables.");
+    console.error("[Gemini] API_KEY is missing. Check your Vercel Environment Variables.");
     return;
   }
+  
+  // Security Note: Don't log the full key in production, just the presence
+  console.log(`[Gemini] Initializing with Key: ${apiKey.substring(0, 4)}...`);
+  
   client = new GoogleGenAI({ apiKey });
 };
 
@@ -37,7 +41,7 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
     // Check if embedding exists and return it
     return response.embeddings?.[0]?.values || null;
   } catch (error) {
-    console.error("Embedding Error:", error);
+    console.error("[Gemini] Embedding Error:", error);
     // Fallback for demo/mock mode if API fails or model not available
     return null;
   }
@@ -75,43 +79,44 @@ export const startChat = async () => {
  * 5. Track source (RAG vs Search) for analytics.
  */
 export const sendMessageWithRAG = async function* (message: string) {
-  if (!chatSession) {
-    await startChat();
-  }
+  try {
+    if (!chatSession) {
+      await startChat();
+    }
 
-  if (!chatSession) throw new Error("Chat session not initialized");
+    if (!chatSession) throw new Error("Chat session not initialized");
 
-  // RAG STEP 1: Generate Embedding (Vector) for the question
-  // In a real app with your Supabase data, we need this vector to find matches.
-  const queryVector = await generateEmbedding(message);
+    // RAG STEP 1: Generate Embedding (Vector) for the question
+    // In a real app with your Supabase data, we need this vector to find matches.
+    const queryVector = await generateEmbedding(message);
 
-  // RAG STEP 2: Retrieval (Pass vector + text to backend)
-  // We pass the vector so the backend can query Supabase
-  const contextDocs = await searchVectorDatabase(message, queryVector);
-  
-  // RAG STEP 3: Augmentation
-  let augmentedMessage = message;
-  const hasRAG = contextDocs.length > 0;
+    // RAG STEP 2: Retrieval (Pass vector + text to backend)
+    // We pass the vector so the backend can query Supabase
+    const contextDocs = await searchVectorDatabase(message, queryVector);
+    
+    // RAG STEP 3: Augmentation
+    let augmentedMessage = message;
+    const hasRAG = contextDocs.length > 0;
 
-  if (hasRAG) {
-    // Construct context with Book Name citation
-    const contextString = contextDocs.map(d => {
-      const sourceInfo = d.book_name ? `${d.source} (Book: ${d.book_name})` : d.source;
-      return `[Source: ${sourceInfo}]: ${d.content}`;
-    }).join('\n\n');
+    if (hasRAG) {
+      // Construct context with Book Name citation
+      const contextString = contextDocs.map(d => {
+        const sourceInfo = d.book_name ? `${d.source} (Book: ${d.book_name})` : d.source;
+        return `[Source: ${sourceInfo}]: ${d.content}`;
+      }).join('\n\n');
 
-    augmentedMessage = `
+      augmentedMessage = `
 Context Information (Use this to inform your answer if relevant, but do not explicitly mention 'the provided context' unless necessary):
 ${contextString}
 
 User Query:
 ${message}
-    `;
-  }
+      `;
+    }
 
-  // RAG STEP 4: Generation (Streaming)
-  let usedSearch = false;
-  try {
+    // RAG STEP 4: Generation (Streaming)
+    let usedSearch = false;
+    
     const result = await chatSession.sendMessageStream({ message: augmentedMessage });
     
     for await (const chunk of result) {
@@ -147,8 +152,7 @@ ${message}
     logAnalyticsEvent(message, source, details);
 
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    // Rethrow to be caught by UI
-    throw error;
+    console.error("[Gemini] Chat Error:", error);
+    throw error; // Propagate to UI
   }
 };
