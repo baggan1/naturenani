@@ -1,7 +1,7 @@
 import { GoogleGenAI, Chat } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
-import { SearchSource } from "../types";
+import { SearchSource, RemedyDocument } from "../types";
 
 let client: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
@@ -78,7 +78,10 @@ export const startChat = async () => {
  * 4. Stream response.
  * 5. Track source (RAG vs Search) for analytics.
  */
-export const sendMessageWithRAG = async function* (message: string) {
+export const sendMessageWithRAG = async function* (
+  message: string, 
+  onSourcesFound?: (sources: RemedyDocument[]) => void
+) {
   try {
     if (!chatSession) {
       await startChat();
@@ -87,12 +90,15 @@ export const sendMessageWithRAG = async function* (message: string) {
     if (!chatSession) throw new Error("Chat session not initialized");
 
     // RAG STEP 1: Generate Embedding (Vector) for the question
-    // In a real app with your Supabase data, we need this vector to find matches.
     const queryVector = await generateEmbedding(message);
 
     // RAG STEP 2: Retrieval (Pass vector + text to backend)
-    // We pass the vector so the backend can query Supabase
     const contextDocs = await searchVectorDatabase(message, queryVector);
+    
+    // Callback to UI immediately
+    if (onSourcesFound) {
+      onSourcesFound(contextDocs);
+    }
     
     // RAG STEP 3: Augmentation
     let augmentedMessage = message;
@@ -120,8 +126,7 @@ ${message}
     const result = await chatSession.sendMessageStream({ message: augmentedMessage });
     
     for await (const chunk of result) {
-      // Check if Google Search Grounding was used in this chunk or response
-      // Note: Grounding metadata often appears in the candidate of the final chunks or aggregate
+      // Check if Google Search Grounding was used in this chunk
       if (chunk.candidates?.[0]?.groundingMetadata?.searchEntryPoint) {
         usedSearch = true;
       }

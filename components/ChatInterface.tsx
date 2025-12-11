@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, User, Bot, Lock, PlayCircle, FileText } from 'lucide-react';
-import { Message, QueryUsage } from '../types';
+import { Send, Sparkles, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { Message, QueryUsage, RemedyDocument } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
 
 interface ChatInterfaceProps {
@@ -54,20 +54,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // Check if we returned from a Google Login redirect with a pending message
     const savedPending = sessionStorage.getItem('nani_pending_message');
     if (savedPending && !isGuest) {
-      // User just logged in and had a message waiting
       handleAutoSend(savedPending, true);
       sessionStorage.removeItem('nani_pending_message');
     }
   }, [isGuest]);
 
-  // Handle sidebar history click
   useEffect(() => {
     if (initialMessage && initialMessage.trim() !== '') {
       handleAutoSend(initialMessage);
     }
   }, [initialMessage]);
 
-  // Lazy Auth Effect: If we have a pending message in state (from same session) and user logged in
   useEffect(() => {
     if (!isGuest && pendingMessage) {
       handleAutoSend(pendingMessage, true);
@@ -77,34 +74,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [isGuest, pendingMessage]);
 
   const handleAutoSend = async (text: string, isResuming = false) => {
-    // 1. Hook: Lazy Auth for Guests
     if (isGuest) {
       setPendingMessage(text);
-      sessionStorage.setItem('nani_pending_message', text); // Persist for redirect flow
-      
-      // Hook: Show the user's message immediately
+      sessionStorage.setItem('nani_pending_message', text);
       setMessages(prev => [...prev, {
         id: 'guest-' + Date.now(),
         role: 'user',
         content: text,
         timestamp: Date.now()
       }]);
-
-      // Visual: Fake "Thinking" state
       setIsLoading(true);
-
-      // Gate: Pop the modal after a short delay
       setTimeout(() => {
         setIsLoading(false);
         onShowAuth();
       }, 1200);
-      
       return;
     }
 
     if (isLoading || !hasAccess || (!usage.isUnlimited && usage.remaining <= 0)) return;
     
-    // 2. Add user message (Only if not resuming from a guest state where we already added it)
     if (!isResuming) {
       const userMessage: Message = {
         id: crypto.randomUUID(),
@@ -118,17 +106,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setIsLoading(true);
 
     try {
-      const stream = sendMessageWithRAG(text);
       const botMessageId = crypto.randomUUID();
       let fullContent = '';
       
-      // Add placeholder for bot message
+      // Initialize placeholder
       setMessages(prev => [...prev, {
         id: botMessageId,
         role: 'model',
         content: '',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        sources: [] 
       }]);
+
+      // Pass callback to get sources immediately
+      const stream = sendMessageWithRAG(text, (foundSources) => {
+        setMessages(prev => prev.map(msg => 
+          msg.id === botMessageId ? { ...msg, sources: foundSources } : msg
+        ));
+      });
 
       for await (const chunk of stream) {
         fullContent += chunk;
@@ -141,7 +136,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
     } catch (error: any) {
       console.error("Chat error", error);
-      // Remove the empty placeholder if it exists and is empty
       setMessages(prev => {
         const lastMsg = prev[prev.length - 1];
         if (lastMsg.role === 'model' && lastMsg.content === '') {
@@ -150,7 +144,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         return prev;
       });
 
-      // Show Error Message
       setMessages(prev => [...prev, {
         id: 'error-' + Date.now(),
         role: 'model',
@@ -189,7 +182,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <h2 className="text-2xl font-serif font-bold text-sage-900 mb-2">Daily Limit Reached</h2>
             <p className="text-gray-600 mb-6">
               You've used all {usage.limit} free queries for today in the Triage Plan. 
-              Upgrade to the Healer Plan for unlimited access to deep-dive conversations.
+              Upgrade to the Healer Plan for unlimited access.
             </p>
             <button 
               onClick={onUpgradeClick}
@@ -208,31 +201,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <div className="flex flex-col h-full bg-sage-50">
       <Header />
 
-      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
           <div key={msg.id} className="flex flex-col gap-2">
-            <div
-              className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-            >
-              <div className={`
-                w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center
-                ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}
-              `}>
+            <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}`}>
                 {msg.role === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
               </div>
               
-              <div className={`
-                max-w-[85%] rounded-2xl p-4 shadow-sm whitespace-pre-wrap leading-relaxed
-                ${msg.role === 'user' 
+              <div className={`max-w-[85%] rounded-2xl p-4 shadow-sm whitespace-pre-wrap leading-relaxed ${
+                msg.role === 'user' 
                   ? 'bg-earth-50 text-sage-900 rounded-tr-none border border-earth-200' 
-                  : 'bg-white text-gray-800 rounded-tl-none border border-sage-200'}
-              `}>
+                  : 'bg-white text-gray-800 rounded-tl-none border border-sage-200'
+              }`}>
                 {msg.content || <span className="animate-pulse text-gray-400">Consulting ancient texts...</span>}
               </div>
             </div>
 
-            {/* The Hook: Locked Content */}
+            {/* Credibility Box (Source) */}
+            {msg.role === 'model' && msg.sources && msg.sources.length > 0 && (
+              <SourceAccordion sources={msg.sources} />
+            )}
+
+            {/* Hook: Locked Content */}
             {!isGuest && !isSubscribed && msg.role === 'model' && msg.id !== 'welcome' && msg.content && (
               <div className="ml-11 max-w-[85%]">
                 <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-xl p-4 border border-gray-300 relative overflow-hidden group cursor-pointer" onClick={onUpgradeClick}>
@@ -246,15 +237,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     </div>
                     <div className="flex items-center gap-3 bg-white/50 p-2 rounded-lg">
                       <PlayCircle className="text-earth-600" size={20} />
-                      <span className="text-sm font-medium text-gray-700">5 Yoga Poses for this condition</span>
+                      <span className="text-sm font-medium text-gray-700">5 Yoga Poses</span>
                     </div>
-                    <div className="flex items-center gap-3 bg-white/50 p-2 rounded-lg">
-                      <FileText className="text-earth-600" size={20} />
-                      <span className="text-sm font-medium text-gray-700">3-Day Personalized Diet Plan</span>
-                    </div>
-                  </div>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 flex flex-col items-center">
-                    <Lock className="text-gray-500 mb-1" />
                   </div>
                 </div>
               </div>
@@ -278,7 +262,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
       <div className="p-4 bg-white border-t border-sage-200">
         {!isGuest && !isSubscribed && (
           <div className="flex justify-center mb-2">
@@ -291,7 +274,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         )}
         
         {isGuest && (
-          <div className="flex justify-center mb-2">
+           <div className="flex justify-center mb-2">
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-sage-50 text-sage-600 border border-sage-200 flex items-center gap-1">
               <Sparkles size={10} /> Get your first consultation free
             </span>
@@ -303,20 +286,60 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isGuest ? "Ask about any ailment (e.g. 'Migraine relief')..." : "Describe your ailment..."}
-            className="w-full bg-sage-50 border border-sage-200 rounded-xl px-4 py-3 pr-12 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:border-transparent resize-none h-[60px] scrollbar-hide"
+            placeholder={isGuest ? "Ask about any ailment..." : "Describe your ailment..."}
+            className="w-full bg-sage-50 border border-sage-200 rounded-xl px-4 py-3 pr-12 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[60px] scrollbar-hide"
           />
           <button
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-sage-600 text-white rounded-lg hover:bg-sage-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-sage-600 text-white rounded-lg hover:bg-sage-700 disabled:opacity-50 transition-colors"
           >
             <Send size={18} />
           </button>
         </div>
         <p className="text-center text-xs text-sage-400 mt-2">
-          AI can make mistakes. Please consult a doctor for serious medical advice.
+           Not a doctor. Advice based on RAG search from ancient Ayurveda & Naturopathy texts.
         </p>
+      </div>
+    </div>
+  );
+};
+
+// New Component for Credibility UI
+const SourceAccordion: React.FC<{ sources: RemedyDocument[] }> = ({ sources }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="ml-11 max-w-[85%]">
+      <div className="border border-sage-200 rounded-lg bg-sage-50 overflow-hidden">
+        <button 
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full flex items-center justify-between p-3 text-xs font-bold text-sage-700 hover:bg-sage-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <BookOpen size={14} className="text-earth-600" />
+            🌿 Credibility / Source
+          </div>
+          {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+        
+        {isOpen && (
+          <div className="p-3 bg-white border-t border-sage-200 space-y-2 text-xs">
+            {sources.map((doc, idx) => (
+              <div key={idx} className="flex flex-col gap-1 pb-2 border-b border-gray-100 last:border-0 last:pb-0">
+                <div className="flex justify-between font-semibold text-gray-800">
+                  <span>{doc.source} Source:</span>
+                </div>
+                <div className="text-gray-600 italic">
+                  {doc.book_name || 'General Texts'}
+                </div>
+              </div>
+            ))}
+            <div className="pt-2 text-[10px] text-gray-400 border-t border-gray-100 mt-2">
+              Medical Disclaimer: This advice is based on traditional texts and is not a substitute for consulting a physician.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

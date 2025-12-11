@@ -9,11 +9,21 @@ export interface User {
   created_at: string;
 }
 
+export interface RemedyDocument {
+  id: string;
+  condition: string;
+  content: string;
+  source: 'Ayurveda' | 'Naturopathy';
+  book_name?: string;
+  similarity?: number;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'model';
   content: string;
   timestamp: number;
+  sources?: RemedyDocument[]; // Added for Credibility UI
 }
 
 export interface SubscriptionPlan {
@@ -40,16 +50,6 @@ export interface AnalyticsEvent {
   source: SearchSource;
   timestamp: number;
   details?: string; // e.g., "Found 3 docs" or "Used Google Search"
-}
-
-// Simulated Database Row for Vector Search
-export interface RemedyDocument {
-  id: string;
-  condition: string;
-  content: string;
-  source: 'Ayurveda' | 'Naturopathy';
-  book_name?: string;
-  similarity?: number;
 }
 
 export interface QueryUsage {
