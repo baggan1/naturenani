@@ -194,12 +194,9 @@ export const sendOtp = async (email: string) => {
     return;
   }
   
-  // Note: If you want a 6-digit code, ensure your email template in Supabase uses {{ .Token }}
-  // and not the link variable.
   const { error } = await supabase.auth.signInWithOtp({ 
     email,
     options: {
-      // Ensure specific redirect is passed if Supabase requires it for magic link context
       emailRedirectTo: window.location.origin
     }
   });
@@ -210,7 +207,6 @@ export const sendOtp = async (email: string) => {
 // OTP Step 2: Verify Code
 export const verifyOtp = async (email: string, token: string): Promise<User> => {
   if (!supabase) {
-    // Mock for offline demo
     if (token === '123456') {
       return await signUpUser(email, "Guest User");
     }
@@ -226,27 +222,6 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
   if (error || !session?.user?.email) throw error || new Error("Verification failed");
 
   return await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
-};
-
-// Helper to get or create user in our custom table after Auth
-const getOrCreateUser = async (email: string, name: string): Promise<User> => {
-  if (!supabase) return signUpUser(email, name);
-
-  // Check if user exists in our custom table
-  const { data: existingUser } = await supabase
-    .from('app_users')
-    .select('*')
-    .eq('email', email)
-    .single();
-
-  if (existingUser) {
-    const user = existingUser as User;
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-    return user;
-  } else {
-    // New User -> Sign Up Flow
-    return await signUpUser(email, name);
-  }
 };
 
 export const signUpUser = async (email: string, name: string): Promise<User> => {
@@ -295,6 +270,56 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
 
   localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
   return user;
+};
+
+// Helper to get or create user in our custom table after Auth
+const getOrCreateUser = async (email: string, name: string): Promise<User> => {
+  if (!supabase) return signUpUser(email, name);
+
+  // Check if user exists in our custom table
+  const { data: existingUser } = await supabase
+    .from('app_users')
+    .select('*')
+    .eq('email', email)
+    .single();
+
+  if (existingUser) {
+    const user = existingUser as User;
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    return user;
+  } else {
+    // New User -> Sign Up Flow
+    return await signUpUser(email, name);
+  }
+};
+
+/**
+ * Listens for Supabase Auth state changes (specifically Session recovery after OAuth redirect)
+ */
+export const setupAuthListener = (onLogin: (user: User) => void) => {
+  if (!supabase) return () => {};
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // These events trigger on page load if the user is authenticated (via cookie/redirect)
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if (session?.user?.email) {
+        console.log("[Auth] Session detected:", event);
+        try {
+          const user = await getOrCreateUser(
+            session.user.email, 
+            session.user.user_metadata?.full_name || "User"
+          );
+          onLogin(user);
+        } catch (e) {
+          console.error("[Auth] Error syncing user:", e);
+        }
+      }
+    }
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
 };
 
 export const logoutUser = async () => {

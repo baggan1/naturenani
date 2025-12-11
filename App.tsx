@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { User, AppView, QueryUsage } from './types';
-import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit } from './services/backendService';
+import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit, setupAuthListener } from './services/backendService';
 import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
 import SubscriptionModal from './components/SubscriptionModal';
@@ -34,6 +34,7 @@ const App: React.FC = () => {
   useEffect(() => {
     warmupDatabase();
 
+    // 1. Check LocalStorage (Fast immediate check)
     const existingUser = getCurrentUser();
     if (existingUser) {
       setUser(existingUser);
@@ -41,7 +42,23 @@ const App: React.FC = () => {
       fetchHistory(existingUser);
       refreshUsage(existingUser);
     }
-    // Note: We no longer force <AuthForm> if user is null. We let them enter "Guest/Lazy" mode.
+
+    // 2. Listen for Supabase Session (OAuth Redirect / Persistent Session)
+    // This catches the user after they come back from Google Sign-In
+    const unsubscribe = setupAuthListener((loggedInUser) => {
+      // Avoid re-triggering if we already have this user
+      setUser(prev => {
+        if (prev?.id === loggedInUser.id) return prev;
+        
+        // If it's a new login event, trigger the success flow
+        handleAuthSuccess(loggedInUser);
+        return loggedInUser;
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    }
   }, []);
 
   const fetchHistory = async (currentUser: User) => {
