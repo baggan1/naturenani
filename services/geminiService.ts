@@ -7,11 +7,14 @@ let client: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 export const initializeGemini = () => {
-  if (!process.env.API_KEY) {
+  // Try getting key from standard process.env (Vite define plugin)
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
     console.error("API_KEY is missing from environment variables.");
     return;
   }
-  client = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  client = new GoogleGenAI({ apiKey });
 };
 
 /**
@@ -45,7 +48,10 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
  */
 export const startChat = async () => {
   if (!client) initializeGemini();
-  if (!client) throw new Error("Failed to initialize AI client");
+  
+  if (!client) {
+    throw new Error("Failed to initialize AI client. Missing API Key.");
+  }
 
   chatSession = client.chats.create({
     model: 'gemini-2.5-flash',
@@ -142,6 +148,7 @@ ${message}
 
   } catch (error) {
     console.error("Gemini API Error:", error);
-    yield "I apologize, but I'm having trouble connecting to my knowledge base right now. Please try again later.";
+    // Rethrow to be caught by UI
+    throw error;
   }
 };

@@ -139,8 +139,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       if (onMessageSent) onMessageSent();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat error", error);
+      // Remove the empty placeholder if it exists and is empty
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg.role === 'model' && lastMsg.content === '') {
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
+
+      // Show Error Message
+      setMessages(prev => [...prev, {
+        id: 'error-' + Date.now(),
+        role: 'model',
+        content: "I apologize, but I am unable to connect to the server right now. Please check if the API Key is configured correctly in your Vercel settings.",
+        timestamp: Date.now()
+      }]);
     } finally {
       setIsLoading(false);
     }
