@@ -206,7 +206,7 @@ const App: React.FC = () => {
               onClick={() => setShowPaywall(true)}
               className="w-full bg-earth-600 text-white text-xs font-bold py-2 rounded-lg mb-3 hover:bg-earth-700 transition-colors shadow-sm"
             >
-              Unlock Unlimited Access
+              Upgrade to Premium
             </button>
           )}
 
@@ -258,6 +258,7 @@ const App: React.FC = () => {
 
       <SubscriptionModal 
         isOpen={showPaywall} 
+        onClose={() => setShowPaywall(false)}
         isTrialExpired={subscriptionState.isTrialExpired}
         daysRemaining={subscriptionState.daysRemaining}
       />

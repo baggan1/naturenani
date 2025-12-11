@@ -108,7 +108,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
                   onClick={onUpgrade}
                   className="bg-earth-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-earth-700 transition-colors shadow-lg shadow-earth-200 whitespace-nowrap"
                 >
-                  Unlock Unlimited Access
+                  Upgrade to Premium
                 </button>
               </div>
             </div>

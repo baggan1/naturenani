@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText } from 'lucide-react';
+import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X } from 'lucide-react';
 import { initiateStripeCheckout, getCurrentUser } from '../services/backendService';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
+  onClose: () => void;
   isTrialExpired: boolean;
   daysRemaining: number;
 }
 
-const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, isTrialExpired, daysRemaining }) => {
+const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, isTrialExpired, daysRemaining }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -29,8 +30,19 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, isTrialEx
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-sage-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh] relative">
+        
+        {/* Header */}
         <div className="bg-sage-700 p-8 text-center relative overflow-hidden">
+          {/* Close Button */}
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 text-white/70 hover:text-white hover:bg-white/10 p-2 rounded-full transition-colors z-20"
+            aria-label="Close"
+          >
+            <X size={24} />
+          </button>
+
           {/* Decorative circles */}
           <div className="absolute top-0 left-0 w-32 h-32 bg-white/5 rounded-full -translate-x-16 -translate-y-16"></div>
           <div className="absolute bottom-0 right-0 w-24 h-24 bg-white/5 rounded-full translate-x-12 translate-y-12"></div>
@@ -39,7 +51,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, isTrialEx
             <Lock className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-serif font-bold text-white mb-2">
-            Unlock the Healer Tier
+            Upgrade to Premium
           </h2>
           <p className="text-sage-100 text-sm opacity-90">
             {isTrialExpired 
@@ -102,7 +114,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, isTrialEx
           >
             {isLoading ? <Loader2 className="animate-spin" /> : (
               <>
-                <CreditCard size={20} /> Unlock Unlimited Access
+                <CreditCard size={20} /> Upgrade to Premium
               </>
             )}
           </button>

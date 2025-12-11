@@ -347,7 +347,28 @@ export const checkSubscriptionStatus = async (user: User): Promise<{ hasAccess: 
 
 export const initiateStripeCheckout = async (user: User): Promise<void> => {
   console.log(`[Stripe] Initiating Checkout for ${user.email}...`);
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // 1. Check if we have a real Payment Link configured
+  const stripePaymentLink = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
+  
+  if (stripePaymentLink) {
+    // REAL MODE: Redirect to Stripe Payment Link
+    // We pass the email to pre-fill it for the user
+    const separator = stripePaymentLink.includes('?') ? '&' : '?';
+    window.location.href = `${stripePaymentLink}${separator}prefilled_email=${encodeURIComponent(user.email)}`;
+    return;
+  }
+
+  // 2. Mock Mode (For Demo Only)
+  console.warn("REACT_APP_STRIPE_PAYMENT_LINK is missing. Falling back to Mock Payment.");
+  
+  const confirmed = window.confirm(
+    "Setup Required: To make real payments work, add 'REACT_APP_STRIPE_PAYMENT_LINK' to your environment variables.\n\nClick OK to simulate a successful payment for now."
+  );
+
+  if (!confirmed) return;
+
+  await new Promise(resolve => setTimeout(resolve, 1500));
   
   if (!supabase) return;
 

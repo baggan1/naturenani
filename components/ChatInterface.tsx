@@ -179,7 +179,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               onClick={onUpgradeClick}
               className="w-full bg-earth-600 text-white py-3 rounded-xl font-bold hover:bg-earth-700 transition-colors shadow-lg shadow-earth-200"
             >
-              Unlock Unlimited Access
+              Upgrade to Premium
             </button>
             <p className="text-xs text-gray-400 mt-4">Resets in 24 hours.</p>
           </div>
@@ -221,7 +221,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div className="ml-11 max-w-[85%]">
                 <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-xl p-4 border border-gray-300 relative overflow-hidden group cursor-pointer" onClick={onUpgradeClick}>
                   <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="bg-earth-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg transform scale-95 group-hover:scale-100 transition-transform">Unlock Now</span>
+                    <span className="bg-earth-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg transform scale-95 group-hover:scale-100 transition-transform">Upgrade to Premium</span>
                   </div>
                   <div className="flex flex-col gap-3 blur-[2px] group-hover:blur-[3px] transition-all">
                     <div className="flex items-center gap-3 text-sage-800 font-serif font-bold">
