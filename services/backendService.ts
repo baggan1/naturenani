@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { User, RemedyDocument, SearchSource, QueryUsage } from '../types';
+import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan } from '../types';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 
 // Initialize Supabase Client
@@ -19,6 +19,7 @@ if (!supabase) {
 }
 
 const CURRENT_USER_KEY = 'nature_nani_current_user';
+const SAVED_PLANS_KEY = 'nature_nani_saved_plans';
 
 // --- Analytics Logging & Usage Limits ---
 
@@ -396,6 +397,97 @@ export const initiateStripeCheckout = async (user: User): Promise<void> => {
 export const createStripePortalSession = async () => {
   console.log("Redirecting to billing portal...");
   alert("Redirecting to Stripe Billing Portal to manage your Healer Plan...");
+};
+
+
+// --- Meal Plan Saving Logic ---
+
+export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): Promise<SavedMealPlan | null> => {
+  if (!plan || plan.length === 0) return null;
+
+  const newPlan: SavedMealPlan = {
+    id: crypto.randomUUID(),
+    user_id: user.id,
+    title,
+    created_at: new Date().toISOString(),
+    plan_data: plan
+  };
+
+  // 1. Try Saving to Supabase
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('nani_saved_plans')
+        .insert({
+          user_id: user.id,
+          title: title,
+          plan_data: plan // Stores as JSONB
+        })
+        .select()
+        .single();
+      
+      if (!error && data) {
+        return data as SavedMealPlan;
+      }
+      console.warn("Failed to save to Supabase:", error);
+    } catch (e) {
+      console.warn("Supabase Save Error:", e);
+    }
+  }
+
+  // 2. Fallback to LocalStorage
+  try {
+    const existing = localStorage.getItem(SAVED_PLANS_KEY);
+    const plans: SavedMealPlan[] = existing ? JSON.parse(existing) : [];
+    // Ensure we don't duplicate by ID if we are in mock mode
+    if (!plans.find(p => p.id === newPlan.id)) {
+      plans.unshift(newPlan);
+      localStorage.setItem(SAVED_PLANS_KEY, JSON.stringify(plans));
+    }
+    return newPlan;
+  } catch (e) {
+    console.error("Local Save Error", e);
+    return null;
+  }
+};
+
+export const getUserMealPlans = async (user: User): Promise<SavedMealPlan[]> => {
+  let plans: SavedMealPlan[] = [];
+
+  // 1. Get from Supabase
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('nani_saved_plans')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (data && !error) {
+        plans = data as SavedMealPlan[];
+      }
+    } catch (e) { console.warn("Fetch Plans Error", e); }
+  }
+
+  // 2. Merge with LocalStorage (for fallback/offline created plans)
+  try {
+    const local = localStorage.getItem(SAVED_PLANS_KEY);
+    if (local) {
+      const localPlans: SavedMealPlan[] = JSON.parse(local);
+      const userLocalPlans = localPlans.filter(p => p.user_id === user.id);
+      
+      // Deduplicate: If ID exists in Supabase result, prefer Supabase
+      const existingIds = new Set(plans.map(p => p.id));
+      userLocalPlans.forEach(p => {
+        if (!existingIds.has(p.id)) {
+          plans.push(p);
+        }
+      });
+    }
+  } catch(e) {}
+
+  // Sort by date desc
+  return plans.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
 

@@ -84,3 +84,26 @@ export interface YogaPose {
   benefit: string;
   color?: string;
 }
+
+// --- Diet & Kitchen Types ---
+
+export interface Meal {
+  type: string;
+  name: string;
+  ingredients: string[];
+  instructions: string;
+  image_keyword: string;
+}
+
+export interface DayPlan {
+  day: string;
+  meals: Meal[];
+}
+
+export interface SavedMealPlan {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  plan_data: DayPlan[];
+}
