@@ -8,6 +8,7 @@ import SubscriptionModal from './components/SubscriptionModal';
 import AccountSettings from './components/AccountSettings';
 import YogaStudio from './components/YogaStudio';
 import DietKitchen from './components/DietKitchen';
+import { Logo } from './components/Logo';
 import { LogOut, MessageSquare, History, UserCircle, Unlock, LogIn, Utensils, Flower2, Lock } from 'lucide-react';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from './utils/constants';
 
@@ -160,7 +161,7 @@ const App: React.FC = () => {
       <div className="hidden md:flex flex-col w-64 bg-white border-r border-sage-200 p-4 justify-between shadow-sm z-10">
         <div className="flex-1 overflow-y-auto scrollbar-hide">
           <div className="mb-6 px-2">
-             <img src="/logo.png" alt="Nature Nani" className="h-10 object-contain" />
+             <Logo className="h-10 w-10" textClassName="text-2xl" />
           </div>
           <div className="space-y-2">
             <button 

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Leaf, ArrowRight, Loader2, Mail, Lock, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { sendOtp, verifyOtp, signInWithGoogle } from '../services/backendService';
 import { User } from '../types';
+import { Logo } from './Logo';
 
 interface AuthFormProps {
   onAuthSuccess: (user: User) => void;
@@ -82,7 +83,9 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
         
         {/* Header */}
         <div className="bg-sage-50 p-6 text-center border-b border-sage-100">
-          <img src="/logo.png" alt="Nature Nani" className="h-16 mx-auto mb-3 object-contain" />
+          <div className="flex justify-center mb-4">
+            <Logo className="h-16 w-16" textClassName="text-3xl" />
+          </div>
           <h2 className="text-xl font-serif font-bold text-sage-900">
             Save Your Health Journey
           </h2>

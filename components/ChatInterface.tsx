@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
+import { Logo } from './Logo';
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -434,7 +435,7 @@ const SourceAccordion: React.FC<{ sources: RemedyDocument[] }> = ({ sources }) =
 const Header = () => (
   <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between">
     <div className="flex items-center gap-2">
-      <img src="/logo.png" alt="Nature Nani" className="h-8 object-contain" />
+      <Logo className="h-8 w-8" textClassName="text-lg" />
     </div>
     <div className="text-xs text-sage-500 bg-sage-100 px-2 py-1 rounded-full">
       Powered by Gemini 2.5
