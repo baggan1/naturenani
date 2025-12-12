@@ -4,8 +4,9 @@ import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan 
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 
 // Initialize Supabase Client
-// We use the variables injected via vite.config.ts
+// We rely on process.env which is polyfilled in vite.config.ts to support both VITE_ and standard env vars
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
 console.log(`[Supabase] Initializing... URL configured: ${!!supabaseUrl}`);
@@ -364,10 +365,10 @@ export const initiateStripeCheckout = async (user: User): Promise<void> => {
   }
 
   // 2. Mock Mode (For Demo Only)
-  console.warn("REACT_APP_STRIPE_PAYMENT_LINK is missing. Falling back to Mock Payment.");
+  console.warn("STRIPE_PAYMENT_LINK is missing. Falling back to Mock Payment.");
   
   const confirmed = window.confirm(
-    "Setup Required: To make real payments work, add 'REACT_APP_STRIPE_PAYMENT_LINK' to your environment variables.\n\nClick OK to simulate a successful payment for now."
+    "Setup Required: To make real payments work, add 'VITE_STRIPE_PAYMENT_LINK' to your environment variables.\n\nClick OK to simulate a successful payment for now."
   );
 
   if (!confirmed) return;

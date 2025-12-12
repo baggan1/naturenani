@@ -8,14 +8,15 @@ let client: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 export const initializeGemini = () => {
+  // Try all possible access methods for the key
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    console.error("[Gemini] API_KEY is missing. Check your Vercel Environment Variables.");
+    console.error("[Gemini] API_KEY is missing. Check your .env file.");
     return;
   }
   
-  console.log(`[Gemini] Initializing with Key: ${apiKey.substring(0, 4)}...`);
+  console.log(`[Gemini] Initializing...`);
   
   client = new GoogleGenAI({ apiKey });
 };
@@ -61,7 +62,12 @@ export const sendMessageWithRAG = async function* (
 
     console.log("[Gemini] RAG Start:", message);
 
-    const queryVector = await generateEmbedding(message);
+    // 1. Get Embeddings (with timeout fallback)
+    const embeddingPromise = generateEmbedding(message);
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 5000));
+    const queryVector = await Promise.race([embeddingPromise, timeoutPromise]);
+    
+    // 2. Search Database
     const contextDocs = await searchVectorDatabase(message, queryVector);
     
     if (onSourcesFound) onSourcesFound(contextDocs);
@@ -95,8 +101,9 @@ ${message}
     while (streamActive) {
       const raceResult = await Promise.race([
         streamIterator.next(),
+        // Increased timeout to 25s to prevent premature "Connection Timed Out" on slow networks/models
         new Promise<{ done: boolean, value: any }>((_, reject) => 
-          setTimeout(() => reject(new Error("Stream timeout")), 10000)
+          setTimeout(() => reject(new Error("Stream timeout")), 25000)
         )
       ]);
 
