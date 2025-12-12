@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Utensils, Calendar, ChefHat, Loader2, X, ShoppingCart, CheckSquare, Clock, Search, Save, Book, Check } from 'lucide-react';
+import { Utensils, ShoppingCart, Loader2, X, Search, Save, Book, ChefHat, Clock, Flame } from 'lucide-react';
 import { FeatureContext, SavedMealPlan, DayPlan, Meal } from '../types';
 import { generateDietPlan } from '../services/geminiService';
 import { saveMealPlan, getUserMealPlans, getCurrentUser } from '../services/backendService';
@@ -187,7 +187,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     >
                       <div className="h-48 overflow-hidden relative">
                         <img 
-                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.image_keyword)}%20food%20photography%20hd?width=400&height=300&nologo=true`} 
+                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.image_keyword + " cooked dish")}?width=400&height=300&nologo=true`} 
                           alt={meal.name}
                           onError={handleImageError}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -225,56 +225,74 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
 
       {/* Recipe Modal */}
       {selectedMeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl flex flex-col md:flex-row overflow-hidden">
+            
             <button 
               onClick={() => setSelectedMeal(null)}
-              className="absolute top-4 right-4 bg-white/80 hover:bg-white p-2 rounded-full z-10 transition-colors"
+              className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full z-20 transition-colors backdrop-blur-sm"
             >
-              <X size={24} className="text-gray-800" />
+              <X size={20} />
             </button>
-            
-            <div className="h-64 relative">
-              <img 
-                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.image_keyword)}%20food%20photography%20hd?width=800&height=400&nologo=true`}
+
+            {/* Left Side: Image (Desktop) / Top (Mobile) */}
+            <div className="w-full md:w-2/5 h-64 md:h-auto relative bg-gray-100">
+               <img 
+                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.image_keyword + " cooked dish presentation professional food photography")}?width=600&height=800&nologo=true`}
                 alt={selectedMeal.name}
-                onError={handleImageError}
                 className="w-full h-full object-cover"
+                onError={handleImageError}
               />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8 pt-24">
-                <span className="text-orange-300 font-bold text-sm tracking-widest uppercase mb-1 block">
-                  {selectedMeal.type}
-                </span>
-                <h2 className="text-3xl font-serif font-bold text-white">{selectedMeal.name}</h2>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-none"></div>
+              <div className="absolute bottom-4 left-4 text-white md:hidden">
+                 <span className="text-orange-300 font-bold text-xs uppercase tracking-wider">{selectedMeal.type}</span>
+                 <h2 className="text-2xl font-serif font-bold">{selectedMeal.name}</h2>
               </div>
             </div>
 
-            <div className="p-8">
-              <div className="flex items-start gap-8 flex-col md:flex-row">
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-                    <ChefHat size={20} className="text-orange-500" /> Instructions
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed bg-orange-50 p-4 rounded-xl border border-orange-100">
-                    {selectedMeal.instructions}
-                  </p>
-                </div>
-                
-                <div className="w-full md:w-64 bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Utensils size={18} className="text-sage-600" /> Ingredients
-                  </h3>
-                  <ul className="space-y-3">
-                    {selectedMeal.ingredients.map((ing, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                        <div className="w-1.5 h-1.5 rounded-full bg-sage-400 mt-1.5 shrink-0"></div>
-                        {ing}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+            {/* Right Side: Content */}
+            <div className="flex-1 p-6 md:p-10 bg-white overflow-y-auto">
+               <div className="hidden md:block mb-6">
+                  <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                    {selectedMeal.type}
+                  </span>
+                  <h2 className="text-3xl font-serif font-bold text-sage-900 mt-3">{selectedMeal.name}</h2>
+               </div>
+
+               <div className="flex flex-col gap-8">
+                  
+                  {/* Instructions Section */}
+                  <div>
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-3 text-lg">
+                      <ChefHat className="text-orange-500" size={24} /> 
+                      Preparation
+                    </h3>
+                    <div className="bg-orange-50/50 p-6 rounded-2xl border border-orange-100 text-gray-700 leading-relaxed italic text-lg font-serif relative">
+                       <span className="absolute top-2 left-3 text-4xl text-orange-200 font-serif leading-none">“</span>
+                       {selectedMeal.instructions}
+                       <span className="absolute bottom-[-10px] right-3 text-4xl text-orange-200 font-serif leading-none">”</span>
+                    </div>
+                  </div>
+
+                  {/* Ingredients Section */}
+                  <div>
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-3 text-lg">
+                      <Utensils className="text-sage-600" size={24} /> 
+                      Ingredients
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedMeal.ingredients.map((ing, i) => (
+                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:bg-sage-50 transition-colors">
+                          <div className="w-2 h-2 rounded-full bg-sage-400"></div>
+                          <span className="text-gray-700 font-medium">{ing}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+               </div>
             </div>
+
           </div>
         </div>
       )}
