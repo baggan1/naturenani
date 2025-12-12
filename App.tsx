@@ -295,7 +295,8 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 h-full relative">
-        {currentView === AppView.CHAT && (
+        {/* We keep ChatInterface mounted but hidden to persist history and scroll position */}
+        <div className={`h-full w-full ${currentView === AppView.CHAT ? 'block' : 'hidden'}`}>
           <ChatInterface 
             messages={chatMessages}
             setMessages={setChatMessages}
@@ -310,7 +311,7 @@ const App: React.FC = () => {
             onShowAuth={handleShowAuth}
             onNavigateToFeature={handleFeatureHandoff}
           />
-        )}
+        </div>
         
         {currentView === AppView.ACCOUNT && (
           user ? (
