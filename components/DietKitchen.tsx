@@ -187,7 +187,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     >
                       <div className="h-48 overflow-hidden relative">
                         <img 
-                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.name + " " + meal.image_keyword + " ayurvedic food cooked dish")}?width=400&height=300&nologo=true`} 
+                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.name + " " + meal.ingredients.slice(0, 3).join(" ") + " professional food photography 4k")}?width=400&height=300&nologo=true`} 
                           alt={meal.name}
                           onError={handleImageError}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -230,7 +230,8 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
             
             <button 
               onClick={() => setSelectedMeal(null)}
-              className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full z-20 transition-colors backdrop-blur-md border border-white/30 shadow-lg"
+              className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full z-20 transition-colors border border-white/20 shadow-lg"
+              title="Close Recipe"
             >
               <X size={20} />
             </button>
@@ -238,7 +239,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
             {/* Left Side: Image (Desktop) / Top (Mobile) */}
             <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-gray-100">
                <img 
-                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.name + " " + selectedMeal.image_keyword + " cooked dish presentation professional food photography 4k")}?width=800&height=1000&nologo=true`}
+                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.name + " " + selectedMeal.ingredients.slice(0,3).join(" ") + " cooked dish professional food photography 4k")}?width=800&height=1000&nologo=true`}
                 alt={selectedMeal.name}
                 className="w-full h-full object-cover"
                 onError={handleImageError}
@@ -275,7 +276,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     </h3>
                     <div className="bg-orange-50/50 p-6 rounded-2xl border border-orange-100 text-gray-700 leading-relaxed italic text-lg font-serif relative">
                        <span className="absolute top-2 left-3 text-5xl text-orange-200 font-serif leading-none font-black opacity-50">“</span>
-                       <p className="relative z-10 pl-4">{selectedMeal.instructions}</p>
+                       <p className="relative z-10 pl-4 whitespace-pre-line">{selectedMeal.instructions}</p>
                        <span className="absolute bottom-[-20px] right-4 text-5xl text-orange-200 font-serif leading-none font-black opacity-50 transform rotate-180">“</span>
                     </div>
                   </div>

@@ -189,7 +189,7 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
     For each meal, provide:
     - name: The name of the dish
     - ingredients: A list of main ingredient strings
-    - instructions: A short 1-sentence cooking instruction
+    - instructions: Detailed step-by-step cooking instructions (at least 3 steps).
     - image_keyword: A single english word to search for an image (e.g. "oatmeal", "soup", "salad")
   `;
 
