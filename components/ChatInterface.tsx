@@ -51,6 +51,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     scrollToBottom();
   }, [messages, isLoading]); 
 
+  // --- Safety Timeout Logic ---
+  // If isLoading stays true for more than 30 seconds, force reset
+  useEffect(() => {
+    let safetyTimer: NodeJS.Timeout;
+    if (isLoading) {
+      safetyTimer = setTimeout(() => {
+        setIsLoading(false);
+        setMessages(prev => {
+          // If the last message is empty (stuck bot msg), error it out
+          const last = prev[prev.length - 1];
+          if (last.role === 'model' && last.content === '') {
+             return [...prev.slice(0, -1), {
+               id: 'timeout-err',
+               role: 'model',
+               content: 'I apologize, the connection timed out. Please try asking again.',
+               timestamp: Date.now()
+             }];
+          }
+          return prev;
+        });
+      }, 30000); // 30s timeout
+    }
+    return () => clearTimeout(safetyTimer);
+  }, [isLoading]);
+
+
   // --- Consolidated Session Resume Logic ---
   useEffect(() => {
     // 1. Check for pending message from OAuth Redirect (SessionStorage)

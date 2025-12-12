@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, RemedyDocument, SearchSource, QueryUsage } from '../types';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
@@ -129,22 +130,24 @@ export const searchVectorDatabase = async (queryText: string, queryEmbedding: nu
 
     let { data, error } = await performSearch();
 
+    // Handle Timeouts - Reduced retry wait time from 4s to 1s for better UX
     if (error && error.code === '57014') {
-      console.warn("Database timeout. Retrying in 4s...");
-      await new Promise(resolve => setTimeout(resolve, 4000));
+      console.warn("Database timeout. Retrying in 1s...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
       const retry = await performSearch();
       data = retry.data;
       error = retry.error;
     }
 
     if (error) {
+      console.error("[Supabase] RAG Search Error:", error);
       if (error.code === '57014') {
         console.warn("Supabase Search Timeout. Falling back to offline mode.");
-        console.warn("FIX: Run `ALTER FUNCTION match_documents_gemini(vector, float, int) SET statement_timeout = '10000ms';` in SQL Editor.");
       }
-      else if (error.code === '42501') console.error("RLS Policy Error. Check Supabase settings.");
       return getMockRemedies(queryText);
     }
+    
+    console.log(`[RAG] Found ${data?.length || 0} docs`);
 
     return (data || []).map((doc: any) => ({
       id: doc.id.toString(),
@@ -155,6 +158,7 @@ export const searchVectorDatabase = async (queryText: string, queryEmbedding: nu
       similarity: doc.similarity
     }));
   } catch (e) {
+    console.error("[Supabase] Unexpected RAG Error", e);
     return getMockRemedies(queryText);
   }
 };

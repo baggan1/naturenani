@@ -25,6 +25,7 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
   if (!client) return null;
 
   try {
+    // FIX: Use 'contents' (singular/plural property name in updated SDK) for embedding request
     const response = await client.models.embedContent({
       model: 'text-embedding-004',
       contents: { parts: [{ text }] }
@@ -89,8 +90,25 @@ ${message}
     
     const result = await chatSession.sendMessageStream({ message: augmentedMessage });
     
+    // Safety Timeout: If stream doesn't yield within 10 seconds, throw error
+    const streamIterator = result[Symbol.asyncIterator]();
+    let streamActive = true;
     let chunkCount = 0;
-    for await (const chunk of result) {
+
+    while (streamActive) {
+      const raceResult = await Promise.race([
+        streamIterator.next(),
+        new Promise<{ done: boolean, value: any }>((_, reject) => 
+          setTimeout(() => reject(new Error("Stream timeout")), 10000)
+        )
+      ]);
+
+      if (raceResult.done) {
+        streamActive = false;
+        break;
+      }
+
+      const chunk = raceResult.value;
       if (chunk.text) {
         chunkCount++;
         yield chunk.text;
