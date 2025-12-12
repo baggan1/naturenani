@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Utensils, ShoppingCart, Loader2, X, Search, Save, Book, ChefHat, Clock, Flame } from 'lucide-react';
+import { Utensils, ShoppingCart, Loader2, X, Search, Save, Book, ChefHat, Clock, Flame, Check, ArrowRight } from 'lucide-react';
 import { FeatureContext, SavedMealPlan, DayPlan, Meal } from '../types';
 import { generateDietPlan } from '../services/geminiService';
 import { saveMealPlan, getUserMealPlans, getCurrentUser } from '../services/backendService';
@@ -187,7 +187,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     >
                       <div className="h-48 overflow-hidden relative">
                         <img 
-                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.image_keyword + " cooked dish")}?width=400&height=300&nologo=true`} 
+                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.name + " " + meal.image_keyword + " ayurvedic food cooked dish")}?width=400&height=300&nologo=true`} 
                           alt={meal.name}
                           onError={handleImageError}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -226,65 +226,73 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
       {/* Recipe Modal */}
       {selectedMeal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl flex flex-col md:flex-row overflow-hidden">
+          <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl flex flex-col md:flex-row overflow-hidden">
             
             <button 
               onClick={() => setSelectedMeal(null)}
-              className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full z-20 transition-colors backdrop-blur-sm"
+              className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white p-2 rounded-full z-20 transition-colors backdrop-blur-md border border-white/30 shadow-lg"
             >
               <X size={20} />
             </button>
 
             {/* Left Side: Image (Desktop) / Top (Mobile) */}
-            <div className="w-full md:w-2/5 h-64 md:h-auto relative bg-gray-100">
+            <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-gray-100">
                <img 
-                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.image_keyword + " cooked dish presentation professional food photography")}?width=600&height=800&nologo=true`}
+                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.name + " " + selectedMeal.image_keyword + " cooked dish presentation professional food photography 4k")}?width=800&height=1000&nologo=true`}
                 alt={selectedMeal.name}
                 className="w-full h-full object-cover"
                 onError={handleImageError}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-none"></div>
-              <div className="absolute bottom-4 left-4 text-white md:hidden">
-                 <span className="text-orange-300 font-bold text-xs uppercase tracking-wider">{selectedMeal.type}</span>
-                 <h2 className="text-2xl font-serif font-bold">{selectedMeal.name}</h2>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent md:hidden"></div>
+              <div className="absolute bottom-4 left-4 text-white md:hidden p-4">
+                 <span className="text-orange-300 font-bold text-xs uppercase tracking-wider bg-black/30 px-2 py-1 rounded-md backdrop-blur-sm">{selectedMeal.type}</span>
+                 <h2 className="text-3xl font-serif font-bold mt-2 leading-tight shadow-black drop-shadow-md">{selectedMeal.name}</h2>
               </div>
             </div>
 
             {/* Right Side: Content */}
-            <div className="flex-1 p-6 md:p-10 bg-white overflow-y-auto">
-               <div className="hidden md:block mb-6">
-                  <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                    {selectedMeal.type}
-                  </span>
-                  <h2 className="text-3xl font-serif font-bold text-sage-900 mt-3">{selectedMeal.name}</h2>
+            <div className="flex-1 p-8 md:p-12 bg-white overflow-y-auto">
+               <div className="hidden md:block mb-8">
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                      {selectedMeal.type}
+                    </span>
+                    <div className="flex items-center gap-3 text-gray-400 text-xs font-medium border-l border-gray-200 pl-3">
+                       <div className="flex items-center gap-1"><Clock size={14} /> <span>20 min prep</span></div>
+                       <div className="flex items-center gap-1"><Flame size={14} /> <span>350 kcal</span></div>
+                    </div>
+                  </div>
+                  <h2 className="text-4xl font-serif font-bold text-sage-900 leading-tight">{selectedMeal.name}</h2>
                </div>
 
                <div className="flex flex-col gap-8">
                   
                   {/* Instructions Section */}
                   <div>
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-3 text-lg">
-                      <ChefHat className="text-orange-500" size={24} /> 
-                      Preparation
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4 text-lg border-b border-gray-100 pb-2">
+                      <ChefHat className="text-orange-500" size={20} /> 
+                      Preparation Guide
                     </h3>
                     <div className="bg-orange-50/50 p-6 rounded-2xl border border-orange-100 text-gray-700 leading-relaxed italic text-lg font-serif relative">
-                       <span className="absolute top-2 left-3 text-4xl text-orange-200 font-serif leading-none">“</span>
-                       {selectedMeal.instructions}
-                       <span className="absolute bottom-[-10px] right-3 text-4xl text-orange-200 font-serif leading-none">”</span>
+                       <span className="absolute top-2 left-3 text-5xl text-orange-200 font-serif leading-none font-black opacity-50">“</span>
+                       <p className="relative z-10 pl-4">{selectedMeal.instructions}</p>
+                       <span className="absolute bottom-[-20px] right-4 text-5xl text-orange-200 font-serif leading-none font-black opacity-50 transform rotate-180">“</span>
                     </div>
                   </div>
 
                   {/* Ingredients Section */}
                   <div>
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-3 text-lg">
-                      <Utensils className="text-sage-600" size={24} /> 
-                      Ingredients
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4 text-lg border-b border-gray-100 pb-2">
+                      <Utensils className="text-sage-600" size={20} /> 
+                      Ingredients Checklist
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       {selectedMeal.ingredients.map((ing, i) => (
-                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 hover:bg-sage-50 transition-colors">
-                          <div className="w-2 h-2 rounded-full bg-sage-400"></div>
-                          <span className="text-gray-700 font-medium">{ing}</span>
+                        <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-sage-200 transition-colors group">
+                          <div className="w-6 h-6 rounded-full border-2 border-sage-200 flex items-center justify-center text-white group-hover:bg-sage-100 group-hover:border-sage-300 group-hover:text-sage-500 transition-all">
+                            <Check size={14} />
+                          </div>
+                          <span className="text-gray-700 font-medium text-lg">{ing}</span>
                         </div>
                       ))}
                     </div>

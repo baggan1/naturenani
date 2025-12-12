@@ -49,7 +49,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   // --- Safety Timeout Logic ---
   useEffect(() => {
-    let safetyTimer: NodeJS.Timeout;
+    let safetyTimer: ReturnType<typeof setTimeout>;
     if (isLoading) {
       safetyTimer = setTimeout(() => {
         setIsLoading(false);
