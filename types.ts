@@ -83,6 +83,9 @@ export interface YogaPose {
   duration: string;
   benefit: string;
   color?: string;
+  instructions: string[];
+  breathing: string;
+  reps: string;
 }
 
 // --- Diet & Kitchen Types ---

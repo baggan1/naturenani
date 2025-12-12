@@ -98,22 +98,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
 
   const parseMessageContent = (rawText: string): { visibleText: string, metadata?: RecommendationMetadata } => {
-    // Regex to find JSON block enclosed in triple backticks or plain JSON at end
+    // 1. Try finding JSON within code blocks (strict)
     const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendation"[\s\S]*?\})\s*```/;
-    const match = rawText.match(jsonBlockRegex);
+    let match = rawText.match(jsonBlockRegex);
+    let jsonString = '';
+    let cleanText = rawText;
 
     if (match && match[1]) {
+      jsonString = match[1];
+      cleanText = rawText.replace(match[0], '').trim();
+    } else {
+      // 2. Fallback: Try finding JSON at the end of the string without code blocks (permissive)
+      // Look for { ... "recommendation": ... } pattern at the end
+      const jsonLooseRegex = /(\{s*"recommendation"[\s\S]*?\})$/;
+      match = rawText.match(jsonLooseRegex);
+      if (match && match[1]) {
+        jsonString = match[1];
+        cleanText = rawText.replace(match[0], '').trim();
+      }
+    }
+
+    if (jsonString) {
       try {
-        const data = JSON.parse(match[1]);
+        const data = JSON.parse(jsonString);
         if (data.recommendation) {
-          // Remove the JSON block from the text shown to user
-          const cleanText = rawText.replace(match[0], '').trim();
           return { visibleText: cleanText, metadata: data.recommendation };
         }
       } catch (e) {
         console.warn("Failed to parse recommendation JSON", e);
       }
     }
+    
     return { visibleText: rawText };
   };
 
@@ -436,9 +451,6 @@ const Header = () => (
   <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between">
     <div className="flex items-center gap-2">
       <Logo className="h-8 w-8" textClassName="text-lg" />
-    </div>
-    <div className="text-xs text-sage-500 bg-sage-100 px-2 py-1 rounded-full">
-      Powered by Gemini 2.5
     </div>
   </div>
 );

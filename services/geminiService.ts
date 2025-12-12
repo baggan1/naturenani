@@ -25,7 +25,6 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
   if (!client) return null;
 
   try {
-    // FIX: Use 'contents' (singular/plural property name in updated SDK) for embedding request
     const response = await client.models.embedContent({
       model: 'text-embedding-004',
       contents: { parts: [{ text }] }
@@ -46,7 +45,6 @@ export const startChat = async () => {
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       temperature: 0.7,
-      // tools: [{ googleSearch: {} }] // Disabled to prevent empty streams/latency
     },
   });
 
@@ -90,7 +88,6 @@ ${message}
     
     const result = await chatSession.sendMessageStream({ message: augmentedMessage });
     
-    // Safety Timeout: If stream doesn't yield within 10 seconds, throw error
     const streamIterator = result[Symbol.asyncIterator]();
     let streamActive = true;
     let chunkCount = 0;
@@ -137,8 +134,9 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
   if (!client) throw new Error("Client not initialized");
 
   const prompt = `
-    The user has a condition ID: "${ailmentId}".
+    The user has a condition ID or Query: "${ailmentId}".
     Generate a list of 3-5 specific Yoga poses to help this condition.
+    Provide detailed step-by-step instructions, breathing patterns, and repetitions.
   `;
 
   try {
@@ -157,9 +155,16 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
               english: { type: Type.STRING },
               duration: { type: Type.STRING },
               benefit: { type: Type.STRING },
-              color: { type: Type.STRING, description: "Tailwind CSS classes for color, e.g. bg-blue-100 text-blue-800" }
+              color: { type: Type.STRING, description: "Tailwind CSS classes for color, e.g. bg-blue-100 text-blue-800" },
+              instructions: { 
+                type: Type.ARRAY, 
+                items: { type: Type.STRING },
+                description: "List of step-by-step instructions"
+              },
+              breathing: { type: Type.STRING, description: "Breathing guidance" },
+              reps: { type: Type.STRING, description: "Number of repetitions or duration details" }
             },
-            required: ["id", "name", "english", "duration", "benefit"]
+            required: ["id", "name", "english", "duration", "benefit", "instructions", "breathing", "reps"]
           }
         }
       }
