@@ -248,7 +248,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return (
         <>
           <div>{mainText}</div>
-          <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-400 leading-normal italic">
+          <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-500 leading-relaxed italic">
             {disclaimerText}
           </div>
         </>
