@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -18,12 +19,20 @@ export interface RemedyDocument {
   similarity?: number;
 }
 
+// Metadata parsed from the LLM JSON block
+export interface RecommendationMetadata {
+  type: 'YOGA' | 'DIET';
+  id: string;
+  title: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'model';
-  content: string;
+  content: string; // The visible text
   timestamp: number;
-  sources?: RemedyDocument[]; // Added for Credibility UI
+  sources?: RemedyDocument[]; 
+  recommendation?: RecommendationMetadata; // The hidden app intent
 }
 
 export interface SubscriptionPlan {
@@ -39,7 +48,9 @@ export enum AppView {
   CHAT = 'CHAT',
   PROFILE = 'PROFILE',
   ANALYTICS = 'ANALYTICS',
-  ACCOUNT = 'ACCOUNT'
+  ACCOUNT = 'ACCOUNT',
+  YOGA = 'YOGA', 
+  DIET = 'DIET'
 }
 
 export type SearchSource = 'RAG' | 'GoogleSearch' | 'Hybrid' | 'AI';
@@ -49,7 +60,7 @@ export interface AnalyticsEvent {
   query: string;
   source: SearchSource;
   timestamp: number;
-  details?: string; // e.g., "Found 3 docs" or "Used Google Search"
+  details?: string;
 }
 
 export interface QueryUsage {
@@ -57,4 +68,19 @@ export interface QueryUsage {
   limit: number;
   remaining: number;
   isUnlimited: boolean;
+}
+
+// Data passed from Chat to Premium Views
+export interface FeatureContext {
+  id: string; // e.g., "LOWER_BACK_01"
+  title: string;
+}
+
+export interface YogaPose {
+  id: number;
+  name: string;
+  english: string;
+  duration: string;
+  benefit: string;
+  color?: string;
 }

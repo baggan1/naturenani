@@ -1,16 +1,23 @@
+
 import React, { useEffect, useState } from 'react';
-import { User, AppView, QueryUsage } from './types';
+import { User, AppView, QueryUsage, FeatureContext } from './types';
 import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit, setupAuthListener } from './services/backendService';
 import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
 import SubscriptionModal from './components/SubscriptionModal';
 import AccountSettings from './components/AccountSettings';
-import { LogOut, MessageSquare, History, UserCircle, Unlock, LogIn } from 'lucide-react';
+import YogaStudio from './components/YogaStudio';
+import DietKitchen from './components/DietKitchen';
+import { LogOut, MessageSquare, History, UserCircle, Unlock, LogIn, Utensils, Flower2, Lock } from 'lucide-react';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<AppView>(AppView.CHAT);
+  
+  // Hand-off State: Passes ID from Chat to Premium Feature
+  const [featureContext, setFeatureContext] = useState<FeatureContext | null>(null);
+
   const [subscriptionState, setSubscriptionState] = useState({
     hasAccess: false,
     daysRemaining: TRIAL_DAYS,
@@ -22,7 +29,6 @@ const App: React.FC = () => {
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [triggerQuery, setTriggerQuery] = useState<string>('');
   
-  // Usage tracking for Triage Plan
   const [queryUsage, setQueryUsage] = useState<QueryUsage>({
     count: 0,
     limit: DAILY_QUERY_LIMIT,
@@ -30,11 +36,9 @@ const App: React.FC = () => {
     isUnlimited: false
   });
 
-  // Initialize App
   useEffect(() => {
     warmupDatabase();
 
-    // 1. Check LocalStorage (Fast immediate check)
     const existingUser = getCurrentUser();
     if (existingUser) {
       setUser(existingUser);
@@ -43,14 +47,9 @@ const App: React.FC = () => {
       refreshUsage(existingUser);
     }
 
-    // 2. Listen for Supabase Session (OAuth Redirect / Persistent Session)
-    // This catches the user after they come back from Google Sign-In
     const unsubscribe = setupAuthListener((loggedInUser) => {
-      // Avoid re-triggering if we already have this user
       setUser(prev => {
         if (prev?.id === loggedInUser.id) return prev;
-        
-        // If it's a new login event, trigger the success flow
         handleAuthSuccess(loggedInUser);
         return loggedInUser;
       });
@@ -102,7 +101,6 @@ const App: React.FC = () => {
         remaining: DAILY_QUERY_LIMIT,
         isUnlimited: false
     });
-    // Don't force redirect, just reload to guest state
     window.location.reload();
   };
 
@@ -112,15 +110,30 @@ const App: React.FC = () => {
   };
 
   const handleMessageSent = () => {
-    setTriggerQuery(''); // Reset trigger
+    setTriggerQuery(''); 
     if (user) {
-      fetchHistory(user); // Refresh sidebar
-      refreshUsage(user); // Update limit counter
+      fetchHistory(user); 
+      refreshUsage(user); 
     }
   };
 
   const handleShowAuth = () => {
     setShowAuthModal(true);
+  };
+
+  const handlePremiumNav = (view: AppView) => {
+    if (user && user.is_subscribed) {
+      setCurrentView(view);
+      setFeatureContext(null); // Clear context if navigating manually
+    } else {
+      setShowPaywall(true);
+    }
+  };
+
+  // Called from Chat Interface to handoff to premium feature
+  const handleFeatureHandoff = (view: AppView, id: string, title: string) => {
+    setFeatureContext({ id, title });
+    setCurrentView(view);
   };
 
   return (
@@ -142,6 +155,39 @@ const App: React.FC = () => {
               <MessageSquare size={18} />
               Consultation
             </button>
+            
+            <div className="pt-4 pb-2">
+              <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Premium Tools</p>
+              
+              <button 
+                onClick={() => handlePremiumNav(AppView.YOGA)}
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${
+                  currentView === AppView.YOGA
+                    ? 'bg-sage-100 text-sage-800' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                   <Flower2 size={18} className="text-pink-500" /> Yoga Studio
+                </div>
+                {!user?.is_subscribed && <Lock size={12} className="text-gray-400 group-hover:text-earth-600" />}
+              </button>
+              
+              <button 
+                onClick={() => handlePremiumNav(AppView.DIET)}
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${
+                  currentView === AppView.DIET
+                    ? 'bg-sage-100 text-sage-800' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                   <Utensils size={18} className="text-orange-500" /> Ayurvedic Kitchen
+                </div>
+                {!user?.is_subscribed && <Lock size={12} className="text-gray-400 group-hover:text-earth-600" />}
+              </button>
+            </div>
+
             <button 
               onClick={() => {
                 if (user) setCurrentView(AppView.ACCOUNT);
@@ -158,7 +204,6 @@ const App: React.FC = () => {
             </button>
           </div>
 
-          {/* Search History Section */}
           <div className="mt-8">
             <h3 className="text-xs font-bold text-sage-400 uppercase tracking-wider mb-3 px-2 flex items-center gap-1">
               <History size={12} /> Recent Topics
@@ -230,10 +275,10 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 h-full relative">
-        {currentView === AppView.CHAT ? (
+        {currentView === AppView.CHAT && (
           <ChatInterface 
             onTrialEnd={() => setShowPaywall(true)}
-            hasAccess={user ? subscriptionState.hasAccess : true} // Allow guests to type, block on send
+            hasAccess={user ? subscriptionState.hasAccess : true}
             initialMessage={triggerQuery}
             onMessageSent={handleMessageSent}
             usage={queryUsage}
@@ -241,15 +286,22 @@ const App: React.FC = () => {
             onUpgradeClick={() => setShowPaywall(true)}
             isGuest={!user}
             onShowAuth={handleShowAuth}
+            onNavigateToFeature={handleFeatureHandoff}
           />
-        ) : (
+        )}
+        
+        {currentView === AppView.ACCOUNT && (
           user ? (
             <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={handleLogout} />
           ) : <div className="p-10 text-center">Please log in to view account settings.</div>
         )}
+
+        {/* Premium Views with Context */}
+        {currentView === AppView.YOGA && <YogaStudio activeContext={featureContext} />}
+        {currentView === AppView.DIET && <DietKitchen activeContext={featureContext} />}
+
       </div>
 
-      {/* Modals */}
       <AuthForm 
         isOpen={showAuthModal}
         onAuthSuccess={handleAuthSuccess}

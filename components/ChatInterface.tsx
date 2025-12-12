@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
-import { Message, QueryUsage, RemedyDocument } from '../types';
+import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
 
 interface ChatInterfaceProps {
@@ -13,6 +14,7 @@ interface ChatInterfaceProps {
   onUpgradeClick: () => void;
   isGuest: boolean;
   onShowAuth: () => void;
+  onNavigateToFeature: (view: AppView, contextId: string, contextTitle: string) => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -24,7 +26,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isSubscribed,
   onUpgradeClick,
   isGuest,
-  onShowAuth
+  onShowAuth,
+  onNavigateToFeature
 }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -37,9 +40,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Lazy Auth State
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  // We remove local pendingMessage state to avoid conflicts with sessionStorage
+  const sentInitialRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,49 +51,76 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     scrollToBottom();
   }, [messages, isLoading]); 
 
-  // --- Session Persistence for Google OAuth Redirects ---
+  // --- Consolidated Session Resume Logic ---
   useEffect(() => {
-    // Check if we returned from a Google Login redirect with a pending message
-    const savedPending = sessionStorage.getItem('nani_pending_message');
-    if (savedPending && !isGuest) {
-      handleAutoSend(savedPending, true);
-      sessionStorage.removeItem('nani_pending_message');
-    }
-  }, [isGuest]);
+    // 1. Check for pending message from OAuth Redirect (SessionStorage)
+    const storedPending = sessionStorage.getItem('nani_pending_message');
+    
+    // 2. Check for initialMessage prop (from Sidebar history click)
+    const hasInitialProp = initialMessage && initialMessage.trim() !== '';
 
-  useEffect(() => {
-    if (initialMessage && initialMessage.trim() !== '') {
-      handleAutoSend(initialMessage);
+    if (!isGuest && !sentInitialRef.current) {
+      if (storedPending) {
+        sentInitialRef.current = true;
+        sessionStorage.removeItem('nani_pending_message');
+        handleAutoSend(storedPending, true);
+      } else if (hasInitialProp) {
+        sentInitialRef.current = true;
+        handleAutoSend(initialMessage!, false);
+      }
     }
-  }, [initialMessage]);
+    
+    // Reset ref if views change significantly, though usually unnecessary for this flow
+    return () => { sentInitialRef.current = false; };
+  }, [isGuest, initialMessage]);
 
-  useEffect(() => {
-    if (!isGuest && pendingMessage) {
-      handleAutoSend(pendingMessage, true);
-      setPendingMessage(null);
-      sessionStorage.removeItem('nani_pending_message');
+
+  const parseMessageContent = (rawText: string): { visibleText: string, metadata?: RecommendationMetadata } => {
+    // Regex to find JSON block enclosed in triple backticks or plain JSON at end
+    const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendation"[\s\S]*?\})\s*```/;
+    const match = rawText.match(jsonBlockRegex);
+
+    if (match && match[1]) {
+      try {
+        const data = JSON.parse(match[1]);
+        if (data.recommendation) {
+          // Remove the JSON block from the text shown to user
+          const cleanText = rawText.replace(match[0], '').trim();
+          return { visibleText: cleanText, metadata: data.recommendation };
+        }
+      } catch (e) {
+        console.warn("Failed to parse recommendation JSON", e);
+      }
     }
-  }, [isGuest, pendingMessage]);
+    return { visibleText: rawText };
+  };
 
   const handleAutoSend = async (text: string, isResuming = false) => {
+    // Prevent duplicate sending if already loading
+    if (isLoading) return;
+
     if (isGuest) {
-      setPendingMessage(text);
+      // Store in SessionStorage (survives page reload/redirect)
       sessionStorage.setItem('nani_pending_message', text);
+      
+      // Optimistically show user message before forcing auth
       setMessages(prev => [...prev, {
         id: 'guest-' + Date.now(),
         role: 'user',
         content: text,
         timestamp: Date.now()
       }]);
+      
       setIsLoading(true);
+      // Short delay to simulate processing before asking for login
       setTimeout(() => {
         setIsLoading(false);
         onShowAuth();
-      }, 1200);
+      }, 1000);
       return;
     }
 
-    if (isLoading || !hasAccess || (!usage.isUnlimited && usage.remaining <= 0)) return;
+    if (!hasAccess || (!usage.isUnlimited && usage.remaining <= 0)) return;
     
     if (!isResuming) {
       const userMessage: Message = {
@@ -107,9 +136,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     try {
       const botMessageId = crypto.randomUUID();
-      let fullContent = '';
+      let fullRawContent = '';
       
-      // Initialize placeholder
       setMessages(prev => [...prev, {
         id: botMessageId,
         role: 'model',
@@ -118,7 +146,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         sources: [] 
       }]);
 
-      // Pass callback to get sources immediately
       const stream = sendMessageWithRAG(text, (foundSources) => {
         setMessages(prev => prev.map(msg => 
           msg.id === botMessageId ? { ...msg, sources: foundSources } : msg
@@ -126,17 +153,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
 
       for await (const chunk of stream) {
-        fullContent += chunk;
+        fullRawContent += chunk;
+        
+        // Parse on the fly (optimistic)
+        const { visibleText } = parseMessageContent(fullRawContent);
+
         setMessages(prev => prev.map(msg => 
-          msg.id === botMessageId ? { ...msg, content: fullContent } : msg
+          msg.id === botMessageId ? { ...msg, content: visibleText } : msg
         ));
       }
       
+      // Final Parse to extract metadata
+      const { visibleText, metadata } = parseMessageContent(fullRawContent);
+      setMessages(prev => prev.map(msg => 
+        msg.id === botMessageId ? { ...msg, content: visibleText, recommendation: metadata } : msg
+      ));
+
       if (onMessageSent) onMessageSent();
       
     } catch (error: any) {
       console.error("Chat error", error);
       setMessages(prev => {
+        // Remove empty bot message if it failed immediately
         const lastMsg = prev[prev.length - 1];
         if (lastMsg.role === 'model' && lastMsg.content === '') {
           return prev.slice(0, -1);
@@ -147,7 +185,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => [...prev, {
         id: 'error-' + Date.now(),
         role: 'model',
-        content: "I apologize, but I am unable to connect to the server right now. Please check if the API Key is configured correctly in your Vercel settings.",
+        content: "I apologize, but I am unable to connect to the server right now. Please check if the API Key is configured correctly.",
         timestamp: Date.now()
       }]);
     } finally {
@@ -169,7 +207,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  // Limit Reached Card
+  const handleCardClick = (rec: RecommendationMetadata) => {
+    if (!isSubscribed) {
+      onUpgradeClick();
+    } else {
+      const targetView = rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
+      onNavigateToFeature(targetView, rec.id, rec.title);
+    }
+  };
+
   if (!isGuest && !usage.isUnlimited && usage.remaining <= 0) {
     return (
       <div className="h-full flex flex-col bg-sage-50">
@@ -190,7 +236,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             >
               Upgrade to Premium
             </button>
-            <p className="text-xs text-gray-400 mt-4">Resets in 24 hours.</p>
           </div>
         </div>
       </div>
@@ -218,26 +263,46 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             </div>
 
-            {/* Credibility Box (Source) */}
             {msg.role === 'model' && msg.sources && msg.sources.length > 0 && (
               <SourceAccordion sources={msg.sources} />
             )}
 
-            {/* Hook: Locked Content */}
-            {!isGuest && !isSubscribed && msg.role === 'model' && msg.id !== 'welcome' && msg.content && (
-              <div className="ml-11 max-w-[85%]">
-                <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-xl p-4 border border-gray-300 relative overflow-hidden group cursor-pointer" onClick={onUpgradeClick}>
-                  <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="bg-earth-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg transform scale-95 group-hover:scale-100 transition-transform">Upgrade to Premium</span>
+            {/* DYNAMIC UPSELL / FEATURE CARD */}
+            {msg.recommendation && (
+              <div className="ml-11 max-w-[85%] mt-1">
+                <div 
+                  className="bg-white rounded-xl border border-earth-200 shadow-sm relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleCardClick(msg.recommendation!)}
+                >
+                  <div className="bg-sage-50 border-b border-sage-100 p-3 flex items-center gap-2">
+                     {msg.recommendation.type === 'YOGA' ? (
+                        <PlayCircle className="text-earth-600" size={16} />
+                     ) : (
+                        <FileText className="text-orange-600" size={16} />
+                     )}
+                     <span className="text-xs font-bold text-sage-700 uppercase tracking-wide">
+                        {msg.recommendation.type === 'YOGA' ? 'Recommended Routine' : 'Diet Plan'}
+                     </span>
                   </div>
-                  <div className="flex flex-col gap-3 blur-[2px] group-hover:blur-[3px] transition-all">
-                    <div className="flex items-center gap-3 text-sage-800 font-serif font-bold">
-                       <Lock size={16} /> 
-                       <span>Healer Plan Exclusive</span>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white/50 p-2 rounded-lg">
-                      <PlayCircle className="text-earth-600" size={20} />
-                      <span className="text-sm font-medium text-gray-700">5 Yoga Poses</span>
+                  
+                  <div className="p-4 relative">
+                    <h3 className="font-bold text-lg text-sage-900 mb-1">{msg.recommendation.title}</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      {msg.recommendation.type === 'YOGA' 
+                        ? "A specific sequence of poses curated for this condition." 
+                        : "A 3-day meal plan to balance your internal doshas."}
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                       {isSubscribed ? (
+                          <span className="bg-sage-100 text-sage-700 px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2">
+                            <PlayCircle size={16} /> Open Now
+                          </span>
+                       ) : (
+                          <div className="flex items-center gap-2 text-earth-600 font-bold text-sm">
+                             <Lock size={14} /> Upgrade to Unlock
+                          </div>
+                       )}
                     </div>
                   </div>
                 </div>
@@ -246,7 +311,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         ))}
         
-        {/* Loading Indicator */}
         {isLoading && (
           <div className="flex flex-row items-start gap-3">
              <div className="w-8 h-8 rounded-full bg-sage-600 flex-shrink-0 flex items-center justify-center">
@@ -263,25 +327,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       <div className="p-4 bg-white border-t border-sage-200">
-        {!isGuest && !isSubscribed && (
-          <div className="flex justify-center mb-2">
-            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-              usage.remaining === 0 ? 'bg-red-50 text-red-600 border-red-200' : 'bg-sage-50 text-sage-600 border-sage-200'
-            }`}>
-              {usage.remaining} free queries remaining today
-            </span>
-          </div>
-        )}
-        
-        {isGuest && (
-           <div className="flex justify-center mb-2">
-            <span className="text-xs font-bold px-3 py-1 rounded-full bg-sage-50 text-sage-600 border border-sage-200 flex items-center gap-1">
-              <Sparkles size={10} /> Get your first consultation free
-            </span>
-          </div>
-        )}
-
-        <div className="max-w-4xl mx-auto relative flex items-center gap-2">
+         <div className="max-w-4xl mx-auto relative flex items-center gap-2">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -298,14 +344,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </button>
         </div>
         <p className="text-center text-xs text-sage-400 mt-2">
-           Not a doctor. Advice based on RAG search from ancient Ayurveda & Naturopathy texts.
+           This is not medical advice, and the information is not intended to diagnose, treat, cure, or prevent any health condition.
         </p>
       </div>
     </div>
   );
 };
 
-// New Component for Credibility UI
 const SourceAccordion: React.FC<{ sources: RemedyDocument[] }> = ({ sources }) => {
   const [isOpen, setIsOpen] = useState(false);
 

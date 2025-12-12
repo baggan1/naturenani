@@ -1,13 +1,13 @@
-import { GoogleGenAI, Chat } from "@google/genai";
+
+import { GoogleGenAI, Chat, Type } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
-import { SearchSource, RemedyDocument } from "../types";
+import { SearchSource, RemedyDocument, YogaPose } from "../types";
 
 let client: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 export const initializeGemini = () => {
-  // Try getting key from standard process.env (injected via Vite config)
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
@@ -15,104 +15,69 @@ export const initializeGemini = () => {
     return;
   }
   
-  // Security Note: Don't log the full key in production, just the presence
   console.log(`[Gemini] Initializing with Key: ${apiKey.substring(0, 4)}...`);
   
   client = new GoogleGenAI({ apiKey });
 };
 
-/**
- * Generates a vector embedding for the user's query.
- * This is required to search your existing Supabase vector database.
- */
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   if (!client) initializeGemini();
   if (!client) return null;
 
   try {
-    // We use the embedding model to convert text to vector
     const response = await client.models.embedContent({
       model: 'text-embedding-004',
-      contents: {
-        parts: [{ text }]
-      }
+      contents: { parts: [{ text }] }
     });
-    
-    // Check if embedding exists and return it
     return response.embeddings?.[0]?.values || null;
   } catch (error) {
     console.error("[Gemini] Embedding Error:", error);
-    // Fallback for demo/mock mode if API fails or model not available
     return null;
   }
 };
 
-/**
- * Starts a new chat session with the model.
- */
 export const startChat = async () => {
   if (!client) initializeGemini();
-  
-  if (!client) {
-    throw new Error("Failed to initialize AI client. Missing API Key.");
-  }
+  if (!client) throw new Error("Failed to initialize AI client. Missing API Key.");
 
   chatSession = client.chats.create({
     model: 'gemini-2.5-flash',
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       temperature: 0.7,
-      // Enable Google Search tool for Grounding
-      tools: [{ googleSearch: {} }] 
+      // tools: [{ googleSearch: {} }] // Disabled to prevent empty streams/latency
     },
   });
 
   return chatSession;
 };
 
-/**
- * Sends a message to the model, implementing the RAG pattern:
- * 1. Generate embedding for user query.
- * 2. Retrieve relevant docs from Vector DB (Supabase) using that embedding.
- * 3. Append context to user prompt.
- * 4. Stream response.
- * 5. Track source (RAG vs Search) for analytics.
- */
 export const sendMessageWithRAG = async function* (
   message: string, 
   onSourcesFound?: (sources: RemedyDocument[]) => void
 ) {
   try {
-    if (!chatSession) {
-      await startChat();
-    }
-
+    if (!chatSession) await startChat();
     if (!chatSession) throw new Error("Chat session not initialized");
 
-    // RAG STEP 1: Generate Embedding (Vector) for the question
-    const queryVector = await generateEmbedding(message);
+    console.log("[Gemini] RAG Start:", message);
 
-    // RAG STEP 2: Retrieval (Pass vector + text to backend)
+    const queryVector = await generateEmbedding(message);
     const contextDocs = await searchVectorDatabase(message, queryVector);
     
-    // Callback to UI immediately
-    if (onSourcesFound) {
-      onSourcesFound(contextDocs);
-    }
+    if (onSourcesFound) onSourcesFound(contextDocs);
     
-    // RAG STEP 3: Augmentation
     let augmentedMessage = message;
     const hasRAG = contextDocs.length > 0;
 
     if (hasRAG) {
-      // Construct context with Book Name citation
       const contextString = contextDocs.map(d => {
         const sourceInfo = d.book_name ? `${d.source} (Book: ${d.book_name})` : d.source;
         return `[Source: ${sourceInfo}]: ${d.content}`;
       }).join('\n\n');
 
       augmentedMessage = `
-Context Information (Use this to inform your answer if relevant, but do not explicitly mention 'the provided context' unless necessary):
+Context Information:
 ${contextString}
 
 User Query:
@@ -120,44 +85,135 @@ ${message}
       `;
     }
 
-    // RAG STEP 4: Generation (Streaming)
-    let usedSearch = false;
+    console.log("[Gemini] Stream started...");
     
     const result = await chatSession.sendMessageStream({ message: augmentedMessage });
     
+    let chunkCount = 0;
     for await (const chunk of result) {
-      // Check if Google Search Grounding was used in this chunk
-      if (chunk.candidates?.[0]?.groundingMetadata?.searchEntryPoint) {
-        usedSearch = true;
-      }
-      
       if (chunk.text) {
+        chunkCount++;
         yield chunk.text;
       }
     }
-    
-    // RAG STEP 5: Analytics Logging
-    let source: SearchSource = 'AI';
-    let details = '';
-    
-    if (hasRAG && usedSearch) {
-      source = 'Hybrid';
-      details = `Combined ${contextDocs.length} DB docs + Google Search`;
-    } else if (hasRAG) {
-      source = 'RAG';
-      details = `Used ${contextDocs.length} DB documents`;
-    } else if (usedSearch) {
-      source = 'GoogleSearch';
-      details = 'Triggered Web Grounding';
-    } else {
-      source = 'AI';
-      details = 'Pure LLM Knowledge';
-    }
 
-    logAnalyticsEvent(message, source, details);
+    if (chunkCount === 0) {
+      throw new Error("Received empty response from AI");
+    }
+    
+    console.log("[Gemini] Stream finished.");
+
+    logAnalyticsEvent(message, hasRAG ? 'RAG' : 'AI', `Docs: ${contextDocs.length}`);
 
   } catch (error) {
     console.error("[Gemini] Chat Error:", error);
-    throw error; // Propagate to UI
+    throw error;
+  }
+};
+
+/**
+ * Premium Feature: Generate Yoga Routine based on ID
+ */
+export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
+  if (!client) initializeGemini();
+  if (!client) throw new Error("Client not initialized");
+
+  const prompt = `
+    The user has a condition ID: "${ailmentId}".
+    Generate a list of 3-5 specific Yoga poses to help this condition.
+  `;
+
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] },
+      config: { 
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.INTEGER },
+              name: { type: Type.STRING },
+              english: { type: Type.STRING },
+              duration: { type: Type.STRING },
+              benefit: { type: Type.STRING },
+              color: { type: Type.STRING, description: "Tailwind CSS classes for color, e.g. bg-blue-100 text-blue-800" }
+            },
+            required: ["id", "name", "english", "duration", "benefit"]
+          }
+        }
+      }
+    });
+    
+    if (response.text) {
+      return JSON.parse(response.text) as YogaPose[];
+    }
+    return [];
+  } catch (e) {
+    console.error("Yoga Gen Error", e);
+    return [];
+  }
+};
+
+/**
+ * Premium Feature: Generate Diet Plan based on ID
+ */
+export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
+  if (!client) initializeGemini();
+  if (!client) throw new Error("Client not initialized");
+
+  const prompt = `
+    The user has a condition ID: "${ailmentId}".
+    Generate a 3-day Ayurvedic meal plan.
+    For each day, provide Breakfast, Lunch, and Dinner.
+    For each meal, provide:
+    - name: The name of the dish
+    - ingredients: A list of main ingredient strings
+    - instructions: A short 1-sentence cooking instruction
+    - image_keyword: A single english word to search for an image (e.g. "oatmeal", "soup", "salad")
+  `;
+
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] },
+      config: { 
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              day: { type: Type.STRING, description: "Day 1, Day 2 etc" },
+              meals: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    type: { type: Type.STRING, description: "Breakfast, Lunch, or Dinner" },
+                    name: { type: Type.STRING },
+                    ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    instructions: { type: Type.STRING },
+                    image_keyword: { type: Type.STRING }
+                  },
+                  required: ["type", "name", "ingredients", "instructions", "image_keyword"]
+                }
+              }
+            },
+            required: ["day", "meals"]
+          }
+        }
+      }
+    });
+    
+    if (response.text) {
+      return JSON.parse(response.text);
+    }
+    return [];
+  } catch (e) {
+    console.error("Diet Gen Error", e);
+    return [];
   }
 };
