@@ -216,6 +216,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  const formatMessageWithDisclaimer = (content: string) => {
+    const disclaimerMarker = "Disclaimer: This information is provided by NatureNani AI";
+    const index = content.lastIndexOf(disclaimerMarker);
+    
+    if (index !== -1) {
+      const mainText = content.substring(0, index).trim();
+      const disclaimerText = content.substring(index).trim();
+      
+      return (
+        <>
+          <div>{mainText}</div>
+          <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-400 leading-normal italic">
+            {disclaimerText}
+          </div>
+        </>
+      );
+    }
+    return content;
+  };
+
   if (!isGuest && !usage.isUnlimited && usage.remaining <= 0) {
     return (
       <div className="h-full flex flex-col bg-sage-50">
@@ -259,7 +279,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   ? 'bg-earth-50 text-sage-900 rounded-tr-none border border-earth-200' 
                   : 'bg-white text-gray-800 rounded-tl-none border border-sage-200'
               }`}>
-                {msg.content || <span className="animate-pulse text-gray-400">Consulting ancient texts...</span>}
+                {msg.content ? formatMessageWithDisclaimer(msg.content) : <span className="animate-pulse text-gray-400">Consulting ancient texts...</span>}
               </div>
             </div>
 
