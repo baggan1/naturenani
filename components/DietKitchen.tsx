@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Utensils, Calendar, ChefHat, Loader2, X, ShoppingCart, CheckSquare, Clock } from 'lucide-react';
+import { Utensils, Calendar, ChefHat, Loader2, X, ShoppingCart, CheckSquare, Clock, Search } from 'lucide-react';
 import { FeatureContext } from '../types';
 import { generateDietPlan } from '../services/geminiService';
 
@@ -24,46 +24,78 @@ interface DayPlan {
 const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
   const [plan, setPlan] = useState<DayPlan[]>([]);
   const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState(activeContext?.title || "Balanced Ayurvedic Diet");
+  const [title, setTitle] = useState(activeContext?.title || "Ayurvedic Kitchen");
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [showShoppingList, setShowShoppingList] = useState(false);
+  
+  // Standalone mode input
+  const [customQuery, setCustomQuery] = useState("");
+
+  const loadPlan = async (queryId: string, displayTitle: string) => {
+    setLoading(true);
+    setTitle(displayTitle);
+    setPlan([]); // Reset previous plan
+    
+    try {
+      const generatedPlan = await generateDietPlan(queryId);
+      if (generatedPlan && generatedPlan.length > 0) {
+        setPlan(generatedPlan);
+      }
+    } catch (e) {
+      console.error("Failed to gen diet", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadSpecificPlan = async () => {
-      setLoading(true);
-      if (activeContext?.title) setTitle(activeContext.title);
-      
-      try {
-        const idToUse = activeContext?.id || "GENERAL_DETOX";
-        const generatedPlan = await generateDietPlan(idToUse);
-        if (generatedPlan && generatedPlan.length > 0) {
-          setPlan(generatedPlan);
-        }
-      } catch (e) {
-        console.error("Failed to gen diet", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSpecificPlan();
+    // If context passed from chat, load it automatically
+    if (activeContext?.id) {
+       loadPlan(activeContext.id, activeContext.title);
+    }
   }, [activeContext]);
+
+  const handleCustomSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customQuery.trim()) return;
+    loadPlan(customQuery, `Diet for: ${customQuery}`);
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.src = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1000&auto=format&fit=crop"; // Fallback healthy food image
+  };
 
   return (
     <div className="h-full flex flex-col bg-sage-50 overflow-y-auto relative">
-      <div className="bg-white border-b border-sage-200 p-6 shadow-sm sticky top-0 z-10">
-        <h1 className="font-serif text-2xl font-bold text-sage-900 flex items-center gap-2">
-          <Utensils className="text-orange-500" /> Ayurvedic Kitchen
-        </h1>
-        <p className="text-gray-500 mt-1">Personalized meal plans for your internal balance.</p>
+      <div className="bg-white border-b border-sage-200 p-6 shadow-sm sticky top-0 z-10 flex flex-col md:flex-row justify-between gap-4 items-center">
+        <div>
+           <h1 className="font-serif text-2xl font-bold text-sage-900 flex items-center gap-2">
+             <Utensils className="text-orange-500" /> Ayurvedic Kitchen
+           </h1>
+           <p className="text-gray-500 mt-1 text-sm">Personalized meal plans for your internal balance.</p>
+        </div>
+        
+        {/* Search bar for standalone usage */}
+        <form onSubmit={handleCustomSearch} className="flex gap-2 w-full md:w-auto">
+           <input 
+             type="text" 
+             placeholder="Enter ailment (e.g. Migraine)..." 
+             value={customQuery}
+             onChange={(e) => setCustomQuery(e.target.value)}
+             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 outline-none text-sm w-full"
+           />
+           <button type="submit" className="bg-orange-500 text-white p-2 rounded-lg hover:bg-orange-600 transition-colors">
+              <Search size={20} />
+           </button>
+        </form>
       </div>
 
       <div className="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-8">
         
-        {/* Header */}
+        {/* Plan Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
-            <h2 className="font-serif text-3xl font-bold text-sage-900">{title}</h2>
+            <h2 className="font-serif text-3xl font-bold text-sage-900 capitalize">{title}</h2>
             <p className="text-gray-600 mt-1">Focus on warm, fresh ingredients to aid digestion.</p>
           </div>
           <button 
@@ -79,6 +111,12 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
           <div className="flex flex-col items-center justify-center py-20 text-sage-600">
             <Loader2 className="w-12 h-12 animate-spin mb-4" />
             <p className="animate-pulse font-medium">Chef Nani is preparing your menu...</p>
+          </div>
+        ) : plan.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
+            <Utensils className="w-16 h-16 text-gray-200 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-400">No Plan Generated Yet</h3>
+            <p className="text-gray-400 mt-2">Use the search bar above or consult the chat to create a diet plan.</p>
           </div>
         ) : (
           <div className="space-y-12">
@@ -100,8 +138,9 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     >
                       <div className="h-48 overflow-hidden relative">
                         <img 
-                          src={`https://image.pollinations.ai/prompt/${meal.image_keyword}%20food%20photography%20hd?width=400&height=300&nologo=true`} 
+                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.image_keyword)}%20food%20photography%20hd?width=400&height=300&nologo=true`} 
                           alt={meal.name}
+                          onError={handleImageError}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                         />
@@ -148,8 +187,9 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
             
             <div className="h-64 relative">
               <img 
-                src={`https://image.pollinations.ai/prompt/${selectedMeal.image_keyword}%20food%20photography%20hd?width=800&height=400&nologo=true`}
+                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.image_keyword)}%20food%20photography%20hd?width=800&height=400&nologo=true`}
                 alt={selectedMeal.name}
+                onError={handleImageError}
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-8 pt-24">

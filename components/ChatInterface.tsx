@@ -5,6 +5,8 @@ import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } 
 import { sendMessageWithRAG } from '../services/geminiService';
 
 interface ChatInterfaceProps {
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   onTrialEnd: () => void;
   hasAccess: boolean;
   initialMessage?: string;
@@ -18,6 +20,8 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
+  messages,
+  setMessages,
   onTrialEnd, 
   hasAccess, 
   initialMessage, 
@@ -30,14 +34,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onNavigateToFeature
 }) => {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'model',
-      content: 'Namaste. I am Nature Nani. Tell me what ailments or discomforts you are experiencing, and I shall look into the ancient wisdom of Ayurveda and Naturopathy for you.',
-      timestamp: Date.now()
-    }
-  ]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // We remove local pendingMessage state to avoid conflicts with sessionStorage
@@ -52,7 +48,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages, isLoading]); 
 
   // --- Safety Timeout Logic ---
-  // If isLoading stays true for more than 30 seconds, force reset
   useEffect(() => {
     let safetyTimer: NodeJS.Timeout;
     if (isLoading) {

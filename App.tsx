@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { User, AppView, QueryUsage, FeatureContext } from './types';
+import { User, AppView, QueryUsage, FeatureContext, Message } from './types';
 import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit, setupAuthListener } from './services/backendService';
 import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
@@ -15,6 +15,16 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<AppView>(AppView.CHAT);
   
+  // Chat State (Lifted Up for Persistence)
+  const [chatMessages, setChatMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      role: 'model',
+      content: 'Namaste. I am Nature Nani. Tell me what ailments or discomforts you are experiencing, and I shall look into the ancient wisdom of Ayurveda and Naturopathy for you.',
+      timestamp: Date.now()
+    }
+  ]);
+
   // Hand-off State: Passes ID from Chat to Premium Feature
   const [featureContext, setFeatureContext] = useState<FeatureContext | null>(null);
 
@@ -101,6 +111,13 @@ const App: React.FC = () => {
         remaining: DAILY_QUERY_LIMIT,
         isUnlimited: false
     });
+    // Reset chat on logout
+    setChatMessages([{
+      id: 'welcome',
+      role: 'model',
+      content: 'Namaste. I am Nature Nani. Tell me what ailments or discomforts you are experiencing.',
+      timestamp: Date.now()
+    }]);
     window.location.reload();
   };
 
@@ -124,7 +141,7 @@ const App: React.FC = () => {
   const handlePremiumNav = (view: AppView) => {
     if (user && user.is_subscribed) {
       setCurrentView(view);
-      setFeatureContext(null); // Clear context if navigating manually
+      setFeatureContext(null); // Clear context if navigating manually to allow standalone use
     } else {
       setShowPaywall(true);
     }
@@ -277,6 +294,8 @@ const App: React.FC = () => {
       <div className="flex-1 h-full relative">
         {currentView === AppView.CHAT && (
           <ChatInterface 
+            messages={chatMessages}
+            setMessages={setChatMessages}
             onTrialEnd={() => setShowPaywall(true)}
             hasAccess={user ? subscriptionState.hasAccess : true}
             initialMessage={triggerQuery}
