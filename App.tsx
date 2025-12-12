@@ -159,7 +159,9 @@ const App: React.FC = () => {
       {/* Sidebar */}
       <div className="hidden md:flex flex-col w-64 bg-white border-r border-sage-200 p-4 justify-between shadow-sm z-10">
         <div className="flex-1 overflow-y-auto scrollbar-hide">
-          <h2 className="font-serif font-bold text-xl text-sage-800 mb-6 px-2">Nature Nani</h2>
+          <div className="mb-6 px-2">
+             <img src="/logo.png" alt="Nature Nani" className="h-10 object-contain" />
+          </div>
           <div className="space-y-2">
             <button 
               onClick={() => setCurrentView(AppView.CHAT)}

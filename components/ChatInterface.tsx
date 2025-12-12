@@ -434,10 +434,7 @@ const SourceAccordion: React.FC<{ sources: RemedyDocument[] }> = ({ sources }) =
 const Header = () => (
   <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between">
     <div className="flex items-center gap-2">
-      <div className="w-8 h-8 rounded-full bg-sage-600 flex items-center justify-center">
-        <Sparkles className="w-4 h-4 text-white" />
-      </div>
-      <h1 className="font-serif text-xl text-sage-900 font-bold">Nature Nani</h1>
+      <img src="/logo.png" alt="Nature Nani" className="h-8 object-contain" />
     </div>
     <div className="text-xs text-sage-500 bg-sage-100 px-2 py-1 rounded-full">
       Powered by Gemini 2.5

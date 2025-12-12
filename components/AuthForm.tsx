@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Leaf, ArrowRight, Loader2, Mail, Lock, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { sendOtp, verifyOtp, signInWithGoogle } from '../services/backendService';
@@ -81,9 +82,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
         
         {/* Header */}
         <div className="bg-sage-50 p-6 text-center border-b border-sage-100">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm text-sage-600">
-            <Leaf size={24} />
-          </div>
+          <img src="/logo.png" alt="Nature Nani" className="h-16 mx-auto mb-3 object-contain" />
           <h2 className="text-xl font-serif font-bold text-sage-900">
             Save Your Health Journey
           </h2>
