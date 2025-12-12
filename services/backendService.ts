@@ -5,12 +5,12 @@ import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 
 // Initialize Supabase Client
 // We use the variables injected via vite.config.ts
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://biblbpmlpchztyifoypt.supabase.co';
-const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpYmxicG1scGNoenR5aWZveXB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1ODUxMjksImV4cCI6MjA3OTE2MTEyOX0.qmwrUIvkhjp7jB2Tb9E5ORQZPHVLyirjmhPe3tr9Lbk';
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-console.log(`[Supabase] Initializing... URL configured: ${!!process.env.REACT_APP_SUPABASE_URL}`);
+console.log(`[Supabase] Initializing... URL configured: ${!!supabaseUrl}`);
 
-const supabase = (supabaseUrl && supabaseKey && supabaseKey !== 'PASTE_YOUR_ANON_KEY_HERE') 
+const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
 
@@ -178,10 +178,6 @@ export const signInWithGoogle = async () => {
   const redirectUrl = window.location.origin;
   console.log(`[Auth] OAuth Redirect URL: ${redirectUrl}`);
   
-  if (supabaseUrl.includes('biblbpmlpchztyifoypt')) {
-     console.warn("[Auth] Warning: You are using the demo Supabase project. Google Sign-In will likely fail (403) because you cannot add this domain to the demo project's Google Cloud Console. Please use your own Supabase project keys.");
-  }
-
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
