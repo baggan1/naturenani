@@ -8,6 +8,42 @@ interface YogaStudioProps {
   activeContext?: FeatureContext | null;
 }
 
+// Curated high-quality Unsplash images for common poses
+const POSE_IMAGES: Record<string, string> = {
+  "Balasana": "https://images.unsplash.com/photo-1544367563-12123d896e89?auto=format&fit=crop&q=80&w=800",
+  "Child's Pose": "https://images.unsplash.com/photo-1544367563-12123d896e89?auto=format&fit=crop&q=80&w=800",
+  
+  "Viparita Karani": "https://images.unsplash.com/photo-1602192509153-03726d6e43a5?auto=format&fit=crop&q=80&w=800",
+  "Legs Up The Wall": "https://images.unsplash.com/photo-1602192509153-03726d6e43a5?auto=format&fit=crop&q=80&w=800",
+  
+  "Supta Baddha Konasana": "https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&q=80&w=800",
+  "Reclining Bound Angle": "https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&q=80&w=800",
+
+  "Adho Mukha Svanasana": "https://images.unsplash.com/photo-1562088287-b903a7683c4f?auto=format&fit=crop&q=80&w=800",
+  "Downward-Facing Dog": "https://images.unsplash.com/photo-1562088287-b903a7683c4f?auto=format&fit=crop&q=80&w=800",
+
+  "Vrikshasana": "https://images.unsplash.com/photo-1566501206168-995f3369d32d?auto=format&fit=crop&q=80&w=800",
+  "Tree Pose": "https://images.unsplash.com/photo-1566501206168-995f3369d32d?auto=format&fit=crop&q=80&w=800",
+
+  "Tadasana": "https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&q=80&w=800",
+  "Mountain Pose": "https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&q=80&w=800",
+
+  "Savasana": "https://images.unsplash.com/photo-1533221387243-7182245b0266?auto=format&fit=crop&q=80&w=800",
+  "Corpse Pose": "https://images.unsplash.com/photo-1533221387243-7182245b0266?auto=format&fit=crop&q=80&w=800",
+
+  "Sukhasana": "https://images.unsplash.com/photo-1552196563-55cd4e45efb3?auto=format&fit=crop&q=80&w=800",
+  "Easy Pose": "https://images.unsplash.com/photo-1552196563-55cd4e45efb3?auto=format&fit=crop&q=80&w=800",
+};
+
+// Fallback high-quality yoga aesthetics
+const GENERIC_IMAGES = [
+  "https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1593164842264-854604db0553?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1545205539-3fa5087c2103?auto=format&fit=crop&q=80&w=800",
+];
+
 const SAMPLE_ROUTINE: YogaPose[] = [
   { 
     id: 1, 
@@ -98,7 +134,23 @@ const YogaStudio: React.FC<YogaStudioProps> = ({ activeContext }) => {
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    e.currentTarget.src = "https://images.unsplash.com/photo-1544367563-12123d896e89?q=80&w=1000&auto=format&fit=crop"; 
+    e.currentTarget.src = GENERIC_IMAGES[0]; 
+  };
+
+  const getPoseImage = (pose: YogaPose) => {
+    // 1. Try exact name match
+    if (POSE_IMAGES[pose.name]) return POSE_IMAGES[pose.name];
+    if (POSE_IMAGES[pose.english]) return POSE_IMAGES[pose.english];
+    
+    // 2. Try partial match
+    const foundKey = Object.keys(POSE_IMAGES).find(k => 
+      pose.name.toLowerCase().includes(k.toLowerCase()) || 
+      pose.english.toLowerCase().includes(k.toLowerCase())
+    );
+    if (foundKey) return POSE_IMAGES[foundKey];
+
+    // 3. Fallback to generic aesthetically pleasing stock
+    return GENERIC_IMAGES[pose.id % GENERIC_IMAGES.length];
   };
 
   return (
@@ -140,7 +192,7 @@ const YogaStudio: React.FC<YogaStudioProps> = ({ activeContext }) => {
            {loading ? (
              <div className="flex flex-col items-center justify-center py-20">
                 <Loader2 className="animate-spin text-pink-400 w-12 h-12 mb-4" />
-                <p className="text-pink-800 animate-pulse font-medium">Generating visual guides...</p>
+                <p className="text-pink-800 animate-pulse font-medium">Selecting the best poses...</p>
              </div>
            ) : (
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -152,7 +204,7 @@ const YogaStudio: React.FC<YogaStudioProps> = ({ activeContext }) => {
                  >
                    <div className="h-56 bg-gray-100 relative overflow-hidden">
                       <img 
-                        src={`https://image.pollinations.ai/prompt/${encodeURIComponent("yoga pose " + pose.name + " " + pose.english + " perfect form minimal bright studio lighting")}?width=600&height=400&nologo=true`}
+                        src={getPoseImage(pose)}
                         alt={pose.name}
                         onError={handleImageError}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
@@ -207,7 +259,7 @@ const YogaStudio: React.FC<YogaStudioProps> = ({ activeContext }) => {
              {/* Image Side */}
              <div className="w-full md:w-2/5 bg-gray-100 relative min-h-[300px]">
                 <img 
-                   src={`https://image.pollinations.ai/prompt/${encodeURIComponent("yoga pose " + selectedPose.name + " " + selectedPose.english + " perfect form minimal bright studio lighting")}?width=600&height=800&nologo=true`}
+                   src={getPoseImage(selectedPose)}
                    alt={selectedPose.name}
                    onError={handleImageError}
                    className="w-full h-full object-cover"

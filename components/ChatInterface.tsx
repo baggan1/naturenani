@@ -110,7 +110,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } else {
       // 2. Fallback: Try finding JSON at the end of the string without code blocks (permissive)
       // Look for { ... "recommendation": ... } pattern at the end
-      const jsonLooseRegex = /(\{s*"recommendation"[\s\S]*?\})$/;
+      // Fixed Regex: Allow whitespace after opening brace
+      const jsonLooseRegex = /(\{\s*"recommendation"[\s\S]*?\})\s*$/;
       match = rawText.match(jsonLooseRegex);
       if (match && match[1]) {
         jsonString = match[1];

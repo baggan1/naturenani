@@ -90,6 +90,9 @@ ${message}
       `;
     }
 
+    // Force the model to consider the recommendation JSON
+    augmentedMessage += `\n\n[SYSTEM REMINDER]: If this query relates to a health condition where Yoga or Diet would be beneficial, you MUST append the JSON recommendation block at the very end as specified in your system instructions.`;
+
     console.log("[Gemini] Stream started...");
     
     const result = await chatSession.sendMessageStream({ message: augmentedMessage });
