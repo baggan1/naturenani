@@ -102,9 +102,9 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
            <button 
              onClick={openSavedPlans}
              className="text-sage-700 p-2 hover:bg-sage-100 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold"
-             title="My Cook Book"
+             title="My Meal Plan"
            >
-              <Book size={20} /> <span className="hidden md:inline">Cookbook</span>
+              <Book size={20} /> <span className="hidden md:inline">My Meal Plan</span>
            </button>
 
            <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block"></div>
@@ -347,7 +347,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
            <div className="bg-white rounded-3xl max-w-lg w-full max-h-[80vh] flex flex-col shadow-2xl">
              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-sage-50 rounded-t-3xl">
                 <h2 className="font-serif text-xl font-bold text-sage-900 flex items-center gap-2">
-                   <Book className="text-sage-600" /> My Cook Book
+                   <Book className="text-sage-600" /> My Meal Plan
                 </h2>
                 <button onClick={() => setShowSavedModal(false)}>
                    <X size={24} className="text-gray-500 hover:text-gray-800" />
