@@ -413,8 +413,15 @@ export const initiateStripeCheckout = async (user: User): Promise<void> => {
 };
 
 export const createStripePortalSession = async () => {
+  const portalLink = process.env.REACT_APP_STRIPE_PORTAL_LINK;
+
+  if (portalLink) {
+    window.location.href = portalLink;
+    return;
+  }
+
   console.log("Redirecting to billing portal...");
-  alert("Redirecting to Stripe Billing Portal to manage your Healer Plan...");
+  alert("Setup Required: Add 'VITE_STRIPE_PORTAL_LINK' to your .env file to enable the Customer Portal.");
 };
 
 

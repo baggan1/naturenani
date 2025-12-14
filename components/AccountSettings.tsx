@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User } from '../types';
 import { LogOut, CreditCard, ShieldCheck, Zap, ExternalLink, Calendar, Mail, User as UserIcon } from 'lucide-react';
@@ -57,12 +58,6 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Member Since</label>
               <div className="flex items-center gap-2 text-gray-900">
                 <Calendar size={16} className="text-gray-400" /> {formatDate(user.created_at)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">User ID</label>
-              <div className="text-gray-500 text-xs font-mono bg-gray-50 p-2 rounded truncate">
-                {user.id}
               </div>
             </div>
           </div>

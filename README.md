@@ -32,6 +32,7 @@ Nature Nani is a conversational AI assistant that combines ancient wisdom from A
     VITE_SUPABASE_URL=your_supabase_project_url
     VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
     VITE_STRIPE_PAYMENT_LINK=your_stripe_payment_link_url
+    VITE_STRIPE_PORTAL_LINK=your_stripe_customer_portal_link
     ```
 4.  **Supabase Setup**:
     - **Extension**: Enable the `vector` extension in Postgres.
