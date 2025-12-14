@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan } from '../types';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
@@ -414,9 +413,21 @@ export const initiateStripeCheckout = async (user: User): Promise<void> => {
 
 export const createStripePortalSession = async () => {
   const portalLink = process.env.REACT_APP_STRIPE_PORTAL_LINK;
+  const user = getCurrentUser();
 
   if (portalLink) {
-    window.location.href = portalLink;
+    // Trim to avoid accidental spaces from copy-paste
+    let targetUrl = portalLink.trim();
+
+    // Pre-fill email for better UX if the link supports it
+    // Note: Stripe "No-Code" Customer Portal Login pages support ?prefilled_email=
+    if (user && user.email) {
+      const separator = targetUrl.includes('?') ? '&' : '?';
+      targetUrl = `${targetUrl}${separator}prefilled_email=${encodeURIComponent(user.email)}`;
+    }
+
+    console.log(`[Stripe] Redirecting to Portal: ${targetUrl}`);
+    window.location.href = targetUrl;
     return;
   }
 

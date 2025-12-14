@@ -1,0 +1,27 @@
+
+{
+  "short_name": "Nature Nani",
+  "name": "Nature Nani - Ayurveda Assistant",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4a7c59",
+  "background_color": "#f4f7f4",
+  "orientation": "portrait"
+}
