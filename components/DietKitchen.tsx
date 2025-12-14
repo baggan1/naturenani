@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Utensils, ShoppingCart, Loader2, X, Search, Save, Book, ChefHat, Clock, Flame, Check, ArrowRight } from 'lucide-react';
+import { Utensils, ShoppingCart, Loader2, X, Search, Save, Book, ChefHat, Clock, Flame, Check, ArrowRight, Leaf } from 'lucide-react';
 import { FeatureContext, SavedMealPlan, DayPlan, Meal } from '../types';
 import { generateDietPlan } from '../services/geminiService';
 import { saveMealPlan, getUserMealPlans, getCurrentUser } from '../services/backendService';
@@ -85,6 +85,18 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
     setTitle(saved.title);
     setPlan(saved.plan_data);
     setShowSavedModal(false);
+  };
+
+  // Helper to generate ingredient-focused image URL
+  const getIngredientImageUrl = (meal: Meal) => {
+    const ingredient = meal.key_ingredient || meal.image_keyword;
+    // Prompt engineered for high quality botanical/ingredient focus
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Raw fresh ${ingredient} ingredient botanical photography studio lighting white background high resolution`)}?width=400&height=300&nologo=true`;
+  };
+  
+  const getIngredientImageUrlLarge = (meal: Meal) => {
+    const ingredient = meal.key_ingredient || meal.image_keyword;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Fresh organic ${ingredient} ingredient on wooden table close up aesthetic photography`)}?width=800&height=1000&nologo=true`;
   };
 
   return (
@@ -183,21 +195,25 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     <div 
                       key={mIdx}
                       onClick={() => setSelectedMeal(meal)}
-                      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group"
+                      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full"
                     >
-                      <div className="h-48 overflow-hidden relative">
+                      <div className="h-48 overflow-hidden relative bg-gray-50">
                         <img 
-                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.image_keyword + " delicious plated food professional photography")}?width=400&height=300&nologo=true`} 
-                          alt={meal.name}
+                          src={getIngredientImageUrl(meal)} 
+                          alt={meal.key_ingredient || meal.name}
                           onError={handleImageError}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover p-4 group-hover:scale-105 transition-transform duration-500 mix-blend-multiply"
                           loading="lazy"
                         />
+                         {/* Pill identifying this as the key ingredient */}
+                         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-bold text-sage-700 shadow-sm border border-sage-100 flex items-center gap-1">
+                           <Leaf size={10} /> {meal.key_ingredient || "Ingredient"}
+                         </div>
                         <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-gray-800 shadow-sm">
                           {meal.type}
                         </div>
                       </div>
-                      <div className="p-5">
+                      <div className="p-5 flex flex-col flex-1">
                         <h3 className="font-bold text-gray-900 text-lg mb-1 leading-tight group-hover:text-orange-600 transition-colors">
                           {meal.name}
                         </h3>
@@ -237,17 +253,18 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
             </button>
 
             {/* Left Side: Image (Desktop) / Top (Mobile) */}
-            <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-gray-100">
+            <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-earth-50 flex items-center justify-center">
                <img 
-                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.image_keyword + " delicious plated food professional photography")}?width=800&height=1000&nologo=true`}
-                alt={selectedMeal.name}
+                src={getIngredientImageUrlLarge(selectedMeal)}
+                alt={selectedMeal.key_ingredient || selectedMeal.name}
                 className="w-full h-full object-cover"
                 onError={handleImageError}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent md:hidden"></div>
-              <div className="absolute bottom-4 left-4 text-white md:hidden p-4">
-                 <span className="text-orange-300 font-bold text-xs uppercase tracking-wider bg-black/30 px-2 py-1 rounded-md backdrop-blur-sm">{selectedMeal.type}</span>
-                 <h2 className="text-3xl font-serif font-bold mt-2 leading-tight shadow-black drop-shadow-md">{selectedMeal.name}</h2>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
+                 <div className="text-white text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
+                    <Leaf size={12} /> Key Healing Ingredient
+                 </div>
+                 <h2 className="text-white font-serif text-3xl font-bold">{selectedMeal.key_ingredient || selectedMeal.image_keyword}</h2>
               </div>
             </div>
 
@@ -290,10 +307,23 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     <div className="grid grid-cols-1 gap-3">
                       {selectedMeal.ingredients.map((ing, i) => (
                         <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-sage-200 transition-colors group">
-                          <div className="w-6 h-6 rounded-full border-2 border-sage-200 flex items-center justify-center text-white group-hover:bg-sage-100 group-hover:border-sage-300 group-hover:text-sage-500 transition-all">
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-white transition-all ${
+                             (selectedMeal.key_ingredient && ing.toLowerCase().includes(selectedMeal.key_ingredient.toLowerCase()))
+                             ? 'bg-orange-500 border-orange-500' 
+                             : 'border-sage-200 group-hover:bg-sage-100 group-hover:border-sage-300 group-hover:text-sage-500'
+                          }`}>
                             <Check size={14} />
                           </div>
-                          <span className="text-gray-700 font-medium text-lg">{ing}</span>
+                          <span className={`font-medium text-lg ${
+                             (selectedMeal.key_ingredient && ing.toLowerCase().includes(selectedMeal.key_ingredient.toLowerCase()))
+                             ? 'text-orange-700 font-bold' 
+                             : 'text-gray-700'
+                          }`}>
+                            {ing} 
+                            {(selectedMeal.key_ingredient && ing.toLowerCase().includes(selectedMeal.key_ingredient.toLowerCase())) && (
+                              <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">Key</span>
+                            )}
+                          </span>
                         </div>
                       ))}
                     </div>

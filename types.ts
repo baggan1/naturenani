@@ -96,6 +96,7 @@ export interface Meal {
   ingredients: string[];
   instructions: string;
   image_keyword: string;
+  key_ingredient?: string; // New field for focusing on the main healing ingredient
 }
 
 export interface DayPlan {

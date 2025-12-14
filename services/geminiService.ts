@@ -248,7 +248,8 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
     - name: The name of the dish
     - ingredients: A list of main ingredient strings
     - instructions: Detailed step-by-step cooking instructions (at least 3 steps).
-    - image_keyword: A single, simple English keyword (noun) that represents the dish for image search (e.g. "Oatmeal", "Soup", "Salad", "Curry"). Do not use adjectives.
+    - image_keyword: A single, simple English keyword (noun) that represents the dish (e.g. "Porridge", "Soup").
+    - key_ingredient: The single most important healing ingredient in this dish (e.g. "Turmeric", "Ginger", "Spinach", "Lentils"). This will be shown as the primary image. One word only.
   `;
 
   try {
@@ -272,9 +273,10 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
                     name: { type: Type.STRING },
                     ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
                     instructions: { type: Type.STRING },
-                    image_keyword: { type: Type.STRING }
+                    image_keyword: { type: Type.STRING },
+                    key_ingredient: { type: Type.STRING, description: "The single most important healing ingredient." }
                   },
-                  required: ["type", "name", "ingredients", "instructions", "image_keyword"]
+                  required: ["type", "name", "ingredients", "instructions", "image_keyword", "key_ingredient"]
                 }
               }
             },
