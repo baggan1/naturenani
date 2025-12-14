@@ -14,7 +14,7 @@ export interface RemedyDocument {
   id: string;
   condition: string;
   content: string;
-  source: 'Ayurveda' | 'Naturopathy';
+  source: 'Ayurveda' | 'Naturopathy' | 'Yoga' | 'diet' | string;
   book_name?: string;
   similarity?: number;
 }

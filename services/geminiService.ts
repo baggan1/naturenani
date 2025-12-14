@@ -137,15 +137,37 @@ ${message}
 };
 
 /**
- * Premium Feature: Generate Yoga Routine based on ID
+ * Premium Feature: Generate Yoga Routine based on ID with RAG Support
  */
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
   if (!client) initializeGemini();
   if (!client) throw new Error("Client not initialized");
 
+  console.log(`[Yoga] Generating routine for ${ailmentId} using RAG (Source: Yoga)`);
+
+  // 1. Fetch RAG Context for Yoga
+  let contextString = "";
+  try {
+    const embedding = await generateEmbedding(ailmentId);
+    if (embedding) {
+      const docs = await searchVectorDatabase(ailmentId, embedding, 'Yoga');
+      if (docs.length > 0) {
+        contextString = "Use the following Yoga Database Context to inform your sequence:\n" + 
+          docs.map(d => `- ${d.content}`).join("\n");
+        console.log(`[Yoga] Context found: ${docs.length} docs`);
+      }
+    }
+  } catch (e) {
+    console.warn("[Yoga] RAG fetch failed, falling back to pure generation", e);
+  }
+
   const prompt = `
     The user has a condition ID or Query: "${ailmentId}".
+    
+    ${contextString}
+
     Generate a list of 3-5 specific Yoga poses to help this condition.
+    Use standard Sanskrit names where possible.
     Provide detailed step-by-step instructions, breathing patterns, and repetitions.
   `;
 
@@ -191,21 +213,42 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
 };
 
 /**
- * Premium Feature: Generate Diet Plan based on ID
+ * Premium Feature: Generate Diet Plan based on ID with RAG Support
  */
 export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
   if (!client) initializeGemini();
   if (!client) throw new Error("Client not initialized");
 
+  console.log(`[Diet] Generating plan for ${ailmentId} using RAG (Source: diet)`);
+
+  // 1. Fetch RAG Context for Diet
+  let contextString = "";
+  try {
+    const embedding = await generateEmbedding(ailmentId);
+    if (embedding) {
+      const docs = await searchVectorDatabase(ailmentId, embedding, 'diet');
+      if (docs.length > 0) {
+        contextString = "Use the following Diet Database Context to inform your meal plan:\n" + 
+          docs.map(d => `- ${d.content}`).join("\n");
+        console.log(`[Diet] Context found: ${docs.length} docs`);
+      }
+    }
+  } catch (e) {
+    console.warn("[Diet] RAG fetch failed, falling back to pure generation", e);
+  }
+
   const prompt = `
     The user has a condition ID: "${ailmentId}".
-    Generate a 3-day Ayurvedic meal plan.
+
+    ${contextString}
+
+    Generate a 3-day Ayurvedic/Naturopathic meal plan.
     For each day, provide Breakfast, Lunch, and Dinner.
     For each meal, provide:
     - name: The name of the dish
     - ingredients: A list of main ingredient strings
     - instructions: Detailed step-by-step cooking instructions (at least 3 steps).
-    - image_keyword: A single english word to search for an image (e.g. "oatmeal", "soup", "salad")
+    - image_keyword: A single, simple English keyword (noun) that represents the dish for image search (e.g. "Oatmeal", "Soup", "Salad", "Curry"). Do not use adjectives.
   `;
 
   try {

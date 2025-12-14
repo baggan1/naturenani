@@ -9,30 +9,45 @@ interface YogaStudioProps {
 }
 
 // Curated high-quality Unsplash images for common poses
+// Expanded list to ensure "correct" images for AI generated content
 const POSE_IMAGES: Record<string, string> = {
+  // Relaxing / Floor
   "Balasana": "https://images.unsplash.com/photo-1544367563-12123d896e89?auto=format&fit=crop&q=80&w=800",
   "Child's Pose": "https://images.unsplash.com/photo-1544367563-12123d896e89?auto=format&fit=crop&q=80&w=800",
-  
-  "Viparita Karani": "https://images.unsplash.com/photo-1602192509153-03726d6e43a5?auto=format&fit=crop&q=80&w=800",
-  "Legs Up The Wall": "https://images.unsplash.com/photo-1602192509153-03726d6e43a5?auto=format&fit=crop&q=80&w=800",
-  
-  "Supta Baddha Konasana": "https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&q=80&w=800",
-  "Reclining Bound Angle": "https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&q=80&w=800",
-
-  "Adho Mukha Svanasana": "https://images.unsplash.com/photo-1562088287-b903a7683c4f?auto=format&fit=crop&q=80&w=800",
-  "Downward-Facing Dog": "https://images.unsplash.com/photo-1562088287-b903a7683c4f?auto=format&fit=crop&q=80&w=800",
-
-  "Vrikshasana": "https://images.unsplash.com/photo-1566501206168-995f3369d32d?auto=format&fit=crop&q=80&w=800",
-  "Tree Pose": "https://images.unsplash.com/photo-1566501206168-995f3369d32d?auto=format&fit=crop&q=80&w=800",
-
-  "Tadasana": "https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&q=80&w=800",
-  "Mountain Pose": "https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&q=80&w=800",
-
   "Savasana": "https://images.unsplash.com/photo-1533221387243-7182245b0266?auto=format&fit=crop&q=80&w=800",
   "Corpse Pose": "https://images.unsplash.com/photo-1533221387243-7182245b0266?auto=format&fit=crop&q=80&w=800",
-
   "Sukhasana": "https://images.unsplash.com/photo-1552196563-55cd4e45efb3?auto=format&fit=crop&q=80&w=800",
   "Easy Pose": "https://images.unsplash.com/photo-1552196563-55cd4e45efb3?auto=format&fit=crop&q=80&w=800",
+  "Padmasana": "https://images.unsplash.com/photo-1599447292180-45fd84092ef0?auto=format&fit=crop&q=80&w=800",
+  "Lotus Pose": "https://images.unsplash.com/photo-1599447292180-45fd84092ef0?auto=format&fit=crop&q=80&w=800",
+  
+  // Standing
+  "Tadasana": "https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&q=80&w=800",
+  "Mountain Pose": "https://images.unsplash.com/photo-1510894347713-fc3ed6fdf539?auto=format&fit=crop&q=80&w=800",
+  "Vrikshasana": "https://images.unsplash.com/photo-1566501206168-995f3369d32d?auto=format&fit=crop&q=80&w=800",
+  "Tree Pose": "https://images.unsplash.com/photo-1566501206168-995f3369d32d?auto=format&fit=crop&q=80&w=800",
+  "Virabhadrasana I": "https://images.unsplash.com/photo-1573590330099-d6c7355ec595?auto=format&fit=crop&q=80&w=800",
+  "Warrior I": "https://images.unsplash.com/photo-1573590330099-d6c7355ec595?auto=format&fit=crop&q=80&w=800",
+  "Virabhadrasana II": "https://images.unsplash.com/photo-1603988363607-e1e4a66962c6?auto=format&fit=crop&q=80&w=800",
+  "Warrior II": "https://images.unsplash.com/photo-1603988363607-e1e4a66962c6?auto=format&fit=crop&q=80&w=800",
+  "Trikonasana": "https://images.unsplash.com/photo-1588286840104-472a8f015a24?auto=format&fit=crop&q=80&w=800",
+  "Triangle Pose": "https://images.unsplash.com/photo-1588286840104-472a8f015a24?auto=format&fit=crop&q=80&w=800",
+  
+  // Floor / Stretch
+  "Adho Mukha Svanasana": "https://images.unsplash.com/photo-1562088287-b903a7683c4f?auto=format&fit=crop&q=80&w=800",
+  "Downward-Facing Dog": "https://images.unsplash.com/photo-1562088287-b903a7683c4f?auto=format&fit=crop&q=80&w=800",
+  "Bhujangasana": "https://images.unsplash.com/photo-1599447421405-075115d6e38a?auto=format&fit=crop&q=80&w=800",
+  "Cobra Pose": "https://images.unsplash.com/photo-1599447421405-075115d6e38a?auto=format&fit=crop&q=80&w=800",
+  "Viparita Karani": "https://images.unsplash.com/photo-1602192509153-03726d6e43a5?auto=format&fit=crop&q=80&w=800",
+  "Legs Up The Wall": "https://images.unsplash.com/photo-1602192509153-03726d6e43a5?auto=format&fit=crop&q=80&w=800",
+  "Supta Baddha Konasana": "https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&q=80&w=800",
+  "Reclining Bound Angle": "https://images.unsplash.com/photo-1600618528240-fb9fc964b853?auto=format&fit=crop&q=80&w=800",
+  "Marjaryasana": "https://images.unsplash.com/photo-1552196563-55cd4e45efb3?auto=format&fit=crop&q=80&w=800",
+  "Cat-Cow": "https://images.unsplash.com/photo-1552196563-55cd4e45efb3?auto=format&fit=crop&q=80&w=800",
+  "Setu Bandhasana": "https://images.unsplash.com/photo-1598284687556-9d3d3c8c2476?auto=format&fit=crop&q=80&w=800",
+  "Bridge Pose": "https://images.unsplash.com/photo-1598284687556-9d3d3c8c2476?auto=format&fit=crop&q=80&w=800",
+  "Paschimottanasana": "https://plus.unsplash.com/premium_photo-1664475450083-294d35363717?auto=format&fit=crop&q=80&w=800",
+  "Seated Forward Bend": "https://plus.unsplash.com/premium_photo-1664475450083-294d35363717?auto=format&fit=crop&q=80&w=800",
 };
 
 // Fallback high-quality yoga aesthetics
@@ -138,15 +153,19 @@ const YogaStudio: React.FC<YogaStudioProps> = ({ activeContext }) => {
   };
 
   const getPoseImage = (pose: YogaPose) => {
-    // 1. Try exact name match
+    // 1. Try exact name match (English or Sanskrit)
     if (POSE_IMAGES[pose.name]) return POSE_IMAGES[pose.name];
     if (POSE_IMAGES[pose.english]) return POSE_IMAGES[pose.english];
     
-    // 2. Try partial match
-    const foundKey = Object.keys(POSE_IMAGES).find(k => 
-      pose.name.toLowerCase().includes(k.toLowerCase()) || 
-      pose.english.toLowerCase().includes(k.toLowerCase())
-    );
+    // 2. Try partial match in dictionary keys
+    const lowerName = pose.name.toLowerCase();
+    const lowerEnglish = pose.english.toLowerCase();
+    
+    const foundKey = Object.keys(POSE_IMAGES).find(k => {
+      const lowerKey = k.toLowerCase();
+      return lowerName.includes(lowerKey) || lowerEnglish.includes(lowerKey);
+    });
+    
     if (foundKey) return POSE_IMAGES[foundKey];
 
     // 3. Fallback to generic aesthetically pleasing stock

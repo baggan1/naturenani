@@ -187,7 +187,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     >
                       <div className="h-48 overflow-hidden relative">
                         <img 
-                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.name + " " + meal.ingredients.slice(0, 3).join(" ") + " professional food photography 4k")}?width=400&height=300&nologo=true`} 
+                          src={`https://image.pollinations.ai/prompt/${encodeURIComponent(meal.image_keyword + " delicious plated food professional photography")}?width=400&height=300&nologo=true`} 
                           alt={meal.name}
                           onError={handleImageError}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -239,7 +239,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
             {/* Left Side: Image (Desktop) / Top (Mobile) */}
             <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-gray-100">
                <img 
-                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.name + " " + selectedMeal.ingredients.slice(0,3).join(" ") + " cooked dish professional food photography 4k")}?width=800&height=1000&nologo=true`}
+                src={`https://image.pollinations.ai/prompt/${encodeURIComponent(selectedMeal.image_keyword + " delicious plated food professional photography")}?width=800&height=1000&nologo=true`}
                 alt={selectedMeal.name}
                 className="w-full h-full object-cover"
                 onError={handleImageError}

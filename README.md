@@ -1,20 +1,56 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# Nature Nani - Ayurveda & Naturopathy AI Assistant
 
-This contains everything you need to run your app locally.
+Nature Nani is a conversational AI assistant that combines ancient wisdom from Ayurveda and Naturopathy with modern Retrieval-Augmented Generation (RAG) technology. It provides personalized remedies, yoga routines, and diet plans.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1XV90A5KWdRPBOdqju7kH4uIY3h42VzqK
+## Features
 
-## Run Locally
+- **Holistic Chat Interface**: Conversational AI (Gemini 2.5 Flash) grounded in vector embeddings of traditional texts.
+- **RAG Architecture**: Retrieves context from Supabase Vector Database (`documents_gemini` table).
+- **Yoga Studio**: Specific yoga pose generation with RAG support, curated stock images, and visual guides.
+- **Ayurvedic Kitchen**: Diet plan generation based on ailments (RAG supported), with AI-selected food imagery.
+- **User System**: Authentication (Google OAuth / OTP via Supabase), Subscription tiers (Triage vs Healer), and history tracking.
 
-**Prerequisites:**  Node.js
+## Tech Stack
 
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **AI**: Google Gemini API (`@google/genai`)
+- **Backend/DB**: Supabase (PostgreSQL + pgvector)
+- **Icons**: Lucide React
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Setup
+
+1.  **Clone the repository**.
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+3.  **Environment Variables**:
+    Create a `.env` file in the root directory:
+    ```env
+    VITE_API_KEY=your_gemini_api_key
+    VITE_SUPABASE_URL=your_supabase_project_url
+    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+    VITE_STRIPE_PAYMENT_LINK=your_stripe_payment_link_url
+    ```
+4.  **Supabase Setup**:
+    - **Extension**: Enable the `vector` extension in Postgres.
+    - **Table `documents_gemini`**:
+      - `id`: int8 or uuid
+      - `content`: text
+      - `embedding`: vector(768)
+      - `source`: text (Values: 'Ayurveda', 'Naturopathy', 'Yoga', 'diet')
+      - `book_name`: text (Optional)
+    - **Table `app_users`**: Custom user profiles.
+    - **Table `nani_analytics`**: Analytics logging.
+    - **Table `nani_saved_plans`**: Storing diet plans JSONB.
+    - **RPC Function**: Create `match_documents_gemini` for vector similarity search.
+
+5.  **Run Development Server**:
+    ```bash
+    npm run dev
+    ```
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.

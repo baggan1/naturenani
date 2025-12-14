@@ -120,14 +120,20 @@ export const warmupDatabase = async () => {
   } catch (e) { /* Ignore */ }
 };
 
-export const searchVectorDatabase = async (queryText: string, queryEmbedding: number[] | null): Promise<RemedyDocument[]> => {
+export const searchVectorDatabase = async (
+  queryText: string, 
+  queryEmbedding: number[] | null,
+  filterSource?: string // Optional filter for 'Yoga' or 'diet'
+): Promise<RemedyDocument[]> => {
   if (!supabase || !queryEmbedding) return getMockRemedies(queryText);
 
   try {
+    // Increase match_count to 20 to allow for filtering after retrieval
+    // since the RPC might not support source filtering natively
     const performSearch = async () => await supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
-      match_threshold: 0.4,
-      match_count: 3
+      match_threshold: 0.35, // Slightly lower threshold to ensure we get results for specific sources
+      match_count: 20
     });
 
     let { data, error } = await performSearch();
@@ -148,10 +154,9 @@ export const searchVectorDatabase = async (queryText: string, queryEmbedding: nu
       }
       return getMockRemedies(queryText);
     }
-    
-    console.log(`[RAG] Found ${data?.length || 0} docs`);
 
-    return (data || []).map((doc: any) => ({
+    // Client-side filtering if filterSource is provided
+    let results = (data || []).map((doc: any) => ({
       id: doc.id.toString(),
       condition: 'Related Topic',
       content: doc.content,
@@ -159,6 +164,22 @@ export const searchVectorDatabase = async (queryText: string, queryEmbedding: nu
       book_name: doc.book_name,
       similarity: doc.similarity
     }));
+
+    if (filterSource) {
+      results = results.filter((r: RemedyDocument) => 
+        r.source && r.source.toLowerCase() === filterSource.toLowerCase()
+      );
+    }
+    
+    // Fallback if filtering removed all results (don't return empty if possible, but for strict mode we might want to)
+    // If no results for 'Yoga', we might return empty array so Gemini falls back to general knowledge, 
+    // or we return top 3 general results? 
+    // Logic: If filterSource is explicit, return only matching. If 0 matching, return 0. 
+    // The calling service handles 0 docs by using general knowledge.
+    
+    console.log(`[RAG] Found ${results.length} docs matching ${filterSource || 'ALL'}`);
+
+    return results.slice(0, 5); // Return top 5 matches
   } catch (e) {
     console.error("[Supabase] Unexpected RAG Error", e);
     return getMockRemedies(queryText);
