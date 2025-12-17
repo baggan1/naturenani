@@ -18,6 +18,7 @@ interface ChatInterfaceProps {
   isGuest: boolean;
   onShowAuth: () => void;
   onNavigateToFeature: (view: AppView, contextId: string, contextTitle: string) => void;
+  isMobileView?: boolean;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -32,7 +33,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onUpgradeClick,
   isGuest,
   onShowAuth,
-  onNavigateToFeature
+  onNavigateToFeature,
+  isMobileView = false
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -277,7 +279,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   if (!isGuest && !usage.isUnlimited && usage.remaining <= 0) {
     return (
       <div className="h-full flex flex-col bg-sage-50">
-        <Header />
+        {!isMobileView && <Header />}
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <div className="bg-white p-8 rounded-2xl shadow-lg border border-earth-200 max-w-md w-full">
             <div className="w-16 h-16 bg-earth-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -302,7 +304,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-sage-50">
-      <Header />
+      {/* Only show this header if we are NOT on mobile, as the App component handles mobile header */}
+      {!isMobileView && <Header />}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
@@ -401,7 +404,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <Send size={18} />
           </button>
         </div>
-        <p className="text-center text-xs text-sage-400 mt-2">
+        <p className="text-center text-[10px] md:text-xs text-sage-400 mt-2">
            This is not medical advice, and the information is not intended to diagnose, treat, cure, or prevent any health condition.
         </p>
       </div>

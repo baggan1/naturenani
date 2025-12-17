@@ -9,12 +9,13 @@ import AccountSettings from './components/AccountSettings';
 import YogaStudio from './components/YogaStudio';
 import DietKitchen from './components/DietKitchen';
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Unlock, LogIn, Utensils, Flower2, Lock } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Unlock, LogIn, Utensils, Flower2, Lock, Menu, X } from 'lucide-react';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<AppView>(AppView.CHAT);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Chat State (Lifted Up for Persistence)
   const [chatMessages, setChatMessages] = useState<Message[]>([
@@ -125,6 +126,7 @@ const App: React.FC = () => {
   const handleHistoryClick = (query: string) => {
     setTriggerQuery(query);
     setCurrentView(AppView.CHAT);
+    setIsMobileMenuOpen(false);
   };
 
   const handleMessageSent = () => {
@@ -137,15 +139,22 @@ const App: React.FC = () => {
 
   const handleShowAuth = () => {
     setShowAuthModal(true);
+    setIsMobileMenuOpen(false);
   };
 
   const handlePremiumNav = (view: AppView) => {
     if (user && user.is_subscribed) {
       setCurrentView(view);
-      setFeatureContext(null); // Clear context if navigating manually to allow standalone use
+      setFeatureContext(null);
+      setIsMobileMenuOpen(false);
     } else {
       setShowPaywall(true);
     }
+  };
+
+  const handleNav = (view: AppView) => {
+    setCurrentView(view);
+    setIsMobileMenuOpen(false);
   };
 
   // Called from Chat Interface to handoff to premium feature
@@ -154,19 +163,49 @@ const App: React.FC = () => {
     setCurrentView(view);
   };
 
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+
   return (
     <div className="h-screen w-screen flex flex-col md:flex-row overflow-hidden bg-sage-100">
       
-      {/* Sidebar */}
-      <div className="hidden md:flex flex-col w-64 bg-white border-r border-sage-200 p-4 justify-between shadow-sm z-10">
+      {/* Mobile Top Bar */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-sage-200 z-30">
+        <button 
+          onClick={toggleMobileMenu}
+          className="p-2 text-sage-700 hover:bg-sage-50 rounded-lg"
+          aria-label="Open menu"
+        >
+          <Menu size={24} />
+        </button>
+        <Logo className="h-8 w-8" textClassName="text-xl" />
+        <div className="w-10"></div> {/* Spacer for symmetry */}
+      </div>
+
+      {/* Backdrop for Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar / Navigation Drawer */}
+      <div className={`
+        fixed md:relative inset-y-0 left-0 z-50 w-72 md:w-64 bg-white border-r border-sage-200 p-4 flex flex-col justify-between shadow-xl md:shadow-none transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <div className="flex-1 overflow-y-auto scrollbar-hide">
-          <div className="mb-6 px-2">
+          <div className="mb-6 px-2 flex items-center justify-between">
              <Logo className="h-10 w-10" textClassName="text-2xl" />
+             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-400">
+               <X size={20} />
+             </button>
           </div>
+          
           <div className="space-y-2">
             <button 
-              onClick={() => setCurrentView(AppView.CHAT)}
-              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${
+              onClick={() => handleNav(AppView.CHAT)}
+              className={`w-full text-left px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-medium flex items-center gap-3 transition-colors ${
                 currentView === AppView.CHAT 
                   ? 'bg-sage-100 text-sage-800' 
                   : 'text-gray-600 hover:bg-gray-50'
@@ -181,7 +220,7 @@ const App: React.FC = () => {
               
               <button 
                 onClick={() => handlePremiumNav(AppView.YOGA)}
-                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${
+                className={`w-full text-left px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-medium flex items-center justify-between transition-colors group ${
                   currentView === AppView.YOGA
                     ? 'bg-sage-100 text-sage-800' 
                     : 'text-gray-600 hover:bg-gray-50'
@@ -195,7 +234,7 @@ const App: React.FC = () => {
               
               <button 
                 onClick={() => handlePremiumNav(AppView.DIET)}
-                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${
+                className={`w-full text-left px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-medium flex items-center justify-between transition-colors group ${
                   currentView === AppView.DIET
                     ? 'bg-sage-100 text-sage-800' 
                     : 'text-gray-600 hover:bg-gray-50'
@@ -210,10 +249,10 @@ const App: React.FC = () => {
 
             <button 
               onClick={() => {
-                if (user) setCurrentView(AppView.ACCOUNT);
-                else setShowAuthModal(true);
+                if (user) handleNav(AppView.ACCOUNT);
+                else handleShowAuth();
               }}
-              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${
+              className={`w-full text-left px-4 py-3 md:py-2 rounded-xl md:rounded-lg font-medium flex items-center gap-3 transition-colors ${
                 currentView === AppView.ACCOUNT 
                   ? 'bg-sage-100 text-sage-800' 
                   : 'text-gray-600 hover:bg-gray-50'
@@ -268,8 +307,11 @@ const App: React.FC = () => {
 
           {user && !user.is_subscribed && (
             <button 
-              onClick={() => setShowPaywall(true)}
-              className="w-full bg-earth-600 text-white text-xs font-bold py-2 rounded-lg mb-3 hover:bg-earth-700 transition-colors shadow-sm"
+              onClick={() => {
+                setShowPaywall(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="w-full bg-earth-600 text-white text-xs font-bold py-3 md:py-2 rounded-xl md:rounded-lg mb-3 hover:bg-earth-700 transition-colors shadow-sm"
             >
               Upgrade to Premium
             </button>
@@ -278,14 +320,14 @@ const App: React.FC = () => {
           {user ? (
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors text-sm px-2 w-full"
+              className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors text-sm px-2 w-full py-2"
             >
               <LogOut size={16} /> Sign Out
             </button>
           ) : (
             <button 
-              onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-2 text-sage-600 hover:text-sage-800 transition-colors font-bold text-sm px-2 w-full"
+              onClick={handleShowAuth}
+              className="flex items-center gap-2 text-sage-600 hover:text-sage-800 transition-colors font-bold text-sm px-2 w-full py-2"
             >
               <LogIn size={16} /> Sign In
             </button>
@@ -294,7 +336,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 h-full relative">
+      <div className="flex-1 h-full relative overflow-hidden">
         {/* We keep ChatInterface mounted but hidden to persist history and scroll position */}
         <div className={`h-full w-full ${currentView === AppView.CHAT ? 'block' : 'hidden'}`}>
           <ChatInterface 
@@ -310,6 +352,7 @@ const App: React.FC = () => {
             isGuest={!user}
             onShowAuth={handleShowAuth}
             onNavigateToFeature={handleFeatureHandoff}
+            isMobileView={true} 
           />
         </div>
         
