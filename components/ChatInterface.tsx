@@ -39,7 +39,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  // We remove local pendingMessage state to avoid conflicts with sessionStorage
   const sentInitialRef = useRef(false);
 
   const scrollToBottom = () => {
@@ -54,22 +53,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     let safetyTimer: ReturnType<typeof setTimeout>;
     if (isLoading) {
+      // Increased from 30s to 60s for RAG stability
       safetyTimer = setTimeout(() => {
         setIsLoading(false);
         setMessages(prev => {
-          // If the last message is empty (stuck bot msg), error it out
           const last = prev[prev.length - 1];
           if (last.role === 'model' && last.content === '') {
              return [...prev.slice(0, -1), {
                id: 'timeout-err',
                role: 'model',
-               content: 'I apologize, the connection timed out. Please try asking again.',
+               content: 'I apologize, the connection is taking longer than expected. Please check your network and try asking again.',
                timestamp: Date.now()
              }];
           }
           return prev;
         });
-      }, 30000); // 30s timeout
+      }, 60000); 
     }
     return () => clearTimeout(safetyTimer);
   }, [isLoading]);
@@ -77,10 +76,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   // --- Consolidated Session Resume Logic ---
   useEffect(() => {
-    // 1. Check for pending message from OAuth Redirect (SessionStorage)
     const storedPending = sessionStorage.getItem('nani_pending_message');
-    
-    // 2. Check for initialMessage prop (from Sidebar history click)
     const hasInitialProp = initialMessage && initialMessage.trim() !== '';
 
     if (!isGuest && !sentInitialRef.current) {
@@ -94,13 +90,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
     }
     
-    // Reset ref if views change significantly, though usually unnecessary for this flow
     return () => { sentInitialRef.current = false; };
   }, [isGuest, initialMessage]);
 
 
   const parseMessageContent = (rawText: string): { visibleText: string, metadata?: RecommendationMetadata } => {
-    // 1. Try finding JSON within code blocks (strict)
     const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendation"[\s\S]*?\})\s*```/;
     let match = rawText.match(jsonBlockRegex);
     let jsonString = '';
@@ -110,9 +104,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       jsonString = match[1];
       cleanText = rawText.replace(match[0], '').trim();
     } else {
-      // 2. Fallback: Try finding JSON at the end of the string without code blocks (permissive)
-      // Look for { ... "recommendation": ... } pattern at the end
-      // Fixed Regex: Allow whitespace after opening brace
       const jsonLooseRegex = /(\{\s*"recommendation"[\s\S]*?\})\s*$/;
       match = rawText.match(jsonLooseRegex);
       if (match && match[1]) {
@@ -136,23 +127,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleAutoSend = async (text: string, isResuming = false) => {
-    // Prevent duplicate sending if already loading
     if (isLoading) return;
 
     if (isGuest) {
-      // Store in SessionStorage (survives page reload/redirect)
       sessionStorage.setItem('nani_pending_message', text);
-      
-      // Optimistically show user message before forcing auth
       setMessages(prev => [...prev, {
         id: 'guest-' + Date.now(),
         role: 'user',
         content: text,
         timestamp: Date.now()
       }]);
-      
       setIsLoading(true);
-      // Short delay to simulate processing before asking for login
       setTimeout(() => {
         setIsLoading(false);
         onShowAuth();
@@ -194,16 +179,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       for await (const chunk of stream) {
         fullRawContent += chunk;
-        
-        // Parse on the fly (optimistic)
         const { visibleText } = parseMessageContent(fullRawContent);
-
         setMessages(prev => prev.map(msg => 
           msg.id === botMessageId ? { ...msg, content: visibleText } : msg
         ));
       }
       
-      // Final Parse to extract metadata
       const { visibleText, metadata } = parseMessageContent(fullRawContent);
       setMessages(prev => prev.map(msg => 
         msg.id === botMessageId ? { ...msg, content: visibleText, recommendation: metadata } : msg
@@ -214,7 +195,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } catch (error: any) {
       console.error("Chat error", error);
       setMessages(prev => {
-        // Remove empty bot message if it failed immediately
         const lastMsg = prev[prev.length - 1];
         if (lastMsg.role === 'model' && lastMsg.content === '') {
           return prev.slice(0, -1);
@@ -225,7 +205,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => [...prev, {
         id: 'error-' + Date.now(),
         role: 'model',
-        content: "I apologize, but I am unable to connect to the server right now. Please check if the API Key is configured correctly.",
+        content: "I apologize, but I am unable to connect to the wisdom archives right now. Please try again in a moment.",
         timestamp: Date.now()
       }]);
     } finally {
@@ -304,7 +284,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-sage-50">
-      {/* Only show this header if we are NOT on mobile, as the App component handles mobile header */}
       {!isMobileView && <Header />}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -328,7 +307,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <SourceAccordion sources={msg.sources} />
             )}
 
-            {/* DYNAMIC UPSELL / FEATURE CARD */}
             {msg.recommendation && (
               <div className="ml-11 max-w-[85%] mt-1">
                 <div 

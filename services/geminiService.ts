@@ -8,7 +8,6 @@ let client: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 export const initializeGemini = () => {
-  // Try all possible access methods for the key
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
@@ -17,7 +16,6 @@ export const initializeGemini = () => {
   }
   
   console.log(`[Gemini] Initializing...`);
-  
   client = new GoogleGenAI({ apiKey });
 };
 
@@ -42,7 +40,7 @@ export const startChat = async () => {
   if (!client) throw new Error("Failed to initialize AI client. Missing API Key.");
 
   chatSession = client.chats.create({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash-preview',
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       temperature: 0.7,
@@ -62,9 +60,9 @@ export const sendMessageWithRAG = async function* (
 
     console.log("[Gemini] RAG Start:", message);
 
-    // 1. Get Embeddings (with timeout fallback)
+    // 1. Get Embeddings (with increased timeout fallback)
     const embeddingPromise = generateEmbedding(message);
-    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 5000));
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 8000));
     const queryVector = await Promise.race([embeddingPromise, timeoutPromise]);
     
     // 2. Search Database
@@ -90,32 +88,15 @@ ${message}
       `;
     }
 
-    // Force the model to consider the recommendation JSON
     augmentedMessage += `\n\n[SYSTEM REMINDER]: If this query relates to a health condition where Yoga or Diet would be beneficial, you MUST append the JSON recommendation block at the very end as specified in your system instructions.`;
 
-    console.log("[Gemini] Stream started...");
+    console.log("[Gemini] Stream started using gemini-3-flash-preview...");
     
     const result = await chatSession.sendMessageStream({ message: augmentedMessage });
     
-    const streamIterator = result[Symbol.asyncIterator]();
-    let streamActive = true;
     let chunkCount = 0;
-
-    while (streamActive) {
-      const raceResult = await Promise.race([
-        streamIterator.next(),
-        // Increased timeout to 25s to prevent premature "Connection Timed Out" on slow networks/models
-        new Promise<{ done: boolean, value: any }>((_, reject) => 
-          setTimeout(() => reject(new Error("Stream timeout")), 25000)
-        )
-      ]);
-
-      if (raceResult.done) {
-        streamActive = false;
-        break;
-      }
-
-      const chunk = raceResult.value;
+    // Standard for-await loop is more resilient than manual iterator + race
+    for await (const chunk of result) {
       if (chunk.text) {
         chunkCount++;
         yield chunk.text;
@@ -127,7 +108,6 @@ ${message}
     }
     
     console.log("[Gemini] Stream finished.");
-
     logAnalyticsEvent(message, hasRAG ? 'RAG' : 'AI', `Docs: ${contextDocs.length}`);
 
   } catch (error) {
@@ -143,9 +123,8 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
   if (!client) initializeGemini();
   if (!client) throw new Error("Client not initialized");
 
-  console.log(`[Yoga] Generating routine for ${ailmentId} using RAG (Source: Yoga)`);
+  console.log(`[Yoga] Generating routine for ${ailmentId} using gemini-3-flash-preview`);
 
-  // 1. Fetch RAG Context for Yoga
   let contextString = "";
   try {
     const embedding = await generateEmbedding(ailmentId);
@@ -154,18 +133,15 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
       if (docs.length > 0) {
         contextString = "Use the following Yoga Database Context to inform your sequence:\n" + 
           docs.map(d => `- ${d.content}`).join("\n");
-        console.log(`[Yoga] Context found: ${docs.length} docs`);
       }
     }
   } catch (e) {
-    console.warn("[Yoga] RAG fetch failed, falling back to pure generation", e);
+    console.warn("[Yoga] RAG fetch failed", e);
   }
 
   const prompt = `
     The user has a condition ID or Query: "${ailmentId}".
-    
     ${contextString}
-
     Generate a list of 3-5 specific Yoga poses to help this condition.
     Use standard Sanskrit names where possible.
     Provide detailed step-by-step instructions, breathing patterns, and repetitions.
@@ -173,7 +149,7 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
 
   try {
     const response = await client.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: { parts: [{ text: prompt }] },
       config: { 
         responseMimeType: 'application/json',
@@ -187,14 +163,13 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
               english: { type: Type.STRING },
               duration: { type: Type.STRING },
               benefit: { type: Type.STRING },
-              color: { type: Type.STRING, description: "Tailwind CSS classes for color, e.g. bg-blue-100 text-blue-800" },
+              color: { type: Type.STRING },
               instructions: { 
                 type: Type.ARRAY, 
-                items: { type: Type.STRING },
-                description: "List of step-by-step instructions"
+                items: { type: Type.STRING }
               },
-              breathing: { type: Type.STRING, description: "Breathing guidance" },
-              reps: { type: Type.STRING, description: "Number of repetitions or duration details" }
+              breathing: { type: Type.STRING },
+              reps: { type: Type.STRING }
             },
             required: ["id", "name", "english", "duration", "benefit", "instructions", "breathing", "reps"]
           }
@@ -219,9 +194,8 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
   if (!client) initializeGemini();
   if (!client) throw new Error("Client not initialized");
 
-  console.log(`[Diet] Generating plan for ${ailmentId} using RAG (Source: diet)`);
+  console.log(`[Diet] Generating plan for ${ailmentId} using gemini-3-flash-preview`);
 
-  // 1. Fetch RAG Context for Diet
   let contextString = "";
   try {
     const embedding = await generateEmbedding(ailmentId);
@@ -230,31 +204,21 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
       if (docs.length > 0) {
         contextString = "Use the following Diet Database Context to inform your meal plan:\n" + 
           docs.map(d => `- ${d.content}`).join("\n");
-        console.log(`[Diet] Context found: ${docs.length} docs`);
       }
     }
   } catch (e) {
-    console.warn("[Diet] RAG fetch failed, falling back to pure generation", e);
+    console.warn("[Diet] RAG fetch failed", e);
   }
 
   const prompt = `
     The user has a condition ID: "${ailmentId}".
-
     ${contextString}
-
     Generate a 3-day Ayurvedic/Naturopathic meal plan.
-    For each day, provide Breakfast, Lunch, and Dinner.
-    For each meal, provide:
-    - name: The name of the dish
-    - ingredients: A list of main ingredient strings
-    - instructions: Detailed step-by-step cooking instructions (at least 3 steps).
-    - image_keyword: A single, simple English keyword (noun) that represents the dish (e.g. "Porridge", "Soup").
-    - key_ingredient: The single most important healing ingredient in this dish (e.g. "Turmeric", "Ginger", "Spinach", "Lentils"). This will be shown as the primary image. One word only.
   `;
 
   try {
     const response = await client.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: { parts: [{ text: prompt }] },
       config: { 
         responseMimeType: 'application/json',
@@ -263,18 +227,18 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
           items: {
             type: Type.OBJECT,
             properties: {
-              day: { type: Type.STRING, description: "Day 1, Day 2 etc" },
+              day: { type: Type.STRING },
               meals: {
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
                   properties: {
-                    type: { type: Type.STRING, description: "Breakfast, Lunch, or Dinner" },
+                    type: { type: Type.STRING },
                     name: { type: Type.STRING },
                     ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
                     instructions: { type: Type.STRING },
                     image_keyword: { type: Type.STRING },
-                    key_ingredient: { type: Type.STRING, description: "The single most important healing ingredient." }
+                    key_ingredient: { type: Type.STRING }
                   },
                   required: ["type", "name", "ingredients", "instructions", "image_keyword", "key_ingredient"]
                 }
