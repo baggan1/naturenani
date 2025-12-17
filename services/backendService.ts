@@ -1,11 +1,10 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan } from '../types';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 
 // Initialize Supabase Client
-// We rely on process.env which is polyfilled in vite.config.ts to support both VITE_ and standard env vars
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
 console.log(`[Supabase] Initializing... URL configured: ${!!supabaseUrl}`);
@@ -33,7 +32,6 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
-    // Count analytics logs for this user in the last 24 hours
     const { count, error } = await supabase
       .from('nani_analytics')
       .select('*', { count: 'exact', head: true })
@@ -61,7 +59,7 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, det
   if (!supabase) return;
   try {
     const user = getCurrentUser();
-    if (!user) return; // Don't log for guests who haven't finished auth
+    if (!user) return; 
     
     const payload = { 
       query, 
@@ -83,7 +81,6 @@ export const getUserSearchHistory = async (user: User): Promise<string[]> => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    // Triage Tier Limitation: Only see history from last 24 hours
     if (!user.is_subscribed) {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       query = query.gt('created_at', oneDayAgo);
@@ -96,9 +93,8 @@ export const getUserSearchHistory = async (user: User): Promise<string[]> => {
       return [];
     }
 
-    // Deduplicate: Get unique queries only
     const distinctQueries = Array.from(new Set((data || []).map((item: any) => item.query as string))) as string[];
-    return distinctQueries.slice(0, 5); // Return top 5
+    return distinctQueries.slice(0, 5); 
   } catch (e) {
     console.warn("History error:", e);
     return [];
@@ -122,22 +118,19 @@ export const warmupDatabase = async () => {
 export const searchVectorDatabase = async (
   queryText: string, 
   queryEmbedding: number[] | null,
-  filterSource?: string // Optional filter for 'Yoga' or 'diet'
+  filterSource?: string 
 ): Promise<RemedyDocument[]> => {
   if (!supabase || !queryEmbedding) return getMockRemedies(queryText);
 
   try {
-    // Increase match_count to 20 to allow for filtering after retrieval
-    // since the RPC might not support source filtering natively
     const performSearch = async () => await supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
-      match_threshold: 0.35, // Slightly lower threshold to ensure we get results for specific sources
+      match_threshold: 0.35, 
       match_count: 20
     });
 
     let { data, error } = await performSearch();
 
-    // Handle Timeouts - Reduced retry wait time from 4s to 1s for better UX
     if (error && error.code === '57014') {
       console.warn("Database timeout. Retrying in 1s...");
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -148,13 +141,9 @@ export const searchVectorDatabase = async (
 
     if (error) {
       console.error("[Supabase] RAG Search Error:", error);
-      if (error.code === '57014') {
-        console.warn("Supabase Search Timeout. Falling back to offline mode.");
-      }
       return getMockRemedies(queryText);
     }
 
-    // Client-side filtering if filterSource is provided
     let results = (data || []).map((doc: any) => ({
       id: doc.id.toString(),
       condition: 'Related Topic',
@@ -170,15 +159,9 @@ export const searchVectorDatabase = async (
       );
     }
     
-    // Fallback if filtering removed all results (don't return empty if possible, but for strict mode we might want to)
-    // If no results for 'Yoga', we might return empty array so Gemini falls back to general knowledge, 
-    // or we return top 3 general results? 
-    // Logic: If filterSource is explicit, return only matching. If 0 matching, return 0. 
-    // The calling service handles 0 docs by using general knowledge.
-    
     console.log(`[RAG] Found ${results.length} docs matching ${filterSource || 'ALL'}`);
 
-    return results.slice(0, 5); // Return top 5 matches
+    return results.slice(0, 5); 
   } catch (e) {
     console.error("[Supabase] Unexpected RAG Error", e);
     return getMockRemedies(queryText);
@@ -192,10 +175,15 @@ export const getCurrentUser = (): User | null => {
   return stored ? JSON.parse(stored) : null;
 };
 
+/**
+ * Initiates Google OAuth Sign-in.
+ * NOTE: The 'biblbp...' URL seen by users in the Google Auth prompt is your 
+ * Supabase Project URL. To change this to your custom domain, you must configure 
+ * a Custom Domain in your Supabase Dashboard: Settings -> Auth -> Custom Domains.
+ */
 export const signInWithGoogle = async () => {
   if (!supabase) throw new Error("Database not connected");
   
-  // Debug Log for configuration
   const redirectUrl = window.location.origin;
   console.log(`[Auth] OAuth Redirect URL: ${redirectUrl}`);
   
@@ -205,14 +193,13 @@ export const signInWithGoogle = async () => {
       redirectTo: redirectUrl,
       queryParams: {
         access_type: 'offline',
-        prompt: 'consent',
+        prompt: 'select_account', // Better UX: users choose which account to use
       },
     }
   });
   if (error) throw error;
 };
 
-// OTP Step 1: Send Code
 export const sendOtp = async (email: string) => {
   if (!supabase) {
     console.log(`[MOCK] OTP sent to ${email}`);
@@ -229,7 +216,6 @@ export const sendOtp = async (email: string) => {
   if (error) throw error;
 };
 
-// OTP Step 2: Verify Code
 export const verifyOtp = async (email: string, token: string): Promise<User> => {
   if (!supabase) {
     if (token === '123456') {
@@ -250,10 +236,9 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
 };
 
 export const signUpUser = async (email: string, name: string): Promise<User> => {
-  // Calculate Trial Dates
   const startDate = new Date();
   const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + TRIAL_DAYS); // 30 Days
+  endDate.setDate(endDate.getDate() + TRIAL_DAYS); 
 
   const newUserPayload = {
     email,
@@ -274,7 +259,6 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
       .single();
 
     if (error) {
-      // If error is duplicate, try fetching
       const { data: existing } = await supabase.from('app_users').select('*').eq('email', email).single();
       if (existing) {
         user = existing as User;
@@ -285,7 +269,6 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
       user = data as User;
     }
   } else {
-    // Mock
     user = {
       ...newUserPayload,
       id: crypto.randomUUID(),
@@ -297,11 +280,9 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   return user;
 };
 
-// Helper to get or create user in our custom table after Auth
 const getOrCreateUser = async (email: string, name: string): Promise<User> => {
   if (!supabase) return signUpUser(email, name);
 
-  // Check if user exists in our custom table
   const { data: existingUser } = await supabase
     .from('app_users')
     .select('*')
@@ -313,19 +294,14 @@ const getOrCreateUser = async (email: string, name: string): Promise<User> => {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
     return user;
   } else {
-    // New User -> Sign Up Flow
     return await signUpUser(email, name);
   }
 };
 
-/**
- * Listens for Supabase Auth state changes (specifically Session recovery after OAuth redirect)
- */
 export const setupAuthListener = (onLogin: (user: User) => void) => {
   if (!supabase) return () => {};
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-    // These events trigger on page load if the user is authenticated (via cookie/redirect)
     if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
       if (session?.user?.email) {
         console.log("[Auth] Session detected:", event);
@@ -352,13 +328,11 @@ export const logoutUser = async () => {
   localStorage.removeItem(CURRENT_USER_KEY);
 };
 
-// --- Subscription Service (Stripe Integration) ---
+// --- Subscription Service ---
 
 export const checkSubscriptionStatus = async (user: User): Promise<{ hasAccess: boolean, daysRemaining: number }> => {
-  // If subscribed, valid forever (until cancelled)
   if (user.is_subscribed) return { hasAccess: true, daysRemaining: 30 };
   
-  // Check Trial
   const now = new Date();
   const trialEnd = new Date(user.trial_end);
   const diffTime = trialEnd.getTime() - now.getTime();
@@ -371,33 +345,18 @@ export const checkSubscriptionStatus = async (user: User): Promise<{ hasAccess: 
 };
 
 export const initiateStripeCheckout = async (user: User): Promise<void> => {
-  console.log(`[Stripe] Initiating Checkout for ${user.email}...`);
-  
-  // 1. Check if we have a real Payment Link configured
   const stripePaymentLink = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
   
   if (stripePaymentLink) {
-    // REAL MODE: Redirect to Stripe Payment Link
-    // We pass the email to pre-fill it for the user
     const separator = stripePaymentLink.includes('?') ? '&' : '?';
     window.location.href = `${stripePaymentLink}${separator}prefilled_email=${encodeURIComponent(user.email)}`;
     return;
   }
 
-  // 2. Mock Mode (For Demo Only)
-  console.warn("STRIPE_PAYMENT_LINK is missing. Falling back to Mock Payment.");
-  
-  const confirmed = window.confirm(
-    "Setup Required: To make real payments work, add 'VITE_STRIPE_PAYMENT_LINK' to your environment variables.\n\nClick OK to simulate a successful payment for now."
-  );
-
-  if (!confirmed) return;
-
   await new Promise(resolve => setTimeout(resolve, 1500));
   
   if (!supabase) return;
 
-  // Simulate Webhook success -> Update DB
   await supabase
     .from('app_users')
     .update({ 
@@ -416,25 +375,16 @@ export const createStripePortalSession = async () => {
   const user = getCurrentUser();
 
   if (portalLink) {
-    // Trim to avoid accidental spaces from copy-paste
     let targetUrl = portalLink.trim();
-
-    // Pre-fill email for better UX if the link supports it
-    // Note: Stripe "No-Code" Customer Portal Login pages support ?prefilled_email=
     if (user && user.email) {
       const separator = targetUrl.includes('?') ? '&' : '?';
       targetUrl = `${targetUrl}${separator}prefilled_email=${encodeURIComponent(user.email)}`;
     }
-
-    console.log(`[Stripe] Redirecting to Portal: ${targetUrl}`);
     window.location.href = targetUrl;
     return;
   }
-
-  console.log("Redirecting to billing portal...");
-  alert("Setup Required: Add 'VITE_STRIPE_PORTAL_LINK' to your .env file to enable the Customer Portal.");
+  alert("Portal session configuration not found.");
 };
-
 
 // --- Meal Plan Saving Logic ---
 
@@ -449,7 +399,6 @@ export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): 
     plan_data: plan
   };
 
-  // 1. Try Saving to Supabase
   if (supabase) {
     try {
       const { data, error } = await supabase
@@ -457,7 +406,7 @@ export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): 
         .insert({
           user_id: user.id,
           title: title,
-          plan_data: plan // Stores as JSONB
+          plan_data: plan 
         })
         .select()
         .single();
@@ -465,24 +414,18 @@ export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): 
       if (!error && data) {
         return data as SavedMealPlan;
       }
-      console.warn("Failed to save to Supabase:", error);
-    } catch (e) {
-      console.warn("Supabase Save Error:", e);
-    }
+    } catch (e) {}
   }
 
-  // 2. Fallback to LocalStorage
   try {
     const existing = localStorage.getItem(SAVED_PLANS_KEY);
     const plans: SavedMealPlan[] = existing ? JSON.parse(existing) : [];
-    // Ensure we don't duplicate by ID if we are in mock mode
     if (!plans.find(p => p.id === newPlan.id)) {
       plans.unshift(newPlan);
       localStorage.setItem(SAVED_PLANS_KEY, JSON.stringify(plans));
     }
     return newPlan;
   } catch (e) {
-    console.error("Local Save Error", e);
     return null;
   }
 };
@@ -490,7 +433,6 @@ export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): 
 export const getUserMealPlans = async (user: User): Promise<SavedMealPlan[]> => {
   let plans: SavedMealPlan[] = [];
 
-  // 1. Get from Supabase
   if (supabase) {
     try {
       const { data, error } = await supabase
@@ -502,17 +444,14 @@ export const getUserMealPlans = async (user: User): Promise<SavedMealPlan[]> => 
       if (data && !error) {
         plans = data as SavedMealPlan[];
       }
-    } catch (e) { console.warn("Fetch Plans Error", e); }
+    } catch (e) {}
   }
 
-  // 2. Merge with LocalStorage (for fallback/offline created plans)
   try {
     const local = localStorage.getItem(SAVED_PLANS_KEY);
     if (local) {
       const localPlans: SavedMealPlan[] = JSON.parse(local);
       const userLocalPlans = localPlans.filter(p => p.user_id === user.id);
-      
-      // Deduplicate: If ID exists in Supabase result, prefer Supabase
       const existingIds = new Set(plans.map(p => p.id));
       userLocalPlans.forEach(p => {
         if (!existingIds.has(p.id)) {
@@ -522,12 +461,8 @@ export const getUserMealPlans = async (user: User): Promise<SavedMealPlan[]> => 
     }
   } catch(e) {}
 
-  // Sort by date desc
   return plans.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
-
-
-// --- Fallbacks ---
 
 const getMockRemedies = (query: string): RemedyDocument[] => {
   const q = query.toLowerCase();
