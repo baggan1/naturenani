@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X, Sprout, TreePine } from 'lucide-react';
 import { initiateStripeCheckout, getCurrentUser } from '../services/backendService';
@@ -98,7 +97,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
               <li className="flex items-start gap-3">
                 <div className="bg-sage-100 p-1 rounded-full text-sage-700"><Check size={14} /></div>
                 <div>
-                  <span className="font-bold text-sage-900 block">Full Conversation Library</span>
+                  <span className="font-bold text-sage-900 block">Full Conversation History</span>
                   <span className="text-xs text-gray-500">Save your healing journey forever.</span>
                 </div>
               </li>

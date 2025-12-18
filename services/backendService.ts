@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan, YogaPose, SavedYogaPlan } from '../types';
 import { DAILY_QUERY_LIMIT } from '../utils/constants';
@@ -187,7 +186,8 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
 export const signUpUser = async (email: string, name: string): Promise<User> => {
   const startDate = new Date();
   const endDate = new Date(startDate);
-  endDate.setFullYear(endDate.getFullYear() + 100); // effectively free forever
+  // Free plan is forever, so we set a far future end date
+  endDate.setFullYear(endDate.getFullYear() + 100); 
 
   let authUserId: string | undefined;
   if (supabase) {
@@ -231,8 +231,8 @@ const getOrCreateUser = async (email: string, name: string): Promise<User> => {
 };
 
 export const checkSubscriptionStatus = async (user: User) => {
-  // Free plan is now forever. Access is controlled by limits in the UI/Logic.
-  return { hasAccess: true, daysRemaining: 999, isTrialExpired: false };
+  // Free plan is now forever. 
+  return { hasAccess: true, daysRemaining: 9999, isTrialExpired: false };
 };
 
 export const logoutUser = async () => {

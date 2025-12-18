@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Utensils, ShoppingCart, Loader2, Search, X, ChefHat, Check, Camera, BookOpen, Save, ListChecks } from 'lucide-react';
 import { FeatureContext, DayPlan, Meal } from '../types';
@@ -170,7 +169,7 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
                     </ul>
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2"><BookOpen size={18} /> Clinical Purpose</h3>
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2"><BookOpen size={18} /> Medicinal Purpose</h3>
                     <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 text-orange-900 text-sm leading-relaxed">
                         This meal is specifically chosen to target your ailment by balancing inflammation and providing essential micronutrients found in {selectedMeal.ingredients[0]}.
                     </div>

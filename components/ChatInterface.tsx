@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf } from 'lucide-react';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } from '../types';
@@ -49,7 +48,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]); 
 
-  const handleResetChat = () => {
+  const handleResetChat = useCallback(() => {
     setMessages([{
       id: 'welcome',
       role: 'model',
@@ -57,7 +56,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: Date.now()
     }]);
     sessionStorage.removeItem('nani_pending_message');
-  };
+  }, [setMessages]);
 
   const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[] } => {
     const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendations"[\s\S]*?\})\s*```/;
@@ -171,9 +170,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // Trigger search when initialMessage (from sidebar history) changes
   useEffect(() => {
     if (initialMessage && initialMessage.trim() !== '') {
-      handleAutoSend(initialMessage);
+      handleResetChat();
+      // Small timeout to ensure state settles after reset if needed, though state updates are batched
+      setTimeout(() => {
+        handleAutoSend(initialMessage);
+      }, 0);
     }
-  }, [initialMessage]);
+  }, [initialMessage, handleResetChat]);
 
   useEffect(() => {
     const storedPending = sessionStorage.getItem('nani_pending_message');
