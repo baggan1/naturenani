@@ -185,24 +185,39 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + TRIAL_DAYS); 
 
-  const newUserPayload = {
-    email, name,
+  // CRITICAL: Get the actual Supabase Auth User ID to link tables correctly
+  let authUserId: string | undefined;
+  if (supabase) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    authUserId = authUser?.id;
+  }
+
+  const newUserPayload: any = {
+    email, 
+    name,
     is_subscribed: false,
     trial_start: startDate.toISOString(),
     trial_end: endDate.toISOString(),
   };
 
+  // If we have a Supabase Auth session, use that ID
+  if (authUserId) {
+    newUserPayload.id = authUserId;
+  }
+
   let user: User;
   if (supabase) {
      const { data, error } = await supabase
       .from('app_users')
-      .insert(newUserPayload)
+      .upsert(newUserPayload) // Use upsert to handle re-registrations
       .select()
       .single();
 
     if (error) {
+      console.error("[Backend] Profile sync error:", error.message);
+      // Fallback: try to just get the user
       const { data: existing } = await supabase.from('app_users').select('*').eq('email', email).single();
-      user = existing ? (existing as User) : ({} as User);
+      user = existing ? (existing as User) : ({ ...newUserPayload, id: authUserId || crypto.randomUUID(), created_at: new Date().toISOString() } as User);
     } else {
       user = data as User;
     }
@@ -282,9 +297,12 @@ export const createStripePortalSession = async () => {
 
 export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): Promise<SavedMealPlan | null> => {
   if (!plan || plan.length === 0 || !supabase) {
-    console.error("[Backend] Cannot save meal plan: Missing plan or database connection.");
+    console.error("[Backend] Cannot save: Database or plan missing.");
     return null;
   }
+  // Debug: verify we are using the correct user ID
+  console.log("[Backend] Attempting to save Meal Plan for User ID:", user.id);
+
   const { data, error } = await supabase.from('nani_saved_plans').insert({ 
     user_id: user.id, 
     title, 
@@ -293,7 +311,7 @@ export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): 
   }).select().single();
   
   if (error) {
-    console.error("[Backend] Error saving meal plan to Supabase:", error.message, error.details);
+    console.error("[Backend] Supabase RLS Violation/Error:", error.message);
     return null;
   }
   return data as SavedMealPlan;
@@ -301,9 +319,12 @@ export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): 
 
 export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string): Promise<SavedYogaPlan | null> => {
   if (!poses || poses.length === 0 || !supabase) {
-    console.error("[Backend] Cannot save yoga plan: Missing poses or database connection.");
+    console.error("[Backend] Cannot save: Database or poses missing.");
     return null;
   }
+  // Debug: verify we are using the correct user ID
+  console.log("[Backend] Attempting to save Yoga Plan for User ID:", user.id);
+
   const { data, error } = await supabase.from('nani_saved_plans').insert({ 
     user_id: user.id, 
     title, 
@@ -312,7 +333,7 @@ export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string)
   }).select().single();
   
   if (error) {
-    console.error("[Backend] Error saving yoga plan to Supabase:", error.message, error.details);
+    console.error("[Backend] Supabase RLS Violation/Error:", error.message);
     return null;
   }
   return data as SavedYogaPlan;
@@ -322,7 +343,7 @@ export const getUserLibrary = async (user: User): Promise<{diet: SavedMealPlan[]
   if (!supabase) return { diet: [], yoga: [] };
   const { data, error } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
   if (error) {
-    console.error("[Backend] Error fetching library:", error.message);
+    console.error("[Backend] Library Fetch Error:", error.message);
     return { diet: [], yoga: [] };
   }
   
