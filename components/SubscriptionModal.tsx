@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X } from 'lucide-react';
+import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X, Sprout, TreePine } from 'lucide-react';
 import { initiateStripeCheckout, getCurrentUser } from '../services/backendService';
 
 interface SubscriptionModalProps {
@@ -49,15 +49,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
           <div className="absolute bottom-0 right-0 w-24 h-24 bg-white/5 rounded-full translate-x-12 translate-y-12"></div>
           
           <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-            <Lock className="w-8 h-8 text-white" />
+            <TreePine className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-serif font-bold text-white mb-2">
-            Upgrade to Evergreen
+            Upgrade to Premium Plan
           </h2>
           <p className="text-sage-100 text-sm opacity-90">
             {isTrialExpired 
-              ? 'Your Seedling access is limited.' 
-              : 'Upgrade from Seedling to Full Evergreen Wellness'}
+              ? 'Your Free Plan access is limited.' 
+              : 'Upgrade from Free Plan to Full Premium Wellness'}
           </p>
         </div>
 
@@ -85,7 +85,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                 <div className="bg-earth-100 p-1 rounded-full text-earth-700"><FileText size={14} /></div>
                 <div>
                   <span className="font-bold text-sage-900 block">Weekly Meal Plans</span>
-                  <span className="text-xs text-gray-500">Personalized diet charts for your Dosha.</span>
+                  <span className="text-xs text-gray-500">Personalized diet charts for your recovery.</span>
                 </div>
               </li>
               <li className="flex items-start gap-3">
@@ -100,7 +100,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
 
           <div className="bg-sage-50 rounded-xl p-4 mb-6 border border-sage-200 flex justify-between items-center">
              <div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-bold">Evergreen Plan</span>
+                <span className="text-xs text-gray-500 uppercase tracking-wide font-bold flex items-center gap-1">
+                  <TreePine size={12} className="text-sage-600" /> Premium Plan
+                </span>
                 <div className="text-2xl font-bold text-sage-900">$9.99<span className="text-sm font-normal text-gray-500">/mo</span></div>
               </div>
               <div className="text-xs text-earth-700 font-bold bg-earth-100 px-3 py-1 rounded-full border border-earth-200">
@@ -115,7 +117,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
           >
             {isLoading ? <Loader2 className="animate-spin" /> : (
               <>
-                <CreditCard size={20} /> Upgrade to Evergreen
+                <CreditCard size={20} /> Upgrade to Premium Plan
               </>
             )}
           </button>

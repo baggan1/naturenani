@@ -10,7 +10,7 @@ import Library from './components/Library';
 import YogaAid from './components/YogaStudio'; 
 import NutriHeal from './components/DietKitchen'; 
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -194,7 +194,16 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-sage-900 truncate">{user.name || 'User'}</p>
-                  <p className="text-[10px] text-gray-400 truncate uppercase tracking-tighter">{user.is_subscribed ? 'Evergreen Plan' : 'Seedling Access'}</p>
+                  <div className="flex items-center gap-1">
+                    {user.is_subscribed ? (
+                      <TreePine size={10} className="text-sage-600" />
+                    ) : (
+                      <Sprout size={10} className="text-sage-400" />
+                    )}
+                    <p className="text-[10px] text-gray-400 truncate uppercase tracking-tighter">
+                      {user.is_subscribed ? 'Premium Plan' : 'Free Plan'}
+                    </p>
+                  </div>
                 </div>
               </div>
               <button 

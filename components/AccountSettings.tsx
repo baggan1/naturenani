@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
-import { LogOut, CreditCard, ShieldCheck, Zap, ExternalLink, Calendar, Mail, User as UserIcon } from 'lucide-react';
+import { LogOut, CreditCard, ShieldCheck, Zap, ExternalLink, Calendar, Mail, User as UserIcon, Sprout, TreePine } from 'lucide-react';
 import { createStripePortalSession } from '../services/backendService';
 
 interface AccountSettingsProps {
@@ -71,16 +71,16 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
                 <CreditCard size={20} className="text-sage-600" /> Subscription Plan
               </h2>
               <p className="text-gray-500 text-sm mt-1">
-                Current tier: <span className="font-bold text-sage-800">{user.is_subscribed ? 'Evergreen Plan' : 'Seedling Plan (Trial)'}</span>
+                Current tier: <span className="font-bold text-sage-800">{user.is_subscribed ? 'Premium Plan' : 'Free Plan (Trial)'}</span>
               </p>
             </div>
             {user.is_subscribed ? (
               <span className="bg-earth-100 text-earth-700 px-3 py-1 rounded-full text-xs font-bold border border-earth-200 flex items-center gap-1">
-                <Zap size={12} fill="currentColor" /> ACTIVE PREMIUM
+                <TreePine size={12} /> PREMIUM ACCESS
               </span>
             ) : (
-              <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">
-                SEEDLING TIER
+              <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200 flex items-center gap-1">
+                <Sprout size={12} /> FREE TIER
               </span>
             )}
           </div>
@@ -92,7 +92,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
                 <div className="flex-1">
                   <h3 className="font-serif font-bold text-xl text-sage-900 mb-2">Unlock Unlimited Healing</h3>
                   <p className="text-gray-600 mb-4">
-                    You are currently on the Seedling plan, limited to 3 queries per day. Upgrade to Evergreen for unlimited access, visual yoga guides, and personalized meal plans.
+                    You are currently on the Free Plan, limited to 3 queries per day. Upgrade to Premium for unlimited access, visual yoga guides, and personalized meal plans.
                   </p>
                   <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                     <div className="bg-sage-500 h-2.5 rounded-full" style={{ width: '100%' }}></div>
@@ -103,7 +103,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
                   onClick={onUpgrade}
                   className="bg-earth-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-earth-700 transition-colors shadow-lg shadow-earth-200 whitespace-nowrap"
                 >
-                  Upgrade to Evergreen
+                  Upgrade to Premium Plan
                 </button>
               </div>
             </div>
@@ -112,9 +112,9 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
             <div className="bg-green-50 rounded-xl p-6 border border-green-100">
               <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-green-900 mb-1">You have full Evergreen access</h3>
+                  <h3 className="font-bold text-green-900 mb-1">You have full Premium Plan access</h3>
                   <p className="text-green-700 text-sm">
-                    Thank you for being an Evergreen member. Your next billing date is managed via Stripe.
+                    Thank you for being a Premium member. Your next billing date is managed via Stripe.
                   </p>
                 </div>
                 <button
