@@ -12,10 +12,9 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     
-    <!-- Fallback favicon for older browsers -->
+    <!-- Fallback favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234a7c59' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z' fill='%234a7c59' fill-opacity='0.2'/%3E%3Cpath d='M12 21C8 17 4 13 4 9C4 6 7 6 10 9' fill='%234a7c59' fill-opacity='0.2'/%3E%3Cpath d='M12 21C16 17 20 13 20 9C20 6 17 6 14 9' fill='%234a7c59' fill-opacity='0.2'/%3E%3C/svg%3E" />
 
-    <!-- We keep the Tailwind CDN for simplicity during migration, though npm install is better for prod -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <script>
@@ -28,28 +27,12 @@
             },
             colors: {
               sage: {
-                50: '#f4f7f4',
-                100: '#e3ebe3',
-                200: '#c5d9c5',
-                300: '#9dbf9d',
-                400: '#76a076',
-                500: '#568356',
-                600: '#426842',
-                700: '#365336',
-                800: '#2d422d',
-                900: '#263726',
+                50: '#f4f7f4', 100: '#e3ebe3', 200: '#c5d9c5', 300: '#9dbf9d', 400: '#76a076',
+                500: '#568356', 600: '#426842', 700: '#365336', 800: '#2d422d', 900: '#263726',
               },
               earth: {
-                50: '#fbf8f4',
-                100: '#f5efe6',
-                200: '#eadccb',
-                300: '#dec2a8',
-                400: '#cf9e7d',
-                500: '#c28059',
-                600: '#b56441',
-                700: '#964d34',
-                800: '#7d4130',
-                900: '#65372a',
+                50: '#fbf8f4', 100: '#f5efe6', 200: '#eadccb', 300: '#dec2a8', 400: '#cf9e7d',
+                500: '#c28059', 600: '#b56441', 700: '#964d34', 800: '#7d4130', 900: '#65372a',
               }
             }
           }
@@ -59,34 +42,30 @@
     <style>
       body {
         background-color: #f4f7f4;
-        overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile which can feel un-app-like */
+        overscroll-behavior-y: none;
       }
-      /* Custom Scrollbar for Chat */
-      .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-      }
-      .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-      }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "lucide-react": "https://esm.sh/lucide-react@^0.559.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.32.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.1/",
-    "react/": "https://esm.sh/react@^19.2.1/",
-    "react": "https://esm.sh/react@^19.2.1",
-    "vite": "https://esm.sh/vite@^7.2.7",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.87.1"
+    "react": "https://esm.sh/react@18.2.0",
+    "react/": "https://esm.sh/react@18.2.0/",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react",
+    "@google/genai": "https://esm.sh/@google/genai@1.32.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="index.tsx"></script>
   </body>
 </html>
