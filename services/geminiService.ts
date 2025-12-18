@@ -1,14 +1,12 @@
 
-import { GoogleGenAI, Chat, Type, GenerateContentParameters } from "@google/genai";
+import { GoogleGenAI, Chat, Type } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
-import { SearchSource, RemedyDocument, YogaPose, Message } from "../types";
+import { SearchSource, RemedyDocument, YogaPose, Message, Meal } from "../types";
 
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API_KEY is missing. Please check your environment configuration.");
-  }
+  if (!apiKey) throw new Error("API_KEY is missing.");
   return new GoogleGenAI({ apiKey });
 };
 
@@ -20,10 +18,7 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
       contents: { parts: [{ text }] }
     });
     return response.embeddings?.[0]?.values || null;
-  } catch (error) {
-    console.error("[Gemini] Embedding Error:", error);
-    return null;
-  }
+  } catch (e) { return null; }
 };
 
 export const sendMessageWithRAG = async function* (
@@ -31,59 +26,17 @@ export const sendMessageWithRAG = async function* (
   history: Message[],
   onSourcesFound?: (sources: RemedyDocument[]) => void
 ) {
-  console.group("Nature Nani Consultation");
-  
   try {
     const ai = getAiClient();
-
-    // 1. Attempt RAG with a localized error handler
     let contextDocs: RemedyDocument[] = [];
     let hasRAG = false;
 
-    try {
-      console.info("[Step 1] Generating Embeddings...");
-      const embeddingPromise = generateEmbedding(message);
-      const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 8000));
-      const queryVector = await Promise.race([embeddingPromise, timeoutPromise]);
-      
-      if (queryVector) {
-        console.info("[Step 2] Searching Vector Database...");
-        contextDocs = await searchVectorDatabase(message, queryVector);
-        if (onSourcesFound) onSourcesFound(contextDocs);
-        hasRAG = contextDocs.length > 0;
-      } else {
-        console.warn("[RAG] Search timed out, falling back to pure AI.");
-      }
-    } catch (ragError) {
-      console.warn("[RAG] Feature failed, falling back to pure AI.", ragError);
+    const queryVector = await generateEmbedding(message);
+    if (queryVector) {
+      contextDocs = await searchVectorDatabase(message, queryVector);
+      if (onSourcesFound) onSourcesFound(contextDocs);
+      hasRAG = contextDocs.length > 0;
     }
-    
-    // 2. Prepare Augmented Message
-    let augmentedMessage = message;
-    if (hasRAG) {
-      const contextString = contextDocs.map(d => {
-        const sourceInfo = d.book_name ? `${d.source} (Book: ${d.book_name})` : d.source;
-        return `[Source: ${sourceInfo}]: ${d.content}`;
-      }).join('\n\n');
-
-      augmentedMessage = `
-Context Information from Ancient Texts:
-${contextString}
-
-User Query:
-${message}
-      `;
-    }
-
-    augmentedMessage += `\n\n[SYSTEM REMINDER]: For digestive issues, provide BOTH Yoga and Diet recommendations in an array within your JSON block at the very end. For others, provide the most relevant one.`;
-
-    // 3. Initialize Chat with strictly validated history
-    const sdkHistory = history
-      .filter(msg => msg.content && msg.content.trim() !== '')
-      .map(msg => ({
-        role: msg.role === 'model' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
-      }));
 
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
@@ -91,51 +44,28 @@ ${message}
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.7,
       },
-      history: sdkHistory
+      history: history.filter(m => m.content).map(m => ({
+        role: m.role === 'model' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }))
     });
 
-    console.info("[Step 3] Starting AI Stream...");
+    const augmentedMessage = hasRAG 
+      ? `Context: ${contextDocs.map(d => d.content).join('\n')}\n\nUser: ${message}`
+      : message;
+
     const result = await chat.sendMessageStream({ message: augmentedMessage });
-    
-    let chunkCount = 0;
     for await (const chunk of result) {
-      if (chunk.text) {
-        chunkCount++;
-        yield chunk.text;
-      }
+      if (chunk.text) yield chunk.text;
     }
-
-    if (chunkCount === 0) {
-      throw new Error("AI stream returned no content.");
-    }
-    
-    console.info("[Step 4] Consultation Complete.");
-    logAnalyticsEvent(message, hasRAG ? 'RAG' : 'AI', `Docs: ${contextDocs.length}`);
-
-  } catch (error: any) {
-    console.error("[Gemini] Chat Error:", error);
-    throw error;
-  } finally {
-    console.groupEnd();
-  }
+    logAnalyticsEvent(message, hasRAG ? 'RAG' : 'AI');
+  } catch (error: any) { throw error; }
 };
 
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
   const ai = getAiClient();
-  let contextString = "";
-  try {
-    const embedding = await generateEmbedding(ailmentId);
-    if (embedding) {
-      const docs = await searchVectorDatabase(ailmentId, embedding, 'Yoga');
-      if (docs.length > 0) contextString = docs.map(d => d.content).join("\n");
-    }
-  } catch (e) {}
-
-  const prompt = `
-    Generate a 3-5 pose Yoga sequence for the condition: "${ailmentId}". 
-    Use the following ancient wisdom context if available: ${contextString}
-    Ensure the poses directly address the ailment (e.g. twists for digestion, forward folds for stress).
-  `;
+  const prompt = `You are a yoga therapist. Recommend 3 specific yoga poses for: "${ailmentId}". Return only a JSON list with the keys: 'pose_name', 'benefit', and 'contraindications'. Do not generate images.`;
+  
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -147,16 +77,11 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
           items: {
             type: Type.OBJECT,
             properties: {
-              id: { type: Type.INTEGER },
-              name: { type: Type.STRING },
-              english: { type: Type.STRING },
-              duration: { type: Type.STRING },
+              pose_name: { type: Type.STRING },
               benefit: { type: Type.STRING },
-              instructions: { type: Type.ARRAY, items: { type: Type.STRING } },
-              breathing: { type: Type.STRING },
-              reps: { type: Type.STRING }
+              contraindications: { type: Type.STRING }
             },
-            required: ["id", "name", "english", "duration", "benefit", "instructions", "breathing", "reps"]
+            required: ["pose_name", "benefit", "contraindications"]
           }
         }
       }
@@ -165,23 +90,9 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
   } catch (e) { return []; }
 };
 
-export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
+export const generateDietPlan = async (ailmentId: string): Promise<any> => {
   const ai = getAiClient();
-  let contextString = "";
-  try {
-    const embedding = await generateEmbedding(ailmentId);
-    if (embedding) {
-      const docs = await searchVectorDatabase(ailmentId, embedding, 'diet');
-      if (docs.length > 0) contextString = docs.map(d => d.content).join("\n");
-    }
-  } catch (e) {}
-
-  const prompt = `
-    Generate a highly detailed 3-day meal plan for: "${ailmentId}". 
-    Context: ${contextString}
-    IMPORTANT: Every meal MUST include specific "ingredients" and clear step-by-step "instructions" on how to prepare the healing dish.
-    Also provide a specific "image_keyword" for each meal that describes the visual appearance of the finished dish accurately.
-  `;
+  const prompt = `You are an expert nutritionist. Create a 3-day meal plan (Breakfast, Lunch, Dinner) for a user with ${ailmentId}. Return only a JSON object with a "meals" array. Each meal should have: "type", "dish_name" (Standard culinary name), "search_query" (high quality photo of [dish_name] food), "ingredients" (array), and "benefit". Do not generate images.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -190,32 +101,26 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
       config: { 
         responseMimeType: 'application/json',
         responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              day: { type: Type.STRING },
-              meals: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    type: { type: Type.STRING, description: "Breakfast, Lunch, or Dinner" },
-                    name: { type: Type.STRING },
-                    ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    instructions: { type: Type.STRING, description: "Detailed preparation steps for the recipe" },
-                    image_keyword: { type: Type.STRING },
-                    key_ingredient: { type: Type.STRING }
-                  },
-                  required: ["type", "name", "ingredients", "instructions", "image_keyword", "key_ingredient"]
-                }
+          type: Type.OBJECT,
+          properties: {
+            meals: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  dish_name: { type: Type.STRING },
+                  search_query: { type: Type.STRING },
+                  ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  benefit: { type: Type.STRING }
+                },
+                required: ["type", "dish_name", "search_query", "ingredients", "benefit"]
               }
-            },
-            required: ["day", "meals"]
+            }
           }
         }
       }
     });
-    return response.text ? JSON.parse(response.text) : [];
-  } catch (e) { return []; }
+    return response.text ? JSON.parse(response.text) : { meals: [] };
+  } catch (e) { return { meals: [] }; }
 };

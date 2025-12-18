@@ -19,7 +19,9 @@ export interface RemedyDocument {
   similarity?: number;
 }
 
-// Metadata parsed from the LLM JSON block
+// SearchSource defines the origin of the information provided to the user
+export type SearchSource = 'RAG' | 'AI' | 'Search';
+
 export interface RecommendationMetadata {
   type: 'YOGA' | 'DIET';
   id: string;
@@ -29,18 +31,10 @@ export interface RecommendationMetadata {
 export interface Message {
   id: string;
   role: 'user' | 'model';
-  content: string; // The visible text
+  content: string; 
   timestamp: number;
   sources?: RemedyDocument[]; 
-  recommendations?: RecommendationMetadata[]; // Supporting multiple intents
-}
-
-export interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: number;
-  interval: 'month' | 'year';
-  trialDays: number;
+  recommendations?: RecommendationMetadata[]; 
 }
 
 export enum AppView {
@@ -53,16 +47,6 @@ export enum AppView {
   DIET = 'DIET'
 }
 
-export type SearchSource = 'RAG' | 'GoogleSearch' | 'Hybrid' | 'AI';
-
-export interface AnalyticsEvent {
-  id: string;
-  query: string;
-  source: SearchSource;
-  timestamp: number;
-  details?: string;
-}
-
 export interface QueryUsage {
   count: number;
   limit: number;
@@ -70,33 +54,25 @@ export interface QueryUsage {
   isUnlimited: boolean;
 }
 
-// Data passed from Chat to Premium Views
 export interface FeatureContext {
-  id: string; // e.g., "LOWER_BACK_01"
+  id: string; 
   title: string;
 }
 
 export interface YogaPose {
-  id: number;
-  name: string;
-  english: string;
-  duration: string;
+  pose_name: string;
   benefit: string;
-  color?: string;
-  instructions: string[];
-  breathing: string;
-  reps: string;
+  contraindications: string;
+  image_url?: string; // Fetched from Search API
 }
-
-// --- Diet & Kitchen Types ---
 
 export interface Meal {
   type: string;
-  name: string;
+  dish_name: string;
+  search_query: string;
   ingredients: string[];
-  instructions: string;
-  image_keyword: string;
-  key_ingredient?: string; 
+  benefit: string;
+  image_url?: string; // Fetched from Search API
 }
 
 export interface DayPlan {

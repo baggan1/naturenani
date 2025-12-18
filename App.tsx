@@ -6,8 +6,8 @@ import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
 import SubscriptionModal from './components/SubscriptionModal';
 import AccountSettings from './components/AccountSettings';
-import YogaStudio from './components/YogaStudio';
-import DietKitchen from './components/DietKitchen';
+import YogaAid from './components/YogaStudio'; // Still using file path, but component is renamed
+import NutriHeal from './components/DietKitchen'; // Still using file path, but component is renamed
 import { Logo } from './components/Logo';
 import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
@@ -105,20 +105,14 @@ const App: React.FC = () => {
           </div>
           <div className="space-y-2">
             <button onClick={() => handleNav(AppView.CHAT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><MessageSquare size={18} /> Consultation</button>
-            <div className="pt-4 pb-2"><p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Healer Tools</p>
-              <button onClick={() => handleNav(AppView.YOGA, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Flower2 size={18} className="text-pink-500" /> Yoga Studio</div>{!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}</button>
-              <button onClick={() => handleNav(AppView.DIET, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Utensils size={18} className="text-orange-500" /> Kitchen</div>{!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}</button>
+            <div className="pt-4 pb-2"><p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Health Aids</p>
+              <button onClick={() => handleNav(AppView.YOGA, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Flower2 size={18} className="text-pink-500" /> Yoga Aid</div>{!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}</button>
+              <button onClick={() => handleNav(AppView.DIET, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Utensils size={18} className="text-orange-500" /> Nutri Heal</div>{!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}</button>
             </div>
             <button onClick={() => handleNav(AppView.ACCOUNT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ACCOUNT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><UserCircle size={18} /> Account</button>
           </div>
-          {searchHistory.length > 0 && <div className="mt-8"><h3 className="text-[10px] font-bold text-sage-400 uppercase tracking-widest mb-3 px-2 flex items-center gap-1"><History size={12} /> Recent Topics</h3><div className="space-y-1">{searchHistory.map((q, i) => (<button key={i} onClick={() => handleHistoryClick(q)} className="w-full text-left px-3 py-2 text-sm text-sage-700 hover:bg-sage-50 rounded-lg truncate transition-colors">{q}</button>))}</div></div>}
         </div>
         <div className="pt-4 border-t border-sage-100">
-          {user ? (
-            <div className="mb-4 p-3 bg-earth-50 rounded-lg border border-earth-100"><p className="text-[10px] text-earth-800 font-bold uppercase mb-1">{user.is_subscribed ? 'Healer Plan' : 'Triage Plan'}</p><p className="text-xs text-gray-600">{user.is_subscribed ? 'Unlimited' : `${queryUsage.remaining} left`}</p></div>
-          ) : (
-            <button onClick={() => setShowAuthModal(true)} className="w-full bg-sage-600 text-white font-bold py-2 rounded-lg mb-3">Sign In</button>
-          )}
           {user && <button onClick={logoutUser} className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"><LogOut size={14} /> Sign Out</button>}
         </div>
       </div>
@@ -128,8 +122,8 @@ const App: React.FC = () => {
           <ChatInterface messages={chatMessages} setMessages={setChatMessages} onTrialEnd={() => setShowPaywall(true)} hasAccess={subscriptionState.hasAccess} initialMessage={triggerQuery} onMessageSent={() => user && refreshAppData(user)} usage={queryUsage} isSubscribed={user?.is_subscribed || false} onUpgradeClick={() => setShowPaywall(true)} isGuest={!user} onShowAuth={() => setShowAuthModal(true)} onNavigateToFeature={handleFeatureHandoff} isMobileView={true} />
         </div>
         {currentView === AppView.ACCOUNT && user && <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={logoutUser} />}
-        {currentView === AppView.YOGA && <YogaStudio activeContext={featureContext} />}
-        {currentView === AppView.DIET && <DietKitchen activeContext={featureContext} />}
+        {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
+        {currentView === AppView.DIET && <NutriHeal activeContext={featureContext} />}
       </div>
 
       <AuthForm isOpen={showAuthModal} onAuthSuccess={handleAuthSuccess} onClose={() => setShowAuthModal(false)} />
