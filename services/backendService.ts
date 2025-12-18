@@ -7,12 +7,34 @@ import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// Fix: Use 'any' type for the supabase client to resolve Property 'signInWithOAuth' and other Auth method errors appearing on SupabaseAuthClient
+// Using 'any' for the client to bypass version-specific type mismatches in the environment
 const supabase: any = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
 
 const CURRENT_USER_KEY = 'nature_nani_current_user';
+
+/**
+ * Helper to provide fallback remedies when vector search is unavailable or returns no results.
+ */
+const getMockRemedies = (query: string): RemedyDocument[] => {
+  return [
+    {
+      id: 'mock-1',
+      condition: query,
+      content: 'A soothing ginger and honey tea can help alleviate the symptoms described. In Ayurveda, this balances Kapha and Vata.',
+      source: 'Ayurveda',
+      book_name: 'Traditional Home Remedies'
+    },
+    {
+      id: 'mock-2',
+      condition: query,
+      content: 'Drinking warm water with lemon in the morning helps detoxify the digestive system, a common practice in Naturopathy.',
+      source: 'Naturopathy',
+      book_name: 'Natural Living Guide'
+    }
+  ];
+};
 
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   if (user.is_subscribed) {
@@ -234,7 +256,6 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
 const getOrCreateUser = async (email: string, name: string): Promise<User> => {
   if (!supabase) return signUpUser(email, name);
   
-  // Always try to fetch actual auth user first to ensure IDs are matched
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const targetId = authUser?.id;
 
@@ -245,7 +266,6 @@ const getOrCreateUser = async (email: string, name: string): Promise<User> => {
     .single();
 
   if (existingUser) {
-    // If IDs don't match, we might need to repair the record if RLS is broken
     if (targetId && existingUser.id !== targetId) {
       console.warn("[Backend] User ID mismatch detected. Repairing profile...");
       const { data: repaired } = await supabase
@@ -260,150 +280,105 @@ const getOrCreateUser = async (email: string, name: string): Promise<User> => {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }
-  return await signUpUser(email, name);
+  
+  return signUpUser(email, name);
 };
 
-export const setupAuthListener = (onLogin: (user: User) => void) => {
+/**
+ * Checks the current user's subscription or trial status.
+ */
+export const checkSubscriptionStatus = async (user: User) => {
+  if (user.is_subscribed) return { hasAccess: true, daysRemaining: 999, isTrialExpired: false };
+  const end = new Date(user.trial_end);
+  const now = new Date();
+  const diff = end.getTime() - now.getTime();
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  return {
+    hasAccess: days > 0,
+    daysRemaining: Math.max(0, days),
+    isTrialExpired: days <= 0
+  };
+};
+
+/**
+ * Sign out the current user and clear local storage.
+ */
+export const logoutUser = async () => {
+  if (supabase) await supabase.auth.signOut();
+  localStorage.removeItem(CURRENT_USER_KEY);
+  window.location.reload();
+};
+
+/**
+ * Setup listener for Supabase authentication state changes.
+ */
+export const setupAuthListener = (onAuthChange: (user: User) => void) => {
   if (!supabase) return () => {};
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-      if (session?.user?.email) {
-        try {
-          const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
-          onLogin(user);
-        } catch (e) {
-          console.error("[Backend] Auth listener error:", e);
-        }
-      }
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+    if (event === 'SIGNED_IN' && session?.user?.email) {
+      const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
+      onAuthChange(user);
     }
   });
   return () => subscription.unsubscribe();
 };
 
-export const logoutUser = async () => {
-  try {
-    if (supabase) await supabase.auth.signOut();
-  } catch (e) {
-    console.warn("SignOut error:", e);
-  } finally {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = window.location.origin;
-  }
+/**
+ * Redirect user to Stripe Checkout for subscription upgrade.
+ */
+export const initiateStripeCheckout = async (user: User) => {
+  const stripeLink = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
+  if (!stripeLink) return;
+  const url = new URL(stripeLink);
+  url.searchParams.set('prefilled_email', user.email);
+  window.location.href = url.toString();
 };
 
-export const checkSubscriptionStatus = async (user: User): Promise<{ hasAccess: boolean, daysRemaining: number }> => {
-  if (user.is_subscribed) return { hasAccess: true, daysRemaining: 30 };
-  const diffTime = new Date(user.trial_end).getTime() - Date.now();
-  const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return { hasAccess: daysRemaining > 0, daysRemaining: Math.max(0, daysRemaining) };
-};
-
-export const initiateStripeCheckout = async (user: User): Promise<void> => {
-  const stripePaymentLink = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
-  if (stripePaymentLink) {
-    const sep = stripePaymentLink.includes('?') ? '&' : '?';
-    window.location.href = `${stripePaymentLink}${sep}prefilled_email=${encodeURIComponent(user.email)}`;
-    return;
-  }
-  if (!supabase) return;
-  await supabase.from('app_users').update({ is_subscribed: true }).eq('id', user.id);
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify({ ...user, is_subscribed: true }));
-  window.location.reload(); 
-};
-
+/**
+ * Redirect user to Stripe Customer Portal for billing management.
+ */
 export const createStripePortalSession = async () => {
   const portalLink = process.env.REACT_APP_STRIPE_PORTAL_LINK;
-  const user = getCurrentUser();
-  if (portalLink && user) {
-    const sep = portalLink.includes('?') ? '&' : '?';
-    window.location.href = `${portalLink}${sep}prefilled_email=${encodeURIComponent(user.email)}`;
-  }
+  if (portalLink) window.location.href = portalLink;
 };
 
-export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): Promise<SavedMealPlan | null> => {
-  if (!plan || plan.length === 0 || !supabase) {
-    console.error("[Backend] Cannot save: Database or plan missing.");
-    return null;
-  }
-  
-  // Double-check auth status before saving
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  if (!authUser) {
-     console.error("[Backend] Auth session missing. Please sign in again.");
-     return null;
-  }
-
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ 
-    user_id: authUser.id, // Explicitly use the session ID to satisfy RLS
-    title, 
-    plan_data: plan, 
-    type: 'DIET' 
+/**
+ * Saves a yoga plan for the user in Supabase.
+ */
+export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string) => {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('nani_yoga_plans').insert({
+    user_id: user.id,
+    title,
+    poses
   }).select().single();
-  
-  if (error) {
-    console.error("[Backend] Supabase RLS Violation/Error:", error.message);
-    return null;
-  }
-  return data as SavedMealPlan;
+  return error ? null : data;
 };
 
-export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string): Promise<SavedYogaPlan | null> => {
-  if (!poses || poses.length === 0 || !supabase) {
-    console.error("[Backend] Cannot save: Database or poses missing.");
-    return null;
-  }
-  
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  if (!authUser) {
-     console.error("[Backend] Auth session missing. Please sign in again.");
-     return null;
-  }
-
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ 
-    user_id: authUser.id, // Explicitly use the session ID to satisfy RLS
-    title, 
-    plan_data: poses, 
-    type: 'YOGA' 
+/**
+ * Saves a meal plan for the user in Supabase.
+ */
+export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: string) => {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('nani_meal_plans').insert({
+    user_id: user.id,
+    title,
+    plan_data
   }).select().single();
-  
-  if (error) {
-    console.error("[Backend] Supabase RLS Violation/Error:", error.message);
-    return null;
-  }
-  return data as SavedYogaPlan;
+  return error ? null : data;
 };
 
-export const getUserLibrary = async (user: User): Promise<{diet: SavedMealPlan[], yoga: SavedYogaPlan[]}> => {
+/**
+ * Fetches the user's saved library items (meal plans and yoga routines).
+ */
+export const getUserLibrary = async (user: User) => {
   if (!supabase) return { diet: [], yoga: [] };
-  
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const targetId = authUser?.id || user.id;
-
-  const { data, error } = await supabase
-    .from('nani_saved_plans')
-    .select('*')
-    .eq('user_id', targetId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error("[Backend] Library Fetch Error:", error.message);
-    return { diet: [], yoga: [] };
-  }
-  
-  const library = data || [];
+  const [dietRes, yogaRes] = await Promise.all([
+    supabase.from('nani_meal_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+    supabase.from('nani_yoga_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+  ]);
   return {
-    diet: library.filter((l: any) => l.type === 'DIET').map((l: any) => ({ ...l, plan_data: l.plan_data })),
-    yoga: library.filter((l: any) => l.type === 'YOGA').map((l: any) => ({ ...l, poses: l.plan_data }))
+    diet: dietRes.data || [],
+    yoga: yogaRes.data || []
   };
-};
-
-const getMockRemedies = (query: string): RemedyDocument[] => {
-  const q = query.toLowerCase();
-  const mockDocs: RemedyDocument[] = [
-    { id: '1', condition: 'Headache', content: 'Hydrotherapy: Hot foot bath.', source: 'Naturopathy' },
-    { id: '2', condition: 'Headache', content: 'Ginger tea for Vata.', source: 'Ayurveda' },
-    { id: '3', condition: 'Anxiety', content: 'Pranayama and Ashwagandha.', source: 'Ayurveda' },
-  ];
-  return mockDocs.filter(d => q.includes(d.condition.toLowerCase()));
 };
