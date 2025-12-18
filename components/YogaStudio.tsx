@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Flower2, Info, Loader2, Search, X, Check, Repeat, AlertCircle, Camera } from 'lucide-react';
+import { Flower2, Info, Loader2, Search, X, Check, Repeat, AlertCircle, Camera, ShieldCheck } from 'lucide-react';
 import { FeatureContext, YogaPose } from '../types';
 import { generateYogaRoutine } from '../services/geminiService';
 import { fetchImageFromSearch } from '../services/searchService';
@@ -105,17 +105,26 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-sage-300">
                       {imageLoading ? <Loader2 className="animate-spin" /> : <Camera size={40} />}
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Fetching authentic visual...</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-center px-4">
+                        {imageLoading ? "Searching Archives..." : "Authentic Visual Unavailable"}
+                      </span>
                     </div>
                   )}
-                  <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold text-sage-800 shadow-sm uppercase">
-                    Verification Pending
+                  
+                  {/* DYNAMIC BADGE */}
+                  <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-bold shadow-sm uppercase flex items-center gap-1 backdrop-blur-md ${
+                    pose.image_url 
+                      ? "bg-green-500/90 text-white" 
+                      : "bg-white/90 text-sage-800"
+                  }`}>
+                    {pose.image_url ? <ShieldCheck size={12} /> : null}
+                    {pose.image_url ? "Verified Source" : "Consultation Guide"}
                   </div>
                 </div>
                 <div className="p-6 flex flex-col flex-1">
                    <h3 className="font-bold text-sage-900 text-xl mb-2">{pose.pose_name}</h3>
                    <p className="text-xs text-sage-600 leading-relaxed line-clamp-3 mb-4">{pose.benefit}</p>
-                   <div className="mt-auto flex items-center gap-2 text-[10px] font-bold text-sage-500 uppercase tracking-widest">
+                   <div className="mt-auto flex items-center gap-2 text-[10px] font-bold text-sage-500 uppercase tracking-widest group-hover:text-sage-700 transition-colors">
                       <Info size={14} /> View Contraindications
                    </div>
                 </div>
@@ -128,9 +137,9 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
       {selectedPose && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
            <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl flex flex-col md:flex-row overflow-hidden">
-             <button onClick={() => setSelectedPose(null)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full z-20"><X size={20} /></button>
+             <button onClick={() => setSelectedPose(null)} className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full z-20 hover:bg-black/70 transition-colors"><X size={20} /></button>
              <div className="w-full md:w-1/2 bg-gray-100 min-h-[300px]">
-                {selectedPose.image_url ? <img src={selectedPose.image_url} alt={selectedPose.pose_name} className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center text-gray-400">No high-quality image found</div>}
+                {selectedPose.image_url ? <img src={selectedPose.image_url} alt={selectedPose.pose_name} className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center text-gray-400 p-8 text-center font-bold uppercase text-xs">No high-quality image found in vetted databases</div>}
              </div>
              <div className="w-full md:w-1/2 p-10 flex flex-col">
                 <h2 className="text-3xl font-serif font-bold text-sage-900 mb-2">{selectedPose.pose_name}</h2>
@@ -139,7 +148,7 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
                 <h3 className="font-bold text-sage-800 mb-2 text-sm uppercase tracking-widest">Primary Benefit</h3>
                 <p className="text-gray-700 leading-relaxed mb-8">{selectedPose.benefit}</p>
 
-                <div className="bg-red-50 p-6 rounded-2xl border border-red-100">
+                <div className="bg-red-50 p-6 rounded-2xl border border-red-100 mt-auto">
                    <h3 className="font-bold text-red-900 mb-2 flex items-center gap-2">
                      <AlertCircle size={18} /> Contraindications
                    </h3>

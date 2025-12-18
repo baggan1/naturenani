@@ -9,7 +9,7 @@ import AccountSettings from './components/AccountSettings';
 import YogaAid from './components/YogaStudio'; 
 import NutriHeal from './components/DietKitchen'; 
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -37,15 +37,19 @@ const App: React.FC = () => {
   const [queryUsage, setQueryUsage] = useState<QueryUsage>({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
 
   const refreshAppData = useCallback(async (u: User) => {
-    const [usage, history, subStatus] = await Promise.all([
-      checkDailyQueryLimit(u),
-      getUserSearchHistory(u),
-      checkSubscriptionStatus(u)
-    ]);
-    setQueryUsage(usage);
-    setSearchHistory(history);
-    setSubscriptionState({ hasAccess: subStatus.hasAccess, daysRemaining: subStatus.daysRemaining, isTrialExpired: !subStatus.hasAccess });
-    if (!subStatus.hasAccess) setShowPaywall(true);
+    try {
+      const [usage, history, subStatus] = await Promise.all([
+        checkDailyQueryLimit(u),
+        getUserSearchHistory(u),
+        checkSubscriptionStatus(u)
+      ]);
+      setQueryUsage(usage);
+      setSearchHistory(history);
+      setSubscriptionState({ hasAccess: subStatus.hasAccess, daysRemaining: subStatus.daysRemaining, isTrialExpired: !subStatus.hasAccess });
+      if (!subStatus.hasAccess) setShowPaywall(true);
+    } catch (err) {
+      console.error("[App] Data refresh failed:", err);
+    }
   }, []);
 
   const handleAuthSuccess = useCallback((loggedInUser: User) => {
@@ -92,7 +96,7 @@ const App: React.FC = () => {
   return (
     <div className="h-screen w-screen flex flex-col md:flex-row overflow-hidden bg-sage-50">
       <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-sage-200 z-30">
-        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-sage-700 hover:bg-sage-50 rounded-lg"><Menu size={24} /></button>
+        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-sage-700 hover:bg-sage-50 rounded-lg transition-colors"><Menu size={24} /></button>
         <Logo className="h-8 w-8" textClassName="text-xl" />
         <div className="w-10"></div>
       </div>
@@ -101,7 +105,7 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto scrollbar-hide">
           <div className="mb-6 px-2 flex items-center justify-between">
              <Logo className="h-10 w-10" textClassName="text-2xl" />
-             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-400"><X size={20} /></button>
+             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={20} /></button>
           </div>
           
           <div className="space-y-2">
@@ -113,7 +117,9 @@ const App: React.FC = () => {
             </button>
             
             <div className="pt-4 pb-2">
-              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Health Aids</p>
+              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                Specialized Aids {user?.is_subscribed && <Sparkles size={10} className="text-yellow-500" />}
+              </p>
               <button 
                 onClick={() => handleNav(AppView.YOGA, true)} 
                 className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -134,9 +140,9 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* History Section */}
+            {/* History Section - Only shows if there are logs */}
             {searchHistory.length > 0 && (
-              <div className="pt-4 pb-2">
+              <div className="pt-4 pb-2 animate-in fade-in slide-in-from-left-4 duration-500">
                 <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                   <History size={12} /> Recent Consults
                 </p>
@@ -147,8 +153,8 @@ const App: React.FC = () => {
                       onClick={() => handleHistoryClick(query)}
                       className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-sage-50 rounded-lg flex items-center justify-between group transition-colors"
                     >
-                      <span className="truncate">{query}</span>
-                      <ChevronRight size={14} className="text-gray-300 group-hover:text-sage-400 transition-colors" />
+                      <span className="truncate pr-2">{query}</span>
+                      <ChevronRight size={14} className="text-gray-300 group-hover:text-sage-400 transition-colors flex-shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -167,18 +173,18 @@ const App: React.FC = () => {
         <div className="pt-4 border-t border-sage-100">
           {user ? (
             <div className="px-2">
-              <div className="flex items-center gap-3 p-2 mb-2">
-                <div className="w-8 h-8 rounded-full bg-sage-600 flex items-center justify-center text-white font-bold text-xs">
+              <div className="flex items-center gap-3 p-2 mb-2 bg-sage-50/50 rounded-xl">
+                <div className="w-8 h-8 rounded-full bg-sage-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
                   {user.name?.[0] || user.email[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-sage-900 truncate">{user.name || 'User'}</p>
-                  <p className="text-[10px] text-gray-400 truncate">{user.is_subscribed ? 'Healer Plan' : 'Trial Access'}</p>
+                  <p className="text-[10px] text-gray-400 truncate uppercase tracking-tighter">{user.is_subscribed ? 'Healer Member' : 'Trial Access'}</p>
                 </div>
               </div>
               <button 
                 onClick={logoutUser} 
-                className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"
+                className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"
               >
                 <LogOut size={14} /> Sign Out
               </button>
@@ -186,7 +192,7 @@ const App: React.FC = () => {
           ) : (
             <button 
               onClick={() => setShowAuthModal(true)}
-              className="w-full bg-sage-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-sage-700 transition-colors"
+              className="w-full bg-sage-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-sage-700 transition-colors shadow-lg shadow-sage-200"
             >
               Sign In
             </button>
@@ -204,7 +210,7 @@ const App: React.FC = () => {
             initialMessage={triggerQuery} 
             onMessageSent={() => {
               if (user) refreshAppData(user);
-              setTriggerQuery(''); // Clear trigger after use
+              setTriggerQuery(''); 
             }} 
             usage={queryUsage} 
             isSubscribed={user?.is_subscribed || false} 
