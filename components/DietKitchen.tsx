@@ -53,7 +53,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    e.currentTarget.src = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1000&auto=format&fit=crop"; // Fallback healthy food image
+    e.currentTarget.src = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1000&auto=format&fit=crop"; 
   };
 
   const handleSavePlan = async () => {
@@ -87,16 +87,14 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
     setShowSavedModal(false);
   };
 
-  // Helper to generate ingredient-focused image URL
-  const getIngredientImageUrl = (meal: Meal) => {
-    const ingredient = meal.key_ingredient || meal.image_keyword;
-    // Prompt engineered for high quality botanical/ingredient focus
-    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Raw fresh ${ingredient} ingredient botanical photography studio lighting white background high resolution`)}?width=400&height=300&nologo=true`;
+  // Helper to generate recipe-focused image URL
+  const getRecipeImageUrl = (meal: Meal) => {
+    // Prompt focused on the final plated dish
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Gourmet plated ${meal.name}, authentic Ayurvedic ${meal.type} dish, professional food photography, natural cinematic lighting, top down view, high resolution, delicious presentation`)}?width=400&height=300&nologo=true`;
   };
   
-  const getIngredientImageUrlLarge = (meal: Meal) => {
-    const ingredient = meal.key_ingredient || meal.image_keyword;
-    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Fresh organic ${ingredient} ingredient on wooden table close up aesthetic photography`)}?width=800&height=1000&nologo=true`;
+  const getRecipeImageUrlLarge = (meal: Meal) => {
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Close up of a delicious ${meal.name}, healthy Ayurvedic meal, steam rising, professional food styling, warm aesthetic kitchen background, 8k resolution`)}?width=800&height=1000&nologo=true`;
   };
 
   return (
@@ -110,7 +108,6 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
         </div>
         
         <div className="flex gap-2 w-full md:w-auto items-center">
-           {/* Saved Plans Button */}
            <button 
              onClick={openSavedPlans}
              className="text-sage-700 p-2 hover:bg-sage-100 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold"
@@ -121,7 +118,6 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
 
            <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block"></div>
 
-           {/* Search bar for standalone usage */}
            <form onSubmit={handleCustomSearch} className="flex gap-2 w-full md:w-auto flex-1">
               <input 
                 type="text" 
@@ -139,7 +135,6 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
 
       <div className="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-8">
         
-        {/* Plan Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <h2 className="font-serif text-3xl font-bold text-sage-900 capitalize">{title}</h2>
@@ -199,16 +194,12 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     >
                       <div className="h-48 overflow-hidden relative bg-gray-50">
                         <img 
-                          src={getIngredientImageUrl(meal)} 
-                          alt={meal.key_ingredient || meal.name}
+                          src={getRecipeImageUrl(meal)} 
+                          alt={meal.name}
                           onError={handleImageError}
-                          className="w-full h-full object-cover p-4 group-hover:scale-105 transition-transform duration-500 mix-blend-multiply"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                         />
-                         {/* Pill identifying this as the key ingredient */}
-                         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-bold text-sage-700 shadow-sm border border-sage-100 flex items-center gap-1">
-                           <Leaf size={10} /> {meal.key_ingredient || "Ingredient"}
-                         </div>
                         <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-gray-800 shadow-sm">
                           {meal.type}
                         </div>
@@ -255,16 +246,16 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
             {/* Left Side: Image (Desktop) / Top (Mobile) */}
             <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-earth-50 flex items-center justify-center">
                <img 
-                src={getIngredientImageUrlLarge(selectedMeal)}
-                alt={selectedMeal.key_ingredient || selectedMeal.name}
+                src={getRecipeImageUrlLarge(selectedMeal)}
+                alt={selectedMeal.name}
                 className="w-full h-full object-cover"
                 onError={handleImageError}
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
                  <div className="text-white text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <Leaf size={12} /> Key Healing Ingredient
+                    <ChefHat size={12} /> Healing Recipe
                  </div>
-                 <h2 className="text-white font-serif text-3xl font-bold">{selectedMeal.key_ingredient || selectedMeal.image_keyword}</h2>
+                 <h2 className="text-white font-serif text-3xl font-bold">{selectedMeal.name}</h2>
               </div>
             </div>
 
@@ -276,8 +267,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                       {selectedMeal.type}
                     </span>
                     <div className="flex items-center gap-3 text-gray-400 text-xs font-medium border-l border-gray-200 pl-3">
-                       <div className="flex items-center gap-1"><Clock size={14} /> <span>20 min prep</span></div>
-                       <div className="flex items-center gap-1"><Flame size={14} /> <span>350 kcal</span></div>
+                       <div className="flex items-center gap-1"><Clock size={14} /> <span>Prep Guide Below</span></div>
                     </div>
                   </div>
                   <h2 className="text-4xl font-serif font-bold text-sage-900 leading-tight">{selectedMeal.name}</h2>
@@ -285,7 +275,6 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
 
                <div className="flex flex-col gap-8">
                   
-                  {/* Instructions Section */}
                   <div>
                     <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4 text-lg border-b border-gray-100 pb-2">
                       <ChefHat className="text-orange-500" size={20} /> 
@@ -298,7 +287,6 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                     </div>
                   </div>
 
-                  {/* Ingredients Section */}
                   <div>
                     <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4 text-lg border-b border-gray-100 pb-2">
                       <Utensils className="text-sage-600" size={20} /> 
@@ -321,7 +309,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                           }`}>
                             {ing} 
                             {(selectedMeal.key_ingredient && ing.toLowerCase().includes(selectedMeal.key_ingredient.toLowerCase())) && (
-                              <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">Key</span>
+                              <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full">Focus</span>
                             )}
                           </span>
                         </div>
@@ -363,10 +351,6 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                 <p className="text-center text-gray-500">No ingredients found.</p>
               )}
             </div>
-
-            <div className="p-4 border-t border-gray-100 text-center bg-gray-50 rounded-b-3xl">
-              <p className="text-xs text-gray-400">Items aggregated from your 3-day plan.</p>
-            </div>
           </div>
         </div>
       )}
@@ -377,7 +361,7 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
            <div className="bg-white rounded-3xl max-w-lg w-full max-h-[80vh] flex flex-col shadow-2xl">
              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-sage-50 rounded-t-3xl">
                 <h2 className="font-serif text-xl font-bold text-sage-900 flex items-center gap-2">
-                   <Book className="text-sage-600" /> My Meal Plan
+                   <Book className="text-sage-600" /> My Saved Plans
                 </h2>
                 <button onClick={() => setShowSavedModal(false)}>
                    <X size={24} className="text-gray-500 hover:text-gray-800" />
