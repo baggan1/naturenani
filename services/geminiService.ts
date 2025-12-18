@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Chat, Type } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
@@ -12,12 +11,15 @@ const getAiClient = () => {
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
-    // Fix: Using correct singular 'content' and 'embedding' properties for embedContent API
+    // Fix: Using pluralized property names as required by the TypeScript compiler hint in the current environment
     const response = await ai.models.embedContent({
       model: 'text-embedding-004',
-      content: { parts: [{ text }] }
-    });
-    return response.embedding.values || null;
+      contents: [{ parts: [{ text }] }]
+    } as any);
+    
+    // The response might have either 'embedding' or 'embeddings' based on SDK type alignment
+    const result = (response as any).embeddings?.[0]?.values || (response as any).embedding?.values;
+    return result || null;
   } catch (e) { return null; }
 };
 

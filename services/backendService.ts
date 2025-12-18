@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan, YogaPose, SavedYogaPlan } from '../types';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
@@ -106,8 +105,7 @@ export const getUserSearchHistory = async (user: User): Promise<string[]> => {
 
     if (error || !data) return [];
     
-    // Fix: Explicitly type mapped query results as string[] to resolve line 109 unknown[] assignment error
-    const queryList: string[] = (data || []).map((item: any) => String(item.query));
+    const queryList: string[] = (data as any[]).map(item => String(item.query));
     const distinctQueries = Array.from(new Set(queryList));
     return distinctQueries.slice(0, 5); 
   } catch (e) {
@@ -257,7 +255,6 @@ export const logoutUser = async () => {
 
 export const setupAuthListener = (onAuthChange: (user: User) => void) => {
   if (!supabase) return () => {};
-  // Fix: Explicitly type event and session to prevent Vercel build errors
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user?.email) {
       const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
@@ -286,7 +283,6 @@ export const createStripePortalSession = async () => {
 const saveToLibrary = async (user: User, planData: any, title: string, type: 'YOGA' | 'DIET') => {
   if (!supabase) return null;
   
-  // Always fetch fresh auth ID for RLS compliance
   const { data: { user: authUser } } = await supabase.auth.getUser();
   const uid = authUser?.id || user.id;
 
@@ -330,7 +326,7 @@ export const getUserLibrary = async (user: User) => {
     diet: data.filter((item: any) => item.type === 'DIET'),
     yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({
       ...item,
-      poses: item.plan_data // Map plan_data back to poses for the UI
+      poses: item.plan_data 
     }))
   };
 };
