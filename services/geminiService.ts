@@ -4,9 +4,6 @@ import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
 import { SearchSource, RemedyDocument, YogaPose, Message } from "../types";
 
-/**
- * Creates a fresh instance of the GoogleGenAI client per request.
- */
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
@@ -29,9 +26,6 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
   }
 };
 
-/**
- * Sends a message using RAG and maintains conversation history correctly.
- */
 export const sendMessageWithRAG = async function* (
   message: string, 
   history: Message[],
@@ -42,21 +36,30 @@ export const sendMessageWithRAG = async function* (
   try {
     const ai = getAiClient();
 
-    // 1. Get Embeddings for RAG
-    console.info("[Step 1] Generating Embeddings...");
-    const embeddingPromise = generateEmbedding(message);
-    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 12000));
-    const queryVector = await Promise.race([embeddingPromise, timeoutPromise]);
-    
-    // 2. Search Database
-    console.info("[Step 2] Searching Vector Database...");
-    const contextDocs = await searchVectorDatabase(message, queryVector);
-    if (onSourcesFound) onSourcesFound(contextDocs);
-    
-    // 3. Prepare Augmented Message
-    let augmentedMessage = message;
-    const hasRAG = contextDocs.length > 0;
+    // 1. Attempt RAG with a localized error handler
+    let contextDocs: RemedyDocument[] = [];
+    let hasRAG = false;
 
+    try {
+      console.info("[Step 1] Generating Embeddings...");
+      const embeddingPromise = generateEmbedding(message);
+      const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 8000));
+      const queryVector = await Promise.race([embeddingPromise, timeoutPromise]);
+      
+      if (queryVector) {
+        console.info("[Step 2] Searching Vector Database...");
+        contextDocs = await searchVectorDatabase(message, queryVector);
+        if (onSourcesFound) onSourcesFound(contextDocs);
+        hasRAG = contextDocs.length > 0;
+      } else {
+        console.warn("[RAG] Search timed out, falling back to pure AI.");
+      }
+    } catch (ragError) {
+      console.warn("[RAG] Feature failed, falling back to pure AI.", ragError);
+    }
+    
+    // 2. Prepare Augmented Message
+    let augmentedMessage = message;
     if (hasRAG) {
       const contextString = contextDocs.map(d => {
         const sourceInfo = d.book_name ? `${d.source} (Book: ${d.book_name})` : d.source;
@@ -74,8 +77,7 @@ ${message}
 
     augmentedMessage += `\n\n[SYSTEM REMINDER]: If this query relates to a health condition where Yoga or Diet would be beneficial, you MUST append the JSON recommendation block at the very end as specified in your system instructions.`;
 
-    // 4. Initialize Chat with VALID History (User/Model pairs only)
-    // We filter out any empty messages or messages with roles other than user/model
+    // 3. Initialize Chat with strictly validated history
     const sdkHistory = history
       .filter(msg => msg.content && msg.content.trim() !== '')
       .map(msg => ({
@@ -118,34 +120,18 @@ ${message}
   }
 };
 
-/**
- * Premium Feature: Generate Yoga Routine
- */
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
   const ai = getAiClient();
-  
   let contextString = "";
   try {
     const embedding = await generateEmbedding(ailmentId);
     if (embedding) {
       const docs = await searchVectorDatabase(ailmentId, embedding, 'Yoga');
-      if (docs.length > 0) {
-        contextString = "Use the following Yoga Database Context to inform your sequence:\n" + 
-          docs.map(d => `- ${d.content}`).join("\n");
-      }
+      if (docs.length > 0) contextString = docs.map(d => d.content).join("\n");
     }
-  } catch (e) {
-    console.warn("[Yoga] RAG fetch failed", e);
-  }
+  } catch (e) {}
 
-  const prompt = `
-    The user has a condition ID or Query: "${ailmentId}".
-    ${contextString}
-    Generate a list of 3-5 specific Yoga poses to help this condition.
-    Use standard Sanskrit names where possible.
-    Provide detailed step-by-step instructions, breathing patterns, and repetitions.
-  `;
-
+  const prompt = `Generate a 3-5 pose Yoga sequence for: "${ailmentId}". Context: ${contextString}`;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -162,11 +148,7 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
               english: { type: Type.STRING },
               duration: { type: Type.STRING },
               benefit: { type: Type.STRING },
-              color: { type: Type.STRING },
-              instructions: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING }
-              },
+              instructions: { type: Type.ARRAY, items: { type: Type.STRING } },
               breathing: { type: Type.STRING },
               reps: { type: Type.STRING }
             },
@@ -175,41 +157,25 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
         }
       }
     });
-    
-    if (response.text) {
-      return JSON.parse(response.text) as YogaPose[];
-    }
-    return [];
-  } catch (e) {
-    console.error("Yoga Gen Error", e);
-    return [];
-  }
+    return response.text ? JSON.parse(response.text) : [];
+  } catch (e) { return []; }
 };
 
-/**
- * Premium Feature: Generate Diet Plan
- */
 export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
   const ai = getAiClient();
-
   let contextString = "";
   try {
     const embedding = await generateEmbedding(ailmentId);
     if (embedding) {
       const docs = await searchVectorDatabase(ailmentId, embedding, 'diet');
-      if (docs.length > 0) {
-        contextString = "Use the following Diet Database Context to inform your meal plan:\n" + 
-          docs.map(d => `- ${d.content}`).join("\n");
-      }
+      if (docs.length > 0) contextString = docs.map(d => d.content).join("\n");
     }
-  } catch (e) {
-    console.warn("[Diet] RAG fetch failed", e);
-  }
+  } catch (e) {}
 
   const prompt = `
-    The user has a condition ID: "${ailmentId}".
-    ${contextString}
-    Generate a 3-day Ayurvedic/Naturopathic meal plan.
+    Generate a highly detailed 3-day meal plan for: "${ailmentId}". 
+    Context: ${contextString}
+    IMPORTANT: Every meal MUST include specific "ingredients" and clear step-by-step "instructions" on how to prepare the healing dish.
   `;
 
   try {
@@ -229,10 +195,10 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
                 items: {
                   type: Type.OBJECT,
                   properties: {
-                    type: { type: Type.STRING },
+                    type: { type: Type.STRING, description: "Breakfast, Lunch, or Dinner" },
                     name: { type: Type.STRING },
                     ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    instructions: { type: Type.STRING },
+                    instructions: { type: Type.STRING, description: "Detailed preparation steps for the recipe" },
                     image_keyword: { type: Type.STRING },
                     key_ingredient: { type: Type.STRING }
                   },
@@ -245,13 +211,6 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
         }
       }
     });
-    
-    if (response.text) {
-      return JSON.parse(response.text);
-    }
-    return [];
-  } catch (e) {
-    console.error("Diet Gen Error", e);
-    return [];
-  }
+    return response.text ? JSON.parse(response.text) : [];
+  } catch (e) { return []; }
 };

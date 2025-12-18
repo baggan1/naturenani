@@ -1,6 +1,6 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
 import { Logo } from './Logo';
@@ -41,58 +41,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]); 
+  }, [messages, isLoading, scrollToBottom]); 
 
-  // --- Safety Timeout Logic ---
-  useEffect(() => {
-    let safetyTimer: ReturnType<typeof setTimeout>;
-    if (isLoading) {
-      safetyTimer = setTimeout(() => {
-        setIsLoading(false);
-        setMessages(prev => {
-          const last = prev[prev.length - 1];
-          // If the last message is an empty model turn, replace it with an error
-          if (last.role === 'model' && last.content === '') {
-             return [...prev.slice(0, -1), {
-               id: 'timeout-err',
-               role: 'model',
-               content: 'The wisdom archives are taking longer than usual to respond. Please check your network or try a simpler query.',
-               timestamp: Date.now()
-             }];
-          }
-          return prev;
-        });
-      }, 60000); 
+  const handleResetChat = () => {
+    if (confirm("Clear current consultation history and start fresh?")) {
+      setMessages([{
+        id: 'welcome',
+        role: 'model',
+        content: 'Namaste. How can I help you today?',
+        timestamp: Date.now()
+      }]);
+      sessionStorage.removeItem('nani_pending_message');
     }
-    return () => clearTimeout(safetyTimer);
-  }, [isLoading]);
-
-
-  // --- Session Resume Logic ---
-  useEffect(() => {
-    const storedPending = sessionStorage.getItem('nani_pending_message');
-    const hasInitialProp = initialMessage && initialMessage.trim() !== '';
-
-    if (!isGuest && !sentInitialRef.current) {
-      if (storedPending) {
-        sentInitialRef.current = true;
-        sessionStorage.removeItem('nani_pending_message');
-        handleAutoSend(storedPending, true);
-      } else if (hasInitialProp) {
-        sentInitialRef.current = true;
-        handleAutoSend(initialMessage!, false);
-      }
-    }
-    
-    return () => { sentInitialRef.current = false; };
-  }, [isGuest, initialMessage]);
-
+  };
 
   const parseMessageContent = (rawText: string): { visibleText: string, metadata?: RecommendationMetadata } => {
     const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendation"[\s\S]*?\})\s*```/;
@@ -131,25 +98,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     if (isGuest) {
       sessionStorage.setItem('nani_pending_message', text);
-      setMessages(prev => [...prev, {
-        id: 'guest-' + Date.now(),
-        role: 'user',
-        content: text,
-        timestamp: Date.now()
-      }]);
-      setIsLoading(true);
-      setTimeout(() => {
-        setIsLoading(false);
-        onShowAuth();
-      }, 1000);
+      onShowAuth();
       return;
     }
 
     if (!hasAccess || (!usage.isUnlimited && usage.remaining <= 0)) return;
     
-    // 1. Snapshot CURRENT messages before updating state to use as HISTORY
     const historyToPass = [...messages];
-
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -157,7 +112,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: Date.now()
     };
 
-    // 2. Add User message to local UI
     if (!isResuming) {
       setMessages(prev => [...prev, userMessage]);
     }
@@ -168,7 +122,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const botMessageId = crypto.randomUUID();
       let fullRawContent = '';
       
-      // 3. Prepare placeholder for bot response
       setMessages(prev => [...prev, {
         id: botMessageId,
         role: 'model',
@@ -177,7 +130,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         sources: [] 
       }]);
 
-      // 4. Send request with clean history (does not include the new userMessage)
       const stream = sendMessageWithRAG(text, historyToPass, (foundSources) => {
         setMessages(prev => prev.map(msg => 
           msg.id === botMessageId ? { ...msg, sources: foundSources } : msg
@@ -201,19 +153,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
     } catch (error: any) {
       console.error("Chat UI error", error);
-      // Rollback last empty model message on error
-      setMessages(prev => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg.role === 'model' && lastMsg.content === '') {
-          return prev.slice(0, -1);
-        }
-        return prev;
-      });
-
+      setMessages(prev => prev.filter(m => m.content !== ''));
       setMessages(prev => [...prev, {
         id: 'error-' + Date.now(),
         role: 'model',
-        content: "I'm having trouble connecting to the wisdom archives. Please try again in a few moments.",
+        content: "I'm having trouble connecting to the wisdom archives. Please try again.",
         timestamp: Date.now()
       }]);
     } finally {
@@ -221,8 +165,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  useEffect(() => {
+    const storedPending = sessionStorage.getItem('nani_pending_message');
+    if (!isGuest && storedPending && !sentInitialRef.current) {
+      sentInitialRef.current = true;
+      sessionStorage.removeItem('nani_pending_message');
+      handleAutoSend(storedPending, true);
+    }
+  }, [isGuest]);
+
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
     const text = input;
     setInput('');
     await handleAutoSend(text);
@@ -239,23 +192,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!isSubscribed) {
       onUpgradeClick();
     } else {
-      const targetView = rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
-      onNavigateToFeature(targetView, rec.id, rec.title);
+      onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title);
     }
   };
 
   const formatMessageWithDisclaimer = (content: string) => {
     const disclaimerMarker = "Disclaimer: This information is provided by NatureNani AI";
     const index = content.lastIndexOf(disclaimerMarker);
-    
     if (index !== -1) {
       const mainText = content.substring(0, index).trim();
       const disclaimerText = content.substring(index).trim();
-      
       return (
         <>
           <div>{mainText}</div>
-          <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-500 leading-relaxed italic">
+          <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-500 italic">
             {disclaimerText}
           </div>
         </>
@@ -264,35 +214,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return content;
   };
 
-  if (!isGuest && !usage.isUnlimited && usage.remaining <= 0) {
-    return (
-      <div className="h-full flex flex-col bg-sage-50">
-        {!isMobileView && <Header />}
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <div className="bg-white p-8 rounded-2xl shadow-lg border border-earth-200 max-w-md w-full">
-            <div className="w-16 h-16 bg-earth-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-earth-600" />
-            </div>
-            <h2 className="text-2xl font-serif font-bold text-sage-900 mb-2">Daily Limit Reached</h2>
-            <p className="text-gray-600 mb-6">
-              You've used all {usage.limit} free queries for today in the Triage Plan. 
-              Upgrade to the Healer Plan for unlimited access.
-            </p>
-            <button 
-              onClick={onUpgradeClick}
-              className="w-full bg-earth-600 text-white py-3 rounded-xl font-bold hover:bg-earth-700 transition-colors shadow-lg shadow-earth-200"
-            >
-              Upgrade to Premium
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full bg-sage-50">
-      {!isMobileView && <Header />}
+      <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between">
+        <Logo className="h-8 w-8" textClassName="text-lg" />
+        <button onClick={handleResetChat} className="p-2 text-sage-400 hover:text-sage-600 hover:bg-sage-50 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+           <RefreshCw size={14} /> Clear Consultation
+        </button>
+      </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
@@ -301,13 +230,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}`}>
                 {msg.role === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
               </div>
-              
               <div className={`max-w-[85%] rounded-2xl p-4 shadow-sm whitespace-pre-wrap leading-relaxed ${
-                msg.role === 'user' 
-                  ? 'bg-earth-50 text-sage-900 rounded-tr-none border border-earth-200' 
-                  : 'bg-white text-gray-800 rounded-tl-none border border-sage-200'
+                msg.role === 'user' ? 'bg-earth-50 text-sage-900 border border-earth-200' : 'bg-white text-gray-800 border border-sage-200'
               }`}>
-                {msg.content ? formatMessageWithDisclaimer(msg.content) : <span className="animate-pulse text-gray-400">Consulting archives...</span>}
+                {msg.content ? formatMessageWithDisclaimer(msg.content) : <span className="animate-pulse text-gray-400">Consulting...</span>}
               </div>
             </div>
 
@@ -317,39 +243,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
             {msg.recommendation && (
               <div className="ml-11 max-w-[85%] mt-1">
-                <div 
-                  className="bg-white rounded-xl border border-earth-200 shadow-sm relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => handleCardClick(msg.recommendation!)}
-                >
+                <div className="bg-white rounded-xl border border-earth-200 shadow-sm overflow-hidden group cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleCardClick(msg.recommendation!)}>
                   <div className="bg-sage-50 border-b border-sage-100 p-3 flex items-center gap-2">
-                     {msg.recommendation.type === 'YOGA' ? (
-                        <PlayCircle className="text-earth-600" size={16} />
-                     ) : (
-                        <FileText className="text-orange-600" size={16} />
-                     )}
-                     <span className="text-xs font-bold text-sage-700 uppercase tracking-wide">
-                        {msg.recommendation.type === 'YOGA' ? 'Recommended Routine' : 'Diet Plan'}
-                     </span>
+                     {msg.recommendation.type === 'YOGA' ? <PlayCircle className="text-earth-600" size={16} /> : <FileText className="text-orange-600" size={16} />}
+                     <span className="text-xs font-bold text-sage-700 uppercase tracking-wide">{msg.recommendation.type} Plan</span>
                   </div>
-                  
-                  <div className="p-4 relative">
+                  <div className="p-4">
                     <h3 className="font-bold text-lg text-sage-900 mb-1">{msg.recommendation.title}</h3>
-                    <p className="text-sm text-gray-500 mb-4">
-                      {msg.recommendation.type === 'YOGA' 
-                        ? "A specific sequence of poses curated for this condition." 
-                        : "A 3-day meal plan to balance your internal doshas."}
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                       {isSubscribed ? (
-                          <span className="bg-sage-100 text-sage-700 px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2">
-                            <PlayCircle size={16} /> Open Now
-                          </span>
-                       ) : (
-                          <div className="flex items-center gap-2 text-earth-600 font-bold text-sm">
-                             <Lock size={14} /> Upgrade to Unlock
-                          </div>
-                       )}
+                    <div className="mt-3 flex items-center gap-2">
+                       {isSubscribed ? <span className="bg-sage-100 text-sage-700 px-3 py-1.5 rounded-full font-bold text-xs flex items-center gap-2"><PlayCircle size={14} /> Open Now</span> : <div className="flex items-center gap-2 text-earth-600 font-bold text-xs"><Lock size={12} /> Upgrade to Unlock</div>}
                     </div>
                   </div>
                 </div>
@@ -357,17 +259,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             )}
           </div>
         ))}
-        
         {isLoading && (
           <div className="flex flex-row items-start gap-3">
-             <div className="w-8 h-8 rounded-full bg-sage-600 flex-shrink-0 flex items-center justify-center">
-                <Bot size={16} className="text-white" />
-             </div>
-             <div className="bg-white p-4 rounded-2xl rounded-tl-none border border-sage-200 shadow-sm flex items-center gap-2">
-                <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-             </div>
+             <div className="w-8 h-8 rounded-full bg-sage-600 flex-shrink-0 flex items-center justify-center"><Bot size={16} className="text-white" /></div>
+             <div className="bg-white p-4 rounded-2xl border border-sage-200 shadow-sm flex items-center gap-2"><div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div><div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div></div>
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -379,20 +274,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isGuest ? "Ask about any ailment..." : "Describe your ailment..."}
+            placeholder="Describe your ailment..."
             className="w-full bg-sage-50 border border-sage-200 rounded-xl px-4 py-3 pr-12 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[60px] scrollbar-hide"
           />
-          <button
-            onClick={handleSend}
-            disabled={isLoading || !input.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-sage-600 text-white rounded-lg hover:bg-sage-700 disabled:opacity-50 transition-colors"
-          >
+          <button onClick={handleSend} disabled={isLoading || !input.trim()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-sage-600 text-white rounded-lg hover:bg-sage-700 disabled:opacity-50 transition-colors">
             <Send size={18} />
           </button>
         </div>
-        <p className="text-center text-[10px] md:text-xs text-sage-400 mt-2">
-           This is not medical advice, and the information is not intended to diagnose, treat, cure, or prevent any health condition.
-        </p>
       </div>
     </div>
   );
@@ -400,49 +288,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
 const SourceAccordion: React.FC<{ sources: RemedyDocument[] }> = ({ sources }) => {
   const [isOpen, setIsOpen] = useState(false);
-
   return (
     <div className="ml-11 max-w-[85%]">
       <div className="border border-sage-200 rounded-lg bg-sage-50 overflow-hidden">
-        <button 
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between p-3 text-xs font-bold text-sage-700 hover:bg-sage-100 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <BookOpen size={14} className="text-earth-600" />
-            🌿 Credibility / Source
-          </div>
+        <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between p-3 text-xs font-bold text-sage-700">
+          <div className="flex items-center gap-2"><BookOpen size={14} className="text-earth-600" /> View Sources</div>
           {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
-        
         {isOpen && (
-          <div className="p-3 bg-white border-t border-sage-200 space-y-2 text-xs">
+          <div className="p-3 bg-white border-t border-sage-200 space-y-2 text-[10px] text-gray-600 italic">
             {sources.map((doc, idx) => (
-              <div key={idx} className="flex flex-col gap-1 pb-2 border-b border-gray-100 last:border-0 last:pb-0">
-                <div className="flex justify-between font-semibold text-gray-800">
-                  <span>{doc.source} Source:</span>
-                </div>
-                <div className="text-gray-600 italic">
-                  {doc.book_name || 'General Texts'}
-                </div>
-              </div>
+              <div key={idx} className="pb-1 border-b border-gray-50 last:border-0">{doc.source}: {doc.book_name || 'Traditional Wisdom'}</div>
             ))}
-            <div className="pt-2 text-[10px] text-gray-400 border-t border-gray-100 mt-2">
-              Medical Disclaimer: This advice is based on traditional texts and is not a substitute for consulting a physician.
-            </div>
           </div>
         )}
       </div>
     </div>
   );
 };
-
-const Header = () => (
-  <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between">
-    <div className="flex items-center gap-2">
-      <Logo className="h-8 w-8" textClassName="text-lg" />
-    </div>
-  </div>
-);
 
 export default ChatInterface;

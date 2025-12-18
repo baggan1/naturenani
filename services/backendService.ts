@@ -12,7 +12,6 @@ const supabase = (supabaseUrl && supabaseKey)
   : null;
 
 const CURRENT_USER_KEY = 'nature_nani_current_user';
-const SAVED_PLANS_KEY = 'nature_nani_saved_plans';
 
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   if (user.is_subscribed) {
@@ -240,8 +239,15 @@ export const setupAuthListener = (onLogin: (user: User) => void) => {
 };
 
 export const logoutUser = async () => {
-  if (supabase) await supabase.auth.signOut();
-  localStorage.removeItem(CURRENT_USER_KEY);
+  try {
+    if (supabase) await supabase.auth.signOut();
+  } catch (e) {
+    console.warn("SignOut error:", e);
+  } finally {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = window.location.origin;
+  }
 };
 
 export const checkSubscriptionStatus = async (user: User): Promise<{ hasAccess: boolean, daysRemaining: number }> => {
