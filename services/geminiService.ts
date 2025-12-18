@@ -1,9 +1,9 @@
+
 import { GoogleGenAI, Chat, Type } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
 import { SearchSource, RemedyDocument, YogaPose, Message, Meal } from "../types";
 
-// Fix: Direct utilization of process.env.API_KEY during client initialization as per guidelines
 const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 };
@@ -11,13 +11,11 @@ const getAiClient = () => {
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
-    // Fix: Using pluralized property names as required by the TypeScript compiler hint in the current environment
     const response = await ai.models.embedContent({
       model: 'text-embedding-004',
       contents: [{ parts: [{ text }] }]
     } as any);
     
-    // The response might have either 'embedding' or 'embeddings' based on SDK type alignment
     const result = (response as any).embeddings?.[0]?.values || (response as any).embedding?.values;
     return result || null;
   } catch (e) { return null; }
@@ -98,7 +96,7 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
 
 export const generateDietPlan = async (ailmentId: string): Promise<any> => {
   const ai = getAiClient();
-  const prompt = `You are an expert nutritionist. Create a 3-day meal plan (Breakfast, Lunch, Dinner) for a user with ${ailmentId}. Return only a JSON object with a "meals" array. Each meal should have: "type", "dish_name" (Standard culinary name), "search_query" (high quality photo of [dish_name] food), "ingredients" (array), and "benefit". Do not generate images.`;
+  const prompt = `You are an expert nutritionist. Create a 3-day meal plan (Breakfast, Lunch, Dinner) for a user with ${ailmentId}. Return only a JSON object with a "meals" array. Each meal should have: "type", "dish_name" (Standard culinary name), "search_query" (high quality photo of [dish_name] food), "ingredients" (array), "benefit", and "preparation_instructions" (step-by-step cooking or prep instructions). Do not generate images.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -118,9 +116,10 @@ export const generateDietPlan = async (ailmentId: string): Promise<any> => {
                   dish_name: { type: Type.STRING },
                   search_query: { type: Type.STRING },
                   ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  benefit: { type: Type.STRING }
+                  benefit: { type: Type.STRING },
+                  preparation_instructions: { type: Type.STRING }
                 },
-                required: ["type", "dish_name", "search_query", "ingredients", "benefit"]
+                required: ["type", "dish_name", "search_query", "ingredients", "benefit", "preparation_instructions"]
               }
             }
           }

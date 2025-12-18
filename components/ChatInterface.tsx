@@ -50,15 +50,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages, isLoading, scrollToBottom]); 
 
   const handleResetChat = () => {
-    if (confirm("Clear current consultation history and start fresh?")) {
-      setMessages([{
-        id: 'welcome',
-        role: 'model',
-        content: 'Namaste. How can I help you today?',
-        timestamp: Date.now()
-      }]);
-      sessionStorage.removeItem('nani_pending_message');
-    }
+    setMessages([{
+      id: 'welcome',
+      role: 'model',
+      content: 'Namaste. How can I help you today?',
+      timestamp: Date.now()
+    }]);
+    sessionStorage.removeItem('nani_pending_message');
   };
 
   const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[] } => {
@@ -170,6 +168,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  // Trigger search when initialMessage (from sidebar history) changes
+  useEffect(() => {
+    if (initialMessage && initialMessage.trim() !== '') {
+      handleAutoSend(initialMessage);
+    }
+  }, [initialMessage]);
+
   useEffect(() => {
     const storedPending = sessionStorage.getItem('nani_pending_message');
     if (!isGuest && storedPending && !sentInitialRef.current) {
@@ -209,7 +214,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const beforeDisclaimer = content.substring(0, index).trim();
       const fromDisclaimer = content.substring(index).trim();
       
-      // Look for the end of the disclaimer sentence to see if there's text after it
       const disclaimerSentenceEnd = "consult a professional.";
       const sentenceEndIndex = fromDisclaimer.indexOf(disclaimerSentenceEnd);
       

@@ -71,7 +71,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
                 <CreditCard size={20} className="text-sage-600" /> Subscription Plan
               </h2>
               <p className="text-gray-500 text-sm mt-1">
-                Current tier: <span className="font-bold text-sage-800">{user.is_subscribed ? 'Premium Plan' : 'Free Plan (Trial)'}</span>
+                Current tier: <span className="font-bold text-sage-800">{user.is_subscribed ? 'Premium Plan' : 'Free Forever Plan'}</span>
               </p>
             </div>
             {user.is_subscribed ? (
@@ -80,24 +80,19 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
               </span>
             ) : (
               <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold border border-gray-200 flex items-center gap-1">
-                <Sprout size={12} /> FREE TIER
+                <Sprout size={12} /> FREE FOREVER
               </span>
             )}
           </div>
 
           {!user.is_subscribed ? (
-            // Free Tier View
             <div className="bg-sage-50 rounded-xl p-6 border border-sage-200">
               <div className="flex flex-col md:flex-row gap-6 items-center">
                 <div className="flex-1">
                   <h3 className="font-serif font-bold text-xl text-sage-900 mb-2">Unlock Unlimited Healing</h3>
                   <p className="text-gray-600 mb-4">
-                    You are currently on the Free Plan, limited to 3 queries per day. Upgrade to Premium for unlimited access, visual yoga guides, and personalized meal plans.
+                    You are currently on the Free Forever Plan, limited to 3 queries per day. Upgrade to Premium for unlimited access, visual yoga guides, and personalized meal plans with cooking preparation instructions.
                   </p>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                    <div className="bg-sage-500 h-2.5 rounded-full" style={{ width: '100%' }}></div>
-                  </div>
-                  <p className="text-xs text-gray-500 text-right">Trial active until {formatDate(user.trial_end)}</p>
                 </div>
                 <button
                   onClick={onUpgrade}
@@ -108,13 +103,12 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
               </div>
             </div>
           ) : (
-            // Paid Tier View
             <div className="bg-green-50 rounded-xl p-6 border border-green-100">
               <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
                 <div>
                   <h3 className="font-bold text-green-900 mb-1">You have full Premium Plan access</h3>
                   <p className="text-green-700 text-sm">
-                    Thank you for being a Premium member. Your next billing date is managed via Stripe.
+                    Thank you for being a Premium member. Your billing and subscription are managed via our secure payment partner.
                   </p>
                 </div>
                 <button
@@ -129,7 +123,6 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ user, onUpgrade, onLo
           )}
         </section>
 
-        {/* Actions */}
         <div className="flex justify-end pt-6 border-t border-gray-200">
           <button
             onClick={onLogout}

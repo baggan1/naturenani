@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Utensils, ShoppingCart, Loader2, Search, X, ChefHat, Check, Camera, BookOpen, Save } from 'lucide-react';
+import { Utensils, ShoppingCart, Loader2, Search, X, ChefHat, Check, Camera, BookOpen, Save, ListChecks } from 'lucide-react';
 import { FeatureContext, DayPlan, Meal } from '../types';
 import { generateDietPlan } from '../services/geminiService';
 import { fetchImageFromSearch } from '../services/searchService';
@@ -18,7 +18,7 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [title, setTitle] = useState(activeContext?.title || "Nutri Heal Plan");
   const [customQuery, setCustomQuery] = useState("");
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [selectedMeal, setSelectedMeal] = useState<Meal | any>(null);
 
   const loadPlan = async (query: string, displayTitle: string) => {
     setLoading(true);
@@ -150,7 +150,7 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
 
       {selectedMeal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl p-8 md:p-12">
+          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl p-8 md:p-12">
              <button onClick={() => setSelectedMeal(null)} className="absolute top-6 right-6 text-gray-400 hover:text-black transition-colors"><X size={24} /></button>
              
              <div className="mb-8">
@@ -159,20 +159,29 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
                 <p className="text-orange-700 font-medium italic mt-2">"{selectedMeal.benefit}"</p>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div>
-                   <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2"><ChefHat size={18} /> Ingredients</h3>
-                   <ul className="space-y-2">
-                      {selectedMeal.ingredients.map((ing, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-gray-600"><Check size={14} className="text-orange-500 mt-1" /> {ing}</li>
-                      ))}
-                   </ul>
+             <div className="space-y-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2"><ChefHat size={18} /> Ingredients</h3>
+                    <ul className="space-y-2">
+                        {selectedMeal.ingredients.map((ing: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-600"><Check size={14} className="text-orange-500 mt-1" /> {ing}</li>
+                        ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2"><BookOpen size={18} /> Clinical Purpose</h3>
+                    <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 text-orange-900 text-sm leading-relaxed">
+                        This meal is specifically chosen to target your ailment by balancing inflammation and providing essential micronutrients found in {selectedMeal.ingredients[0]}.
+                    </div>
+                  </div>
                 </div>
-                <div>
-                   <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2"><BookOpen size={18} /> Clinical Purpose</h3>
-                   <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 text-orange-900 text-sm leading-relaxed">
-                      This meal is specifically chosen to target your ailment by balancing inflammation and providing essential micronutrients found in {selectedMeal.ingredients[0]}.
-                   </div>
+
+                <div className="border-t pt-8">
+                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest border-b pb-2"><ListChecks size={18} /> Preparation Steps</h3>
+                  <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-inner whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
+                    {selectedMeal.preparation_instructions || "Standard preparation: Clean all ingredients, steam if required, and combine with minimal processing to retain nutritional value."}
+                  </div>
                 </div>
              </div>
           </div>

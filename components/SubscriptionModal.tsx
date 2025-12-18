@@ -35,7 +35,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
         
         {/* Header */}
         <div className="bg-sage-700 p-8 text-center relative overflow-hidden">
-          {/* Close Button */}
           <button 
             onClick={onClose}
             className="absolute top-4 right-4 text-white/70 hover:text-white hover:bg-white/10 p-2 rounded-full transition-colors z-20"
@@ -44,7 +43,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
             <X size={24} />
           </button>
 
-          {/* Decorative circles */}
           <div className="absolute top-0 left-0 w-32 h-32 bg-white/5 rounded-full -translate-x-16 -translate-y-16"></div>
           <div className="absolute bottom-0 right-0 w-24 h-24 bg-white/5 rounded-full translate-x-12 translate-y-12"></div>
           
@@ -55,9 +53,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
             Upgrade to Premium Plan
           </h2>
           <p className="text-sage-100 text-sm opacity-90">
-            {isTrialExpired 
-              ? 'Your Free Plan access is limited.' 
-              : 'Upgrade from Free Plan to Full Premium Wellness'}
+            Unlock the full potential of ancient healing.
           </p>
         </div>
 
@@ -66,7 +62,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
             <div className="flex justify-center gap-8 mb-6">
               <div className="flex flex-col items-center opacity-50 grayscale">
                 <div className="p-3 bg-sage-50 rounded-xl mb-1 border border-sage-100"><Sprout size={24} className="text-sage-400" /></div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-sage-400">Free</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-sage-400">Free Forever</span>
               </div>
               <div className="flex flex-col items-center">
                 <div className="p-3 bg-sage-100 rounded-xl mb-1 border border-sage-200 shadow-sm"><TreePine size={24} className="text-sage-700" /></div>
@@ -96,14 +92,14 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                 <div className="bg-earth-100 p-1 rounded-full text-earth-700"><FileText size={14} /></div>
                 <div>
                   <span className="font-bold text-sage-900 block">Weekly Meal Plans</span>
-                  <span className="text-xs text-gray-500">Personalized diet charts for your recovery.</span>
+                  <span className="text-xs text-gray-500">Personalized diet charts with prep guides.</span>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <div className="bg-sage-100 p-1 rounded-full text-sage-700"><Check size={14} /></div>
                 <div>
-                  <span className="font-bold text-sage-900 block">Full Conversation History</span>
-                  <span className="text-xs text-gray-500">Never lose a remedy. Access past chats forever.</span>
+                  <span className="font-bold text-sage-900 block">Full Conversation Library</span>
+                  <span className="text-xs text-gray-500">Save your healing journey forever.</span>
                 </div>
               </li>
             </ul>
@@ -117,7 +113,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
                 <div className="text-2xl font-bold text-sage-900">$9.99<span className="text-sm font-normal text-gray-500">/mo</span></div>
               </div>
               <div className="text-xs text-earth-700 font-bold bg-earth-100 px-3 py-1 rounded-full border border-earth-200">
-                RECOMMENDED
+                LIFETIME HEALTH
               </div>
           </div>
 

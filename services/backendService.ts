@@ -1,21 +1,17 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan, YogaPose, SavedYogaPlan } from '../types';
-import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
+import { DAILY_QUERY_LIMIT } from '../utils/constants';
 
-// Initialize Supabase Client
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// Using 'any' for the client to bypass version-specific type mismatches in different environments
 const supabase: any = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
 
 const CURRENT_USER_KEY = 'nature_nani_current_user';
 
-/**
- * Helper to provide fallback remedies when vector search is unavailable.
- */
 const getMockRemedies = (query: string): RemedyDocument[] => {
   return [
     {
@@ -191,7 +187,7 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
 export const signUpUser = async (email: string, name: string): Promise<User> => {
   const startDate = new Date();
   const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + TRIAL_DAYS); 
+  endDate.setFullYear(endDate.getFullYear() + 100); // effectively free forever
 
   let authUserId: string | undefined;
   if (supabase) {
@@ -235,16 +231,8 @@ const getOrCreateUser = async (email: string, name: string): Promise<User> => {
 };
 
 export const checkSubscriptionStatus = async (user: User) => {
-  if (user.is_subscribed) return { hasAccess: true, daysRemaining: 999, isTrialExpired: false };
-  const end = new Date(user.trial_end);
-  const now = new Date();
-  const diff = end.getTime() - now.getTime();
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-  return {
-    hasAccess: days > 0,
-    daysRemaining: Math.max(0, days),
-    isTrialExpired: days <= 0
-  };
+  // Free plan is now forever. Access is controlled by limits in the UI/Logic.
+  return { hasAccess: true, daysRemaining: 999, isTrialExpired: false };
 };
 
 export const logoutUser = async () => {
@@ -277,9 +265,6 @@ export const createStripePortalSession = async () => {
   if (portalLink) window.location.href = portalLink;
 };
 
-/**
- * Saves a plan (Yoga or Diet) into the unified nani_saved_plans table.
- */
 const saveToLibrary = async (user: User, planData: any, title: string, type: 'YOGA' | 'DIET') => {
   if (!supabase) return null;
   
