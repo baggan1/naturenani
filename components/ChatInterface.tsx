@@ -53,7 +53,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     let safetyTimer: ReturnType<typeof setTimeout>;
     if (isLoading) {
-      // Increased from 30s to 60s for RAG stability
       safetyTimer = setTimeout(() => {
         setIsLoading(false);
         setMessages(prev => {
@@ -62,7 +61,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
              return [...prev.slice(0, -1), {
                id: 'timeout-err',
                role: 'model',
-               content: 'I apologize, the connection is taking longer than expected. Please check your network and try asking again.',
+               content: 'Nature Nani is taking a bit longer than usual to consult the archives. Please try refreshing or checking your connection.',
                timestamp: Date.now()
              }];
           }
@@ -147,13 +146,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     if (!hasAccess || (!usage.isUnlimited && usage.remaining <= 0)) return;
     
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: text,
+      timestamp: Date.now()
+    };
+
     if (!isResuming) {
-      const userMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: text,
-        timestamp: Date.now()
-      };
       setMessages(prev => [...prev, userMessage]);
     }
     
@@ -163,6 +163,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const botMessageId = crypto.randomUUID();
       let fullRawContent = '';
       
+      // Seed with empty bot response
       setMessages(prev => [...prev, {
         id: botMessageId,
         role: 'model',
@@ -171,7 +172,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         sources: [] 
       }]);
 
-      const stream = sendMessageWithRAG(text, (foundSources) => {
+      // Capture history BEFORE sending to ensure we don't include the empty bot message
+      const historyToPass = [...messages];
+      if (!isResuming) historyToPass.push(userMessage);
+
+      const stream = sendMessageWithRAG(text, historyToPass, (foundSources) => {
         setMessages(prev => prev.map(msg => 
           msg.id === botMessageId ? { ...msg, sources: foundSources } : msg
         ));
@@ -193,7 +198,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (onMessageSent) onMessageSent();
       
     } catch (error: any) {
-      console.error("Chat error", error);
+      console.error("Chat UI error", error);
       setMessages(prev => {
         const lastMsg = prev[prev.length - 1];
         if (lastMsg.role === 'model' && lastMsg.content === '') {

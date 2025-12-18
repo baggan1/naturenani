@@ -1,30 +1,25 @@
 
-import { GoogleGenAI, Chat, Type } from "@google/genai";
+import { GoogleGenAI, Chat, Type, GenerateContentParameters } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
-import { SearchSource, RemedyDocument, YogaPose } from "../types";
+import { SearchSource, RemedyDocument, YogaPose, Message } from "../types";
 
-let client: GoogleGenAI | null = null;
-let chatSession: Chat | null = null;
-
-export const initializeGemini = () => {
+/**
+ * Creates a fresh instance of the GoogleGenAI client.
+ * Following the rule: "Create a new GoogleGenAI instance right before making an API call"
+ */
+const getAiClient = () => {
   const apiKey = process.env.API_KEY;
-  
   if (!apiKey) {
-    console.error("[Gemini] API_KEY is missing. Check your .env file.");
-    return;
+    throw new Error("API_KEY is missing. Please check your environment configuration.");
   }
-  
-  console.log(`[Gemini] Initializing...`);
-  client = new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey });
 };
 
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
-  if (!client) initializeGemini();
-  if (!client) return null;
-
   try {
-    const response = await client.models.embedContent({
+    const ai = getAiClient();
+    const response = await ai.models.embedContent({
       model: 'text-embedding-004',
       contents: { parts: [{ text }] }
     });
@@ -35,41 +30,32 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
   }
 };
 
-export const startChat = async () => {
-  if (!client) initializeGemini();
-  if (!client) throw new Error("Failed to initialize AI client. Missing API Key.");
-
-  chatSession = client.chats.create({
-    model: 'gemini-3-flash-preview',
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.7,
-    },
-  });
-
-  return chatSession;
-};
-
+/**
+ * Sends a message using RAG and maintains conversation history.
+ */
 export const sendMessageWithRAG = async function* (
   message: string, 
+  history: Message[],
   onSourcesFound?: (sources: RemedyDocument[]) => void
 ) {
+  console.group("Nature Nani Consultation");
+  console.log("Input:", message);
+
   try {
-    if (!chatSession) await startChat();
-    if (!chatSession) throw new Error("Chat session not initialized");
+    const ai = getAiClient();
 
-    console.log("[Gemini] RAG Start:", message);
-
-    // 1. Get Embeddings (with increased timeout fallback)
+    // 1. Get Embeddings for RAG
+    console.log("Step 1: Generating Embeddings...");
     const embeddingPromise = generateEmbedding(message);
-    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 8000));
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 10000));
     const queryVector = await Promise.race([embeddingPromise, timeoutPromise]);
     
     // 2. Search Database
+    console.log("Step 2: Searching Vector Database...");
     const contextDocs = await searchVectorDatabase(message, queryVector);
-    
     if (onSourcesFound) onSourcesFound(contextDocs);
     
+    // 3. Prepare Augmented Message
     let augmentedMessage = message;
     const hasRAG = contextDocs.length > 0;
 
@@ -80,7 +66,7 @@ export const sendMessageWithRAG = async function* (
       }).join('\n\n');
 
       augmentedMessage = `
-Context Information:
+Context Information from Ancient Texts:
 ${contextString}
 
 User Query:
@@ -90,12 +76,26 @@ ${message}
 
     augmentedMessage += `\n\n[SYSTEM REMINDER]: If this query relates to a health condition where Yoga or Diet would be beneficial, you MUST append the JSON recommendation block at the very end as specified in your system instructions.`;
 
-    console.log("[Gemini] Stream started using gemini-3-flash-preview...");
-    
-    const result = await chatSession.sendMessageStream({ message: augmentedMessage });
+    // 4. Initialize Chat with History
+    // Convert our App's Message type to the SDK's expected format
+    const sdkHistory = history.map(msg => ({
+      role: msg.role,
+      parts: [{ text: msg.content }]
+    }));
+
+    const chat = ai.chats.create({
+      model: 'gemini-3-flash-preview',
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.7,
+      },
+      history: sdkHistory
+    });
+
+    console.log("Step 3: Starting AI Stream...");
+    const result = await chat.sendMessageStream({ message: augmentedMessage });
     
     let chunkCount = 0;
-    // Standard for-await loop is more resilient than manual iterator + race
     for await (const chunk of result) {
       if (chunk.text) {
         chunkCount++;
@@ -104,27 +104,26 @@ ${message}
     }
 
     if (chunkCount === 0) {
-      throw new Error("Received empty response from AI");
+      throw new Error("AI returned an empty response.");
     }
     
-    console.log("[Gemini] Stream finished.");
+    console.log("Step 4: Consultation Complete.");
     logAnalyticsEvent(message, hasRAG ? 'RAG' : 'AI', `Docs: ${contextDocs.length}`);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Gemini] Chat Error:", error);
     throw error;
+  } finally {
+    console.groupEnd();
   }
 };
 
 /**
- * Premium Feature: Generate Yoga Routine based on ID with RAG Support
+ * Premium Feature: Generate Yoga Routine
  */
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
-  if (!client) initializeGemini();
-  if (!client) throw new Error("Client not initialized");
-
-  console.log(`[Yoga] Generating routine for ${ailmentId} using gemini-3-flash-preview`);
-
+  const ai = getAiClient();
+  
   let contextString = "";
   try {
     const embedding = await generateEmbedding(ailmentId);
@@ -148,7 +147,7 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
   `;
 
   try {
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: { parts: [{ text: prompt }] },
       config: { 
@@ -188,13 +187,10 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
 };
 
 /**
- * Premium Feature: Generate Diet Plan based on ID with RAG Support
+ * Premium Feature: Generate Diet Plan
  */
 export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
-  if (!client) initializeGemini();
-  if (!client) throw new Error("Client not initialized");
-
-  console.log(`[Diet] Generating plan for ${ailmentId} using gemini-3-flash-preview`);
+  const ai = getAiClient();
 
   let contextString = "";
   try {
@@ -217,7 +213,7 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
   `;
 
   try {
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: { parts: [{ text: prompt }] },
       config: { 
