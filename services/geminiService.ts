@@ -5,8 +5,7 @@ import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
 import { SearchSource, RemedyDocument, YogaPose, Message } from "../types";
 
 /**
- * Creates a fresh instance of the GoogleGenAI client.
- * Following the rule: "Create a new GoogleGenAI instance right before making an API call"
+ * Creates a fresh instance of the GoogleGenAI client per request.
  */
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
@@ -31,7 +30,7 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
 };
 
 /**
- * Sends a message using RAG and maintains conversation history.
+ * Sends a message using RAG and maintains conversation history correctly.
  */
 export const sendMessageWithRAG = async function* (
   message: string, 
@@ -39,19 +38,18 @@ export const sendMessageWithRAG = async function* (
   onSourcesFound?: (sources: RemedyDocument[]) => void
 ) {
   console.group("Nature Nani Consultation");
-  console.log("Input:", message);
-
+  
   try {
     const ai = getAiClient();
 
     // 1. Get Embeddings for RAG
-    console.log("Step 1: Generating Embeddings...");
+    console.info("[Step 1] Generating Embeddings...");
     const embeddingPromise = generateEmbedding(message);
-    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 10000));
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 12000));
     const queryVector = await Promise.race([embeddingPromise, timeoutPromise]);
     
     // 2. Search Database
-    console.log("Step 2: Searching Vector Database...");
+    console.info("[Step 2] Searching Vector Database...");
     const contextDocs = await searchVectorDatabase(message, queryVector);
     if (onSourcesFound) onSourcesFound(contextDocs);
     
@@ -76,12 +74,14 @@ ${message}
 
     augmentedMessage += `\n\n[SYSTEM REMINDER]: If this query relates to a health condition where Yoga or Diet would be beneficial, you MUST append the JSON recommendation block at the very end as specified in your system instructions.`;
 
-    // 4. Initialize Chat with History
-    // Convert our App's Message type to the SDK's expected format
-    const sdkHistory = history.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.content }]
-    }));
+    // 4. Initialize Chat with VALID History (User/Model pairs only)
+    // We filter out any empty messages or messages with roles other than user/model
+    const sdkHistory = history
+      .filter(msg => msg.content && msg.content.trim() !== '')
+      .map(msg => ({
+        role: msg.role === 'model' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      }));
 
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
@@ -92,7 +92,7 @@ ${message}
       history: sdkHistory
     });
 
-    console.log("Step 3: Starting AI Stream...");
+    console.info("[Step 3] Starting AI Stream...");
     const result = await chat.sendMessageStream({ message: augmentedMessage });
     
     let chunkCount = 0;
@@ -104,10 +104,10 @@ ${message}
     }
 
     if (chunkCount === 0) {
-      throw new Error("AI returned an empty response.");
+      throw new Error("AI stream returned no content.");
     }
     
-    console.log("Step 4: Consultation Complete.");
+    console.info("[Step 4] Consultation Complete.");
     logAnalyticsEvent(message, hasRAG ? 'RAG' : 'AI', `Docs: ${contextDocs.length}`);
 
   } catch (error: any) {

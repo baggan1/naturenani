@@ -57,11 +57,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         setIsLoading(false);
         setMessages(prev => {
           const last = prev[prev.length - 1];
+          // If the last message is an empty model turn, replace it with an error
           if (last.role === 'model' && last.content === '') {
              return [...prev.slice(0, -1), {
                id: 'timeout-err',
                role: 'model',
-               content: 'Nature Nani is taking a bit longer than usual to consult the archives. Please try refreshing or checking your connection.',
+               content: 'The wisdom archives are taking longer than usual to respond. Please check your network or try a simpler query.',
                timestamp: Date.now()
              }];
           }
@@ -73,7 +74,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [isLoading]);
 
 
-  // --- Consolidated Session Resume Logic ---
+  // --- Session Resume Logic ---
   useEffect(() => {
     const storedPending = sessionStorage.getItem('nani_pending_message');
     const hasInitialProp = initialMessage && initialMessage.trim() !== '';
@@ -126,7 +127,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleAutoSend = async (text: string, isResuming = false) => {
-    if (isLoading) return;
+    if (isLoading || !text.trim()) return;
 
     if (isGuest) {
       sessionStorage.setItem('nani_pending_message', text);
@@ -146,6 +147,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     if (!hasAccess || (!usage.isUnlimited && usage.remaining <= 0)) return;
     
+    // 1. Snapshot CURRENT messages before updating state to use as HISTORY
+    const historyToPass = [...messages];
+
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -153,6 +157,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: Date.now()
     };
 
+    // 2. Add User message to local UI
     if (!isResuming) {
       setMessages(prev => [...prev, userMessage]);
     }
@@ -163,7 +168,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const botMessageId = crypto.randomUUID();
       let fullRawContent = '';
       
-      // Seed with empty bot response
+      // 3. Prepare placeholder for bot response
       setMessages(prev => [...prev, {
         id: botMessageId,
         role: 'model',
@@ -172,10 +177,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         sources: [] 
       }]);
 
-      // Capture history BEFORE sending to ensure we don't include the empty bot message
-      const historyToPass = [...messages];
-      if (!isResuming) historyToPass.push(userMessage);
-
+      // 4. Send request with clean history (does not include the new userMessage)
       const stream = sendMessageWithRAG(text, historyToPass, (foundSources) => {
         setMessages(prev => prev.map(msg => 
           msg.id === botMessageId ? { ...msg, sources: foundSources } : msg
@@ -199,6 +201,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
     } catch (error: any) {
       console.error("Chat UI error", error);
+      // Rollback last empty model message on error
       setMessages(prev => {
         const lastMsg = prev[prev.length - 1];
         if (lastMsg.role === 'model' && lastMsg.content === '') {
@@ -210,7 +213,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => [...prev, {
         id: 'error-' + Date.now(),
         role: 'model',
-        content: "I apologize, but I am unable to connect to the wisdom archives right now. Please try again in a moment.",
+        content: "I'm having trouble connecting to the wisdom archives. Please try again in a few moments.",
         timestamp: Date.now()
       }]);
     } finally {
@@ -304,7 +307,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   ? 'bg-earth-50 text-sage-900 rounded-tr-none border border-earth-200' 
                   : 'bg-white text-gray-800 rounded-tl-none border border-sage-200'
               }`}>
-                {msg.content ? formatMessageWithDisclaimer(msg.content) : <span className="animate-pulse text-gray-400">Consulting ancient texts...</span>}
+                {msg.content ? formatMessageWithDisclaimer(msg.content) : <span className="animate-pulse text-gray-400">Consulting archives...</span>}
               </div>
             </div>
 
