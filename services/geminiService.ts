@@ -64,7 +64,9 @@ export const sendMessageWithRAG = async function* (
 
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
   const ai = getAiClient();
-  const prompt = `You are a yoga therapist. Recommend 3 specific yoga poses for: "${ailmentId}". Return only a JSON list with the keys: 'pose_name', 'benefit', and 'contraindications'. Do not generate images.`;
+  const prompt = `You are a yoga therapist. Recommend 3 specific yoga asanas AND 1 Pranayama (breathing exercise) for: "${ailmentId}". 
+  Return only a JSON list with the keys: 'pose_name', 'type' (either 'Asana' or 'Pranayama'), 'benefit', 'instructions' (detailed step-by-step), and 'contraindications'. 
+  Do not generate images. Provide deep therapeutic instructions.`;
   
   try {
     const response = await ai.models.generateContent({
@@ -78,10 +80,12 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
             type: Type.OBJECT,
             properties: {
               pose_name: { type: Type.STRING },
+              type: { type: Type.STRING, enum: ['Asana', 'Pranayama'] },
               benefit: { type: Type.STRING },
+              instructions: { type: Type.STRING },
               contraindications: { type: Type.STRING }
             },
-            required: ["pose_name", "benefit", "contraindications"]
+            required: ["pose_name", "type", "benefit", "instructions", "contraindications"]
           }
         }
       }

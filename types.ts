@@ -44,7 +44,8 @@ export enum AppView {
   ANALYTICS = 'ANALYTICS',
   ACCOUNT = 'ACCOUNT',
   YOGA = 'YOGA', 
-  DIET = 'DIET'
+  DIET = 'DIET',
+  LIBRARY = 'LIBRARY'
 }
 
 export interface QueryUsage {
@@ -61,9 +62,11 @@ export interface FeatureContext {
 
 export interface YogaPose {
   pose_name: string;
+  type: 'Asana' | 'Pranayama';
   benefit: string;
+  instructions: string;
   contraindications: string;
-  image_url?: string; // Fetched from Search API
+  image_url?: string; 
 }
 
 export interface Meal {
@@ -72,7 +75,7 @@ export interface Meal {
   search_query: string;
   ingredients: string[];
   benefit: string;
-  image_url?: string; // Fetched from Search API
+  image_url?: string; 
 }
 
 export interface DayPlan {
@@ -86,4 +89,12 @@ export interface SavedMealPlan {
   title: string;
   created_at: string;
   plan_data: DayPlan[];
+}
+
+export interface SavedYogaPlan {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  poses: YogaPose[];
 }

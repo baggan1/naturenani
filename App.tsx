@@ -6,10 +6,11 @@ import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
 import SubscriptionModal from './components/SubscriptionModal';
 import AccountSettings from './components/AccountSettings';
+import Library from './components/Library';
 import YogaAid from './components/YogaStudio'; 
 import NutriHeal from './components/DietKitchen'; 
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -79,7 +80,7 @@ const App: React.FC = () => {
       setShowPaywall(true);
       return;
     }
-    if (!user && view === AppView.ACCOUNT) {
+    if (!user && (view === AppView.ACCOUNT || view === AppView.LIBRARY)) {
       setShowAuthModal(true);
       return;
     }
@@ -91,6 +92,11 @@ const App: React.FC = () => {
   const handleFeatureHandoff = (view: AppView, id: string, title: string) => {
     setFeatureContext({ id, title });
     setCurrentView(view);
+  };
+
+  const handleLibraryNavigate = (view: string, context: any) => {
+    setFeatureContext(context);
+    setCurrentView(view === 'YOGA' ? AppView.YOGA : AppView.DIET);
   };
 
   return (
@@ -140,7 +146,16 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* History Section - Only shows if there are logs */}
+            <button 
+              onClick={() => handleNav(AppView.LIBRARY, true)} 
+              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.LIBRARY ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <div className="flex items-center gap-3">
+                <BookMarked size={18} className="text-blue-500" /> Saved Library
+              </div>
+              {!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}
+            </button>
+
             {searchHistory.length > 0 && (
               <div className="pt-4 pb-2 animate-in fade-in slide-in-from-left-4 duration-500">
                 <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -221,6 +236,7 @@ const App: React.FC = () => {
           />
         </div>
         {currentView === AppView.ACCOUNT && user && <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={logoutUser} />}
+        {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={handleLibraryNavigate} />}
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
         {currentView === AppView.DIET && <NutriHeal activeContext={featureContext} />}
       </div>

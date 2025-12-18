@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan } from '../types';
+import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan, YogaPose, SavedYogaPlan } from '../types';
 import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 
 // Initialize Supabase Client
@@ -197,7 +197,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
      const { data, error } = await supabase
       .from('app_users')
       .insert(newUserPayload)
-      .select().single();
+      .single();
 
     if (error) {
       const { data: existing } = await supabase.from('app_users').select('*').eq('email', email).single();
@@ -281,14 +281,26 @@ export const createStripePortalSession = async () => {
 
 export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): Promise<SavedMealPlan | null> => {
   if (!plan || plan.length === 0 || !supabase) return null;
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: plan }).select().single();
+  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: plan, type: 'DIET' }).select().single();
   return error ? null : (data as SavedMealPlan);
 };
 
-export const getUserMealPlans = async (user: User): Promise<SavedMealPlan[]> => {
-  if (!supabase) return [];
+export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string): Promise<SavedYogaPlan | null> => {
+  if (!poses || poses.length === 0 || !supabase) return null;
+  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: poses, type: 'YOGA' }).select().single();
+  return error ? null : (data as SavedYogaPlan);
+};
+
+export const getUserLibrary = async (user: User): Promise<{diet: SavedMealPlan[], yoga: SavedYogaPlan[]}> => {
+  if (!supabase) return { diet: [], yoga: [] };
   const { data, error } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-  return error ? [] : (data as SavedMealPlan[]);
+  if (error) return { diet: [], yoga: [] };
+  
+  const library = data || [];
+  return {
+    diet: library.filter((l: any) => l.type === 'DIET').map((l: any) => ({ ...l, plan_data: l.plan_data })),
+    yoga: library.filter((l: any) => l.type === 'YOGA').map((l: any) => ({ ...l, poses: l.plan_data }))
+  };
 };
 
 const getMockRemedies = (query: string): RemedyDocument[] => {
