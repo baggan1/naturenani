@@ -197,6 +197,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
      const { data, error } = await supabase
       .from('app_users')
       .insert(newUserPayload)
+      .select()
       .single();
 
     if (error) {
@@ -280,21 +281,50 @@ export const createStripePortalSession = async () => {
 };
 
 export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): Promise<SavedMealPlan | null> => {
-  if (!plan || plan.length === 0 || !supabase) return null;
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: plan, type: 'DIET' }).select().single();
-  return error ? null : (data as SavedMealPlan);
+  if (!plan || plan.length === 0 || !supabase) {
+    console.error("[Backend] Cannot save meal plan: Missing plan or database connection.");
+    return null;
+  }
+  const { data, error } = await supabase.from('nani_saved_plans').insert({ 
+    user_id: user.id, 
+    title, 
+    plan_data: plan, 
+    type: 'DIET' 
+  }).select().single();
+  
+  if (error) {
+    console.error("[Backend] Error saving meal plan to Supabase:", error.message, error.details);
+    return null;
+  }
+  return data as SavedMealPlan;
 };
 
 export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string): Promise<SavedYogaPlan | null> => {
-  if (!poses || poses.length === 0 || !supabase) return null;
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: poses, type: 'YOGA' }).select().single();
-  return error ? null : (data as SavedYogaPlan);
+  if (!poses || poses.length === 0 || !supabase) {
+    console.error("[Backend] Cannot save yoga plan: Missing poses or database connection.");
+    return null;
+  }
+  const { data, error } = await supabase.from('nani_saved_plans').insert({ 
+    user_id: user.id, 
+    title, 
+    plan_data: poses, 
+    type: 'YOGA' 
+  }).select().single();
+  
+  if (error) {
+    console.error("[Backend] Error saving yoga plan to Supabase:", error.message, error.details);
+    return null;
+  }
+  return data as SavedYogaPlan;
 };
 
 export const getUserLibrary = async (user: User): Promise<{diet: SavedMealPlan[], yoga: SavedYogaPlan[]}> => {
   if (!supabase) return { diet: [], yoga: [] };
   const { data, error } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-  if (error) return { diet: [], yoga: [] };
+  if (error) {
+    console.error("[Backend] Error fetching library:", error.message);
+    return { diet: [], yoga: [] };
+  }
   
   const library = data || [];
   return {

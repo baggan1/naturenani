@@ -63,6 +63,17 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
 
         <div className="p-8 overflow-y-auto">
           <div className="mb-8">
+            <div className="flex justify-center gap-8 mb-6">
+              <div className="flex flex-col items-center opacity-50 grayscale">
+                <div className="p-3 bg-sage-50 rounded-xl mb-1 border border-sage-100"><Sprout size={24} className="text-sage-400" /></div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-sage-400">Free</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="p-3 bg-sage-100 rounded-xl mb-1 border border-sage-200 shadow-sm"><TreePine size={24} className="text-sage-700" /></div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-sage-700">Premium</span>
+              </div>
+            </div>
+
             <p className="text-gray-600 text-center mb-6 text-sm">
               Stop guessing. Get visual guides, meal plans, and unlimited wisdom.
             </p>
