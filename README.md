@@ -7,8 +7,8 @@ Nature Nani is a conversational AI assistant that combines ancient wisdom from A
 
 - **Holistic Chat Interface**: Conversational AI (Gemini 2.5 Flash) grounded in vector embeddings of traditional texts.
 - **RAG Architecture**: Retrieves context from Supabase Vector Database (`documents_gemini` table).
-- **Yoga Studio**: Specific yoga pose generation with RAG support, curated stock images, and visual guides.
-- **Ayurvedic Kitchen**: Diet plan generation based on ailments (RAG supported), with AI-selected food imagery.
+- **Yoga Aid**: Specific yoga pose generation with RAG support, using Google Search API for 100% accurate human visuals.
+- **Nutri Heal**: Diet plan generation based on ailments (RAG supported), with real food photography via Google Search.
 - **User System**: Authentication (Google OAuth / OTP via Supabase), Subscription tiers (Triage vs Healer), and history tracking.
 
 ## Tech Stack
@@ -16,6 +16,7 @@ Nature Nani is a conversational AI assistant that combines ancient wisdom from A
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
 - **AI**: Google Gemini API (`@google/genai`)
 - **Backend/DB**: Supabase (PostgreSQL + pgvector)
+- **Visuals**: Google Custom Search JSON API
 - **Icons**: Lucide React
 
 ## Setup
@@ -29,6 +30,8 @@ Nature Nani is a conversational AI assistant that combines ancient wisdom from A
     Create a `.env` file in the root directory:
     ```env
     VITE_API_KEY=your_gemini_api_key
+    GOOGLE_SEARCH_KEY=your_google_cloud_custom_search_key
+    GOOGLE_SEARCH_CX=your_programmable_search_engine_id
     VITE_SUPABASE_URL=your_supabase_project_url
     VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
     VITE_STRIPE_PAYMENT_LINK=your_stripe_payment_link_url
