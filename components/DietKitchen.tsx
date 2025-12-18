@@ -58,11 +58,16 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
     if (!user || plan.length === 0) return;
     setSaveLoading(true);
     try {
-      await saveMealPlan(user, plan, title);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      const result = await saveMealPlan(user, plan, title);
+      if (result) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        alert("Failed to save plan. Please ensure you are signed in and have a stable connection.");
+      }
     } catch (e) {
       console.error("Save Error:", e);
+      alert("An unexpected error occurred while saving.");
     } finally {
       setSaveLoading(false);
     }

@@ -204,12 +204,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const formatMessageWithDisclaimer = (content: string) => {
     const disclaimerMarker = "Disclaimer: This information is provided by NatureNani AI";
     const index = content.lastIndexOf(disclaimerMarker);
+    
     if (index !== -1) {
-      const mainText = content.substring(0, index).trim();
-      const disclaimerText = content.substring(index).trim();
+      const beforeDisclaimer = content.substring(0, index).trim();
+      const fromDisclaimer = content.substring(index).trim();
+      
+      // Look for the end of the disclaimer sentence to see if there's text after it
+      const disclaimerSentenceEnd = "consult a professional.";
+      const sentenceEndIndex = fromDisclaimer.indexOf(disclaimerSentenceEnd);
+      
+      let disclaimerText = fromDisclaimer;
+      let textAfterDisclaimer = "";
+      
+      if (sentenceEndIndex !== -1) {
+        const endOfSentence = sentenceEndIndex + disclaimerSentenceEnd.length;
+        disclaimerText = fromDisclaimer.substring(0, endOfSentence);
+        textAfterDisclaimer = fromDisclaimer.substring(endOfSentence).trim();
+      }
+
       return (
         <>
-          <div>{mainText}</div>
+          <div>{beforeDisclaimer}</div>
+          {textAfterDisclaimer && <div className="mt-2">{textAfterDisclaimer}</div>}
           <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] text-gray-500 italic">
             {disclaimerText}
           </div>

@@ -7,7 +7,8 @@ import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-const supabase = (supabaseUrl && supabaseKey) 
+// Fix: Use 'any' type for the supabase client to resolve Property 'signInWithOAuth' and other Auth method errors appearing on SupabaseAuthClient
+const supabase: any = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
 
@@ -185,7 +186,6 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + TRIAL_DAYS); 
 
-  // CRITICAL: Get the actual Supabase Auth User ID to link tables correctly
   let authUserId: string | undefined;
   if (supabase) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -200,7 +200,6 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
     trial_end: endDate.toISOString(),
   };
 
-  // If we have a Supabase Auth session, use that ID
   if (authUserId) {
     newUserPayload.id = authUserId;
   }
@@ -209,15 +208,18 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   if (supabase) {
      const { data, error } = await supabase
       .from('app_users')
-      .upsert(newUserPayload) // Use upsert to handle re-registrations
+      .upsert(newUserPayload)
       .select()
       .single();
 
     if (error) {
       console.error("[Backend] Profile sync error:", error.message);
-      // Fallback: try to just get the user
       const { data: existing } = await supabase.from('app_users').select('*').eq('email', email).single();
-      user = existing ? (existing as User) : ({ ...newUserPayload, id: authUserId || crypto.randomUUID(), created_at: new Date().toISOString() } as User);
+      if (existing) {
+        user = existing as User;
+      } else {
+        user = { ...newUserPayload, id: authUserId || crypto.randomUUID(), created_at: new Date().toISOString() } as User;
+      }
     } else {
       user = data as User;
     }
@@ -231,8 +233,30 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
 
 const getOrCreateUser = async (email: string, name: string): Promise<User> => {
   if (!supabase) return signUpUser(email, name);
-  const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).single();
+  
+  // Always try to fetch actual auth user first to ensure IDs are matched
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const targetId = authUser?.id;
+
+  const { data: existingUser } = await supabase
+    .from('app_users')
+    .select('*')
+    .eq('email', email)
+    .single();
+
   if (existingUser) {
+    // If IDs don't match, we might need to repair the record if RLS is broken
+    if (targetId && existingUser.id !== targetId) {
+      console.warn("[Backend] User ID mismatch detected. Repairing profile...");
+      const { data: repaired } = await supabase
+        .from('app_users')
+        .upsert({ ...existingUser, id: targetId })
+        .select()
+        .single();
+      const finalUser = (repaired || existingUser) as User;
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(finalUser));
+      return finalUser;
+    }
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }
@@ -247,7 +271,9 @@ export const setupAuthListener = (onLogin: (user: User) => void) => {
         try {
           const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
           onLogin(user);
-        } catch (e) {}
+        } catch (e) {
+          console.error("[Backend] Auth listener error:", e);
+        }
       }
     }
   });
@@ -300,11 +326,16 @@ export const saveMealPlan = async (user: User, plan: DayPlan[], title: string): 
     console.error("[Backend] Cannot save: Database or plan missing.");
     return null;
   }
-  // Debug: verify we are using the correct user ID
-  console.log("[Backend] Attempting to save Meal Plan for User ID:", user.id);
+  
+  // Double-check auth status before saving
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) {
+     console.error("[Backend] Auth session missing. Please sign in again.");
+     return null;
+  }
 
   const { data, error } = await supabase.from('nani_saved_plans').insert({ 
-    user_id: user.id, 
+    user_id: authUser.id, // Explicitly use the session ID to satisfy RLS
     title, 
     plan_data: plan, 
     type: 'DIET' 
@@ -322,11 +353,15 @@ export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string)
     console.error("[Backend] Cannot save: Database or poses missing.");
     return null;
   }
-  // Debug: verify we are using the correct user ID
-  console.log("[Backend] Attempting to save Yoga Plan for User ID:", user.id);
+  
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) {
+     console.error("[Backend] Auth session missing. Please sign in again.");
+     return null;
+  }
 
   const { data, error } = await supabase.from('nani_saved_plans').insert({ 
-    user_id: user.id, 
+    user_id: authUser.id, // Explicitly use the session ID to satisfy RLS
     title, 
     plan_data: poses, 
     type: 'YOGA' 
@@ -341,7 +376,16 @@ export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string)
 
 export const getUserLibrary = async (user: User): Promise<{diet: SavedMealPlan[], yoga: SavedYogaPlan[]}> => {
   if (!supabase) return { diet: [], yoga: [] };
-  const { data, error } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+  
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const targetId = authUser?.id || user.id;
+
+  const { data, error } = await supabase
+    .from('nani_saved_plans')
+    .select('*')
+    .eq('user_id', targetId)
+    .order('created_at', { ascending: false });
+
   if (error) {
     console.error("[Backend] Library Fetch Error:", error.message);
     return { diet: [], yoga: [] };

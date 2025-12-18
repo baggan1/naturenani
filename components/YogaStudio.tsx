@@ -51,11 +51,16 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
     if (!user || routine.length === 0) return;
     setSaveLoading(true);
     try {
-      await saveYogaPlan(user, routine, title);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      const result = await saveYogaPlan(user, routine, title);
+      if (result) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        alert("Failed to save routine. Please ensure you have a stable connection and are signed in correctly.");
+      }
     } catch (e) {
       console.error("Save Error:", e);
+      alert("An unexpected error occurred while saving.");
     } finally {
       setSaveLoading(false);
     }
