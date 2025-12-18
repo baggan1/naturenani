@@ -4,20 +4,20 @@ import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
 import { SearchSource, RemedyDocument, YogaPose, Message, Meal } from "../types";
 
+// Fix: Direct utilization of process.env.API_KEY during client initialization as per guidelines
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API_KEY is missing.");
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 };
 
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
+    // Fix: Using correct singular 'content' and 'embedding' properties for embedContent API
     const response = await ai.models.embedContent({
       model: 'text-embedding-004',
-      contents: { parts: [{ text }] }
+      content: { parts: [{ text }] }
     });
-    return response.embeddings?.[0]?.values || null;
+    return response.embedding.values || null;
   } catch (e) { return null; }
 };
 

@@ -7,7 +7,7 @@ import { TRIAL_DAYS, DAILY_QUERY_LIMIT } from '../utils/constants';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// Using 'any' for the client to bypass version-specific type mismatches in the environment
+// Using 'any' for the client to bypass version-specific type mismatches in different environments
 const supabase: any = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;
@@ -15,7 +15,7 @@ const supabase: any = (supabaseUrl && supabaseKey)
 const CURRENT_USER_KEY = 'nature_nani_current_user';
 
 /**
- * Helper to provide fallback remedies when vector search is unavailable or returns no results.
+ * Helper to provide fallback remedies when vector search is unavailable.
  */
 const getMockRemedies = (query: string): RemedyDocument[] => {
   return [
@@ -36,6 +36,16 @@ const getMockRemedies = (query: string): RemedyDocument[] => {
   ];
 };
 
+export const getCurrentUser = (): User | null => {
+  const stored = localStorage.getItem(CURRENT_USER_KEY);
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    return null;
+  }
+};
+
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   if (user.is_subscribed) {
     return { count: 0, limit: -1, remaining: 9999, isUnlimited: true };
@@ -53,7 +63,6 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
       .gt('created_at', oneDayAgo);
 
     if (error) {
-      console.warn("Usage check error:", error.message);
       return { count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false };
     }
 
@@ -81,30 +90,25 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, det
       details,
       user_id: user.id 
     };
-    const { error } = await supabase.from('nani_analytics').insert(payload);
-    if (error) console.warn("Analytics log failed:", error.message);
-  } catch (e) { console.warn("Analytics error:", e); }
+    await supabase.from('nani_analytics').insert(payload);
+  } catch (e) {}
 };
 
 export const getUserSearchHistory = async (user: User): Promise<string[]> => {
   if (!supabase) return [];
   try {
-    let query = supabase
+    const { data, error } = await supabase
       .from('nani_analytics')
-      .select('query, created_at')
+      .select('query')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-    if (!user.is_subscribed) {
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      query = query.gt('created_at', oneDayAgo);
-    }
+    if (error || !data) return [];
     
-    const { data, error } = await query.limit(50);
-
-    if (error) return [];
-
-    const distinctQueries = Array.from(new Set((data || []).map((item: any) => item.query as string))) as string[];
+    // Fix: Explicitly type mapped query results as string[] to resolve line 109 unknown[] assignment error
+    const queryList: string[] = (data || []).map((item: any) => String(item.query));
+    const distinctQueries = Array.from(new Set(queryList));
     return distinctQueries.slice(0, 5); 
   } catch (e) {
     return [];
@@ -119,7 +123,7 @@ export const warmupDatabase = async () => {
       match_threshold: 0.01,
       match_count: 1
     });
-  } catch (e) { /* Ignore */ }
+  } catch (e) {}
 };
 
 export const searchVectorDatabase = async (
@@ -136,10 +140,7 @@ export const searchVectorDatabase = async (
       match_count: 10
     });
 
-    if (error) {
-      console.error("[Supabase] Search Error:", error.message);
-      return getMockRemedies(queryText);
-    }
+    if (error) return getMockRemedies(queryText);
 
     let results = (data || []).map((doc: any) => ({
       id: doc.id.toString(),
@@ -162,22 +163,11 @@ export const searchVectorDatabase = async (
   }
 };
 
-export const getCurrentUser = (): User | null => {
-  const stored = localStorage.getItem(CURRENT_USER_KEY);
-  return stored ? JSON.parse(stored) : null;
-};
-
 export const signInWithGoogle = async () => {
   if (!supabase) throw new Error("Database not connected");
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: {
-      redirectTo: window.location.origin,
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'select_account',
-      },
-    }
+    options: { redirectTo: window.location.origin }
   });
   if (error) throw error;
 };
@@ -192,10 +182,7 @@ export const sendOtp = async (email: string) => {
 };
 
 export const verifyOtp = async (email: string, token: string): Promise<User> => {
-  if (!supabase) {
-    if (token === '123456') return await signUpUser(email, "Guest User");
-    throw new Error("Invalid code");
-  }
+  if (!supabase) throw new Error("Database not connected");
   const { data: { session }, error } = await supabase.auth.verifyOtp({
     email, token, type: 'email'
   });
@@ -214,7 +201,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
     authUserId = authUser?.id;
   }
 
-  const newUserPayload: any = {
+  const userObj: any = {
     email, 
     name,
     is_subscribed: false,
@@ -222,71 +209,33 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
     trial_end: endDate.toISOString(),
   };
 
-  if (authUserId) {
-    newUserPayload.id = authUserId;
-  }
+  if (authUserId) userObj.id = authUserId;
 
-  let user: User;
   if (supabase) {
-     const { data, error } = await supabase
-      .from('app_users')
-      .upsert(newUserPayload)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("[Backend] Profile sync error:", error.message);
-      const { data: existing } = await supabase.from('app_users').select('*').eq('email', email).single();
-      if (existing) {
-        user = existing as User;
-      } else {
-        user = { ...newUserPayload, id: authUserId || crypto.randomUUID(), created_at: new Date().toISOString() } as User;
-      }
-    } else {
-      user = data as User;
+    const { data, error } = await supabase.from('app_users').upsert(userObj).select().single();
+    if (!error && data) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+      return data as User;
     }
-  } else {
-    user = { ...newUserPayload, id: crypto.randomUUID(), created_at: new Date().toISOString() };
   }
 
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  return user;
+  const fallbackUser = { ...userObj, id: authUserId || crypto.randomUUID(), created_at: new Date().toISOString() };
+  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fallbackUser));
+  return fallbackUser as User;
 };
 
 const getOrCreateUser = async (email: string, name: string): Promise<User> => {
   if (!supabase) return signUpUser(email, name);
   
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const targetId = authUser?.id;
-
-  const { data: existingUser } = await supabase
-    .from('app_users')
-    .select('*')
-    .eq('email', email)
-    .single();
-
+  const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
   if (existingUser) {
-    if (targetId && existingUser.id !== targetId) {
-      console.warn("[Backend] User ID mismatch detected. Repairing profile...");
-      const { data: repaired } = await supabase
-        .from('app_users')
-        .upsert({ ...existingUser, id: targetId })
-        .select()
-        .single();
-      const finalUser = (repaired || existingUser) as User;
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(finalUser));
-      return finalUser;
-    }
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }
   
-  return signUpUser(email, name);
+  return await signUpUser(email, name);
 };
 
-/**
- * Checks the current user's subscription or trial status.
- */
 export const checkSubscriptionStatus = async (user: User) => {
   if (user.is_subscribed) return { hasAccess: true, daysRemaining: 999, isTrialExpired: false };
   const end = new Date(user.trial_end);
@@ -300,22 +249,17 @@ export const checkSubscriptionStatus = async (user: User) => {
   };
 };
 
-/**
- * Sign out the current user and clear local storage.
- */
 export const logoutUser = async () => {
   if (supabase) await supabase.auth.signOut();
   localStorage.removeItem(CURRENT_USER_KEY);
   window.location.reload();
 };
 
-/**
- * Setup listener for Supabase authentication state changes.
- */
 export const setupAuthListener = (onAuthChange: (user: User) => void) => {
   if (!supabase) return () => {};
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
-    if (event === 'SIGNED_IN' && session?.user?.email) {
+  // Fix: Explicitly type event and session to prevent Vercel build errors
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user?.email) {
       const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
       onAuthChange(user);
     }
@@ -323,9 +267,6 @@ export const setupAuthListener = (onAuthChange: (user: User) => void) => {
   return () => subscription.unsubscribe();
 };
 
-/**
- * Redirect user to Stripe Checkout for subscription upgrade.
- */
 export const initiateStripeCheckout = async (user: User) => {
   const stripeLink = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
   if (!stripeLink) return;
@@ -334,51 +275,62 @@ export const initiateStripeCheckout = async (user: User) => {
   window.location.href = url.toString();
 };
 
-/**
- * Redirect user to Stripe Customer Portal for billing management.
- */
 export const createStripePortalSession = async () => {
   const portalLink = process.env.REACT_APP_STRIPE_PORTAL_LINK;
   if (portalLink) window.location.href = portalLink;
 };
 
 /**
- * Saves a yoga plan for the user in Supabase.
+ * Saves a plan (Yoga or Diet) into the unified nani_saved_plans table.
  */
+const saveToLibrary = async (user: User, planData: any, title: string, type: 'YOGA' | 'DIET') => {
+  if (!supabase) return null;
+  
+  // Always fetch fresh auth ID for RLS compliance
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const uid = authUser?.id || user.id;
+
+  const { data, error } = await supabase.from('nani_saved_plans').insert({
+    user_id: uid,
+    title,
+    plan_data: planData,
+    type: type
+  }).select().single();
+
+  if (error) {
+    console.error(`[Backend] Save ${type} failed:`, error.message);
+    return null;
+  }
+  return data;
+};
+
 export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string) => {
-  if (!supabase) return null;
-  const { data, error } = await supabase.from('nani_yoga_plans').insert({
-    user_id: user.id,
-    title,
-    poses
-  }).select().single();
-  return error ? null : data;
+  return await saveToLibrary(user, poses, title, 'YOGA');
 };
 
-/**
- * Saves a meal plan for the user in Supabase.
- */
 export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: string) => {
-  if (!supabase) return null;
-  const { data, error } = await supabase.from('nani_meal_plans').insert({
-    user_id: user.id,
-    title,
-    plan_data
-  }).select().single();
-  return error ? null : data;
+  return await saveToLibrary(user, plan_data, title, 'DIET');
 };
 
-/**
- * Fetches the user's saved library items (meal plans and yoga routines).
- */
 export const getUserLibrary = async (user: User) => {
   if (!supabase) return { diet: [], yoga: [] };
-  const [dietRes, yogaRes] = await Promise.all([
-    supabase.from('nani_meal_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-    supabase.from('nani_yoga_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-  ]);
+  
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const uid = authUser?.id || user.id;
+
+  const { data, error } = await supabase
+    .from('nani_saved_plans')
+    .select('*')
+    .eq('user_id', uid)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return { diet: [], yoga: [] };
+
   return {
-    diet: dietRes.data || [],
-    yoga: yogaRes.data || []
+    diet: data.filter((item: any) => item.type === 'DIET'),
+    yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({
+      ...item,
+      poses: item.plan_data // Map plan_data back to poses for the UI
+    }))
   };
 };
