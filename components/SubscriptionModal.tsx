@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X } from 'lucide-react';
 import { initiateStripeCheckout, getCurrentUser } from '../services/backendService';
@@ -51,12 +52,12 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
             <Lock className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-serif font-bold text-white mb-2">
-            Upgrade to Premium
+            Upgrade to Evergreen
           </h2>
           <p className="text-sage-100 text-sm opacity-90">
             {isTrialExpired 
-              ? 'Your Triage access is limited.' 
-              : 'Upgrade from Triage to Full Holistic Care'}
+              ? 'Your Seedling access is limited.' 
+              : 'Upgrade from Seedling to Full Evergreen Wellness'}
           </p>
         </div>
 
@@ -99,7 +100,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
 
           <div className="bg-sage-50 rounded-xl p-4 mb-6 border border-sage-200 flex justify-between items-center">
              <div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-bold">Healer Plan</span>
+                <span className="text-xs text-gray-500 uppercase tracking-wide font-bold">Evergreen Plan</span>
                 <div className="text-2xl font-bold text-sage-900">$9.99<span className="text-sm font-normal text-gray-500">/mo</span></div>
               </div>
               <div className="text-xs text-earth-700 font-bold bg-earth-100 px-3 py-1 rounded-full border border-earth-200">
@@ -114,7 +115,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
           >
             {isLoading ? <Loader2 className="animate-spin" /> : (
               <>
-                <CreditCard size={20} /> Upgrade to Premium
+                <CreditCard size={20} /> Upgrade to Evergreen
               </>
             )}
           </button>

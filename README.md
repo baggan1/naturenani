@@ -1,60 +1,47 @@
 
 # Nature Nani - Ayurveda & Naturopathy AI Assistant
 
-Nature Nani is a conversational AI assistant that combines ancient wisdom from Ayurveda and Naturopathy with modern Retrieval-Augmented Generation (RAG) technology. It provides personalized remedies, yoga routines, and diet plans.
+Nature Nani is a conversational AI assistant that combines ancient wisdom from Ayurveda and Naturopathy with modern Retrieval-Augmented Generation (RAG) technology.
+
+## 🚀 Supabase Database Setup (CRITICAL)
+
+To enable the **Saving** functionality for Yoga and Diet plans, you must run the following SQL in your [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql):
+
+```sql
+-- 1. Create the Saved Plans table
+CREATE TABLE IF NOT EXISTS nani_saved_plans (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  plan_data JSONB NOT NULL,
+  type TEXT CHECK (type IN ('YOGA', 'DIET')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2. Enable Row Level Security
+ALTER TABLE nani_saved_plans ENABLE ROW LEVEL SECURITY;
+
+-- 3. Create RLS Policies
+CREATE POLICY "Users can insert their own plans" 
+ON nani_saved_plans FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can view their own plans" 
+ON nani_saved_plans FOR SELECT 
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own plans" 
+ON nani_saved_plans FOR DELETE 
+USING (auth.uid() = user_id);
+```
 
 ## Features
 
-- **Holistic Chat Interface**: Conversational AI (Gemini 2.5 Flash) grounded in vector embeddings of traditional texts.
-- **RAG Architecture**: Retrieves context from Supabase Vector Database (`documents_gemini` table).
-- **Yoga Aid**: Specific yoga pose generation with RAG support, using Google Search API for 100% accurate human visuals.
-- **Nutri Heal**: Diet plan generation based on ailments (RAG supported), with real food photography via Google Search.
-- **User System**: Authentication (Google OAuth / OTP via Supabase), Subscription tiers (Triage vs Healer), and history tracking.
+- **Holistic Chat Interface**: Conversational AI grounded in ancient texts.
+- **Evergreen Library**: Save therapeutic protocols for long-term reference.
+- **Yoga Aid & Nutri Heal**: Specialized modules for movement and nutrition.
 
 ## Tech Stack
-
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS
-- **AI**: Google Gemini API (`@google/genai`)
-- **Backend/DB**: Supabase (PostgreSQL + pgvector)
-- **Visuals**: Google Custom Search JSON API
-- **Icons**: Lucide React
-
-## Setup
-
-1.  **Clone the repository**.
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Environment Variables**:
-    Create a `.env` file in the root directory:
-    ```env
-    VITE_API_KEY=your_gemini_api_key
-    GOOGLE_SEARCH_KEY=your_google_cloud_custom_search_key
-    GOOGLE_SEARCH_CX=your_programmable_search_engine_id
-    VITE_SUPABASE_URL=your_supabase_project_url
-    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-    VITE_STRIPE_PAYMENT_LINK=your_stripe_payment_link_url
-    VITE_STRIPE_PORTAL_LINK=your_stripe_customer_portal_link
-    ```
-4.  **Supabase Setup**:
-    - **Extension**: Enable the `vector` extension in Postgres.
-    - **Table `documents_gemini`**:
-      - `id`: int8 or uuid
-      - `content`: text
-      - `embedding`: vector(768)
-      - `source`: text (Values: 'Ayurveda', 'Naturopathy', 'Yoga', 'diet')
-      - `book_name`: text (Optional)
-    - **Table `app_users`**: Custom user profiles.
-    - **Table `nani_analytics`**: Analytics logging.
-    - **Table `nani_saved_plans`**: Storing diet plans JSONB.
-    - **RPC Function**: Create `match_documents_gemini` for vector similarity search.
-
-5.  **Run Development Server**:
-    ```bash
-    npm run dev
-    ```
-
-## Contributing
-
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+- **AI**: Google Gemini 3
+- **DB**: Supabase + pgvector
+- **Visuals**: Google Custom Search API

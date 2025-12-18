@@ -10,7 +10,7 @@ import Library from './components/Library';
 import YogaAid from './components/YogaStudio'; 
 import NutriHeal from './components/DietKitchen'; 
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -124,7 +124,7 @@ const App: React.FC = () => {
             
             <div className="pt-4 pb-2">
               <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                Specialized Aids {user?.is_subscribed && <Sparkles size={10} className="text-yellow-500" />}
+                Healing Aids {user?.is_subscribed && <Sparkles size={10} className="text-yellow-500" />}
               </p>
               <button 
                 onClick={() => handleNav(AppView.YOGA, true)} 
@@ -159,7 +159,7 @@ const App: React.FC = () => {
             {searchHistory.length > 0 && (
               <div className="pt-4 pb-2 animate-in fade-in slide-in-from-left-4 duration-500">
                 <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <History size={12} /> Recent Consults
+                  <History size={12} /> Recent Wisdom
                 </p>
                 <div className="space-y-1">
                   {searchHistory.map((query, index) => (
@@ -194,7 +194,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-sage-900 truncate">{user.name || 'User'}</p>
-                  <p className="text-[10px] text-gray-400 truncate uppercase tracking-tighter">{user.is_subscribed ? 'Healer Member' : 'Trial Access'}</p>
+                  <p className="text-[10px] text-gray-400 truncate uppercase tracking-tighter">{user.is_subscribed ? 'Evergreen Plan' : 'Seedling Access'}</p>
                 </div>
               </div>
               <button 

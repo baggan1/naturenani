@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles } from 'lucide-react';
+import { Send, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf } from 'lucide-react';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
 import { Logo } from './Logo';
@@ -86,7 +86,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           return { visibleText: cleanText, metadata: data.recommendations };
         }
       } catch (e) {
-        // Fallback for old single recommendation format
         try {
            const singleData = JSON.parse(jsonString);
            if (singleData.recommendation) {
@@ -234,7 +233,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div key={msg.id} className="flex flex-col gap-2">
             <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
               <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}`}>
-                {msg.role === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
+                {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
               </div>
               <div className={`max-w-[85%] rounded-2xl p-4 shadow-sm whitespace-pre-wrap leading-relaxed ${
                 msg.role === 'user' ? 'bg-earth-50 text-sage-900 border border-earth-200' : 'bg-white text-gray-800 border border-sage-200'
@@ -275,7 +274,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         ))}
         {isLoading && (
           <div className="flex flex-row items-start gap-3">
-             <div className="w-8 h-8 rounded-full bg-sage-600 flex-shrink-0 flex items-center justify-center"><Bot size={16} className="text-white" /></div>
+             <div className="w-8 h-8 rounded-full bg-sage-600 flex-shrink-0 flex items-center justify-center"><Leaf size={16} className="text-white" /></div>
              <div className="bg-white p-4 rounded-2xl border border-sage-200 shadow-sm flex items-center gap-2"><div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div><div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div></div>
           </div>
         )}
