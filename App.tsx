@@ -6,10 +6,10 @@ import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
 import SubscriptionModal from './components/SubscriptionModal';
 import AccountSettings from './components/AccountSettings';
-import YogaAid from './components/YogaStudio'; // Still using file path, but component is renamed
-import NutriHeal from './components/DietKitchen'; // Still using file path, but component is renamed
+import YogaAid from './components/YogaStudio'; 
+import NutriHeal from './components/DietKitchen'; 
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -103,23 +103,116 @@ const App: React.FC = () => {
              <Logo className="h-10 w-10" textClassName="text-2xl" />
              <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-400"><X size={20} /></button>
           </div>
+          
           <div className="space-y-2">
-            <button onClick={() => handleNav(AppView.CHAT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><MessageSquare size={18} /> Consultation</button>
-            <div className="pt-4 pb-2"><p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Health Aids</p>
-              <button onClick={() => handleNav(AppView.YOGA, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Flower2 size={18} className="text-pink-500" /> Yoga Aid</div>{!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}</button>
-              <button onClick={() => handleNav(AppView.DIET, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Utensils size={18} className="text-orange-500" /> Nutri Heal</div>{!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}</button>
+            <button 
+              onClick={() => handleNav(AppView.CHAT)} 
+              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <MessageSquare size={18} /> Consultation
+            </button>
+            
+            <div className="pt-4 pb-2">
+              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Health Aids</p>
+              <button 
+                onClick={() => handleNav(AppView.YOGA, true)} 
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Flower2 size={18} className="text-pink-500" /> Yoga Aid
+                </div>
+                {!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}
+              </button>
+              <button 
+                onClick={() => handleNav(AppView.DIET, true)} 
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Utensils size={18} className="text-orange-500" /> Nutri Heal
+                </div>
+                {!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}
+              </button>
             </div>
-            <button onClick={() => handleNav(AppView.ACCOUNT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ACCOUNT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><UserCircle size={18} /> Account</button>
+
+            {/* History Section */}
+            {searchHistory.length > 0 && (
+              <div className="pt-4 pb-2">
+                <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <History size={12} /> Recent Consults
+                </p>
+                <div className="space-y-1">
+                  {searchHistory.map((query, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleHistoryClick(query)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-sage-50 rounded-lg flex items-center justify-between group transition-colors"
+                    >
+                      <span className="truncate">{query}</span>
+                      <ChevronRight size={14} className="text-gray-300 group-hover:text-sage-400 transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button 
+              onClick={() => handleNav(AppView.ACCOUNT)} 
+              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ACCOUNT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <UserCircle size={18} /> Account
+            </button>
           </div>
         </div>
+
         <div className="pt-4 border-t border-sage-100">
-          {user && <button onClick={logoutUser} className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"><LogOut size={14} /> Sign Out</button>}
+          {user ? (
+            <div className="px-2">
+              <div className="flex items-center gap-3 p-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-sage-600 flex items-center justify-center text-white font-bold text-xs">
+                  {user.name?.[0] || user.email[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-sage-900 truncate">{user.name || 'User'}</p>
+                  <p className="text-[10px] text-gray-400 truncate">{user.is_subscribed ? 'Healer Plan' : 'Trial Access'}</p>
+                </div>
+              </div>
+              <button 
+                onClick={logoutUser} 
+                className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"
+              >
+                <LogOut size={14} /> Sign Out
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setShowAuthModal(true)}
+              className="w-full bg-sage-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-sage-700 transition-colors"
+            >
+              Sign In
+            </button>
+          )}
         </div>
       </div>
 
       <div className="flex-1 h-full relative overflow-hidden">
         <div className={`h-full w-full ${currentView === AppView.CHAT ? 'block' : 'hidden'}`}>
-          <ChatInterface messages={chatMessages} setMessages={setChatMessages} onTrialEnd={() => setShowPaywall(true)} hasAccess={subscriptionState.hasAccess} initialMessage={triggerQuery} onMessageSent={() => user && refreshAppData(user)} usage={queryUsage} isSubscribed={user?.is_subscribed || false} onUpgradeClick={() => setShowPaywall(true)} isGuest={!user} onShowAuth={() => setShowAuthModal(true)} onNavigateToFeature={handleFeatureHandoff} isMobileView={true} />
+          <ChatInterface 
+            messages={chatMessages} 
+            setMessages={setChatMessages} 
+            onTrialEnd={() => setShowPaywall(true)} 
+            hasAccess={subscriptionState.hasAccess} 
+            initialMessage={triggerQuery} 
+            onMessageSent={() => {
+              if (user) refreshAppData(user);
+              setTriggerQuery(''); // Clear trigger after use
+            }} 
+            usage={queryUsage} 
+            isSubscribed={user?.is_subscribed || false} 
+            onUpgradeClick={() => setShowPaywall(true)} 
+            isGuest={!user} 
+            onShowAuth={() => setShowAuthModal(true)} 
+            onNavigateToFeature={handleFeatureHandoff} 
+          />
         </div>
         {currentView === AppView.ACCOUNT && user && <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={logoutUser} />}
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
