@@ -75,7 +75,7 @@ ${message}
       `;
     }
 
-    augmentedMessage += `\n\n[SYSTEM REMINDER]: If this query relates to a health condition where Yoga or Diet would be beneficial, you MUST append the JSON recommendation block at the very end as specified in your system instructions.`;
+    augmentedMessage += `\n\n[SYSTEM REMINDER]: For digestive issues, provide BOTH Yoga and Diet recommendations in an array within your JSON block at the very end. For others, provide the most relevant one.`;
 
     // 3. Initialize Chat with strictly validated history
     const sdkHistory = history
@@ -131,7 +131,11 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
     }
   } catch (e) {}
 
-  const prompt = `Generate a 3-5 pose Yoga sequence for: "${ailmentId}". Context: ${contextString}`;
+  const prompt = `
+    Generate a 3-5 pose Yoga sequence for the condition: "${ailmentId}". 
+    Use the following ancient wisdom context if available: ${contextString}
+    Ensure the poses directly address the ailment (e.g. twists for digestion, forward folds for stress).
+  `;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -176,6 +180,7 @@ export const generateDietPlan = async (ailmentId: string): Promise<any[]> => {
     Generate a highly detailed 3-day meal plan for: "${ailmentId}". 
     Context: ${contextString}
     IMPORTANT: Every meal MUST include specific "ingredients" and clear step-by-step "instructions" on how to prepare the healing dish.
+    Also provide a specific "image_keyword" for each meal that describes the visual appearance of the finished dish accurately.
   `;
 
   try {

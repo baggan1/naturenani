@@ -99,7 +99,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
             Nature Nani Wellness Portal
           </h2>
           <p className="text-gray-500 text-sm mt-2 max-w-[280px] mx-auto">
-            Access your personalized Ayurvedic history and consultation logs securely.
+            Access your personalized Wellness history and consultation logs securely.
           </p>
         </div>
 

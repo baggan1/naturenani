@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Utensils, ShoppingCart, Loader2, X, Search, Save, Book, ChefHat, Clock, Flame, Check, ArrowRight, Leaf } from 'lucide-react';
+import { Utensils, ShoppingCart, Loader2, X, Search, Save, Book, ChefHat, Clock, Flame, Check, ArrowRight, Leaf, ImageOff } from 'lucide-react';
 import { FeatureContext, SavedMealPlan, DayPlan, Meal } from '../types';
 import { generateDietPlan } from '../services/geminiService';
 import { saveMealPlan, getUserMealPlans, getCurrentUser } from '../services/backendService';
@@ -17,6 +17,9 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
   const [showShoppingList, setShowShoppingList] = useState(false);
   const [customQuery, setCustomQuery] = useState("");
   
+  // Track failed images
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+
   // Save/Load Logic
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
@@ -25,7 +28,8 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
   const loadPlan = async (queryId: string, displayTitle: string) => {
     setLoading(true);
     setTitle(displayTitle);
-    setPlan([]); // Reset previous plan
+    setPlan([]); 
+    setFailedImages({});
     
     try {
       const generatedPlan = await generateDietPlan(queryId);
@@ -40,7 +44,6 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
   };
 
   useEffect(() => {
-    // If context passed from chat, load it automatically
     if (activeContext?.id) {
        loadPlan(activeContext.id, activeContext.title);
     }
@@ -52,8 +55,8 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
     loadPlan(customQuery, `Diet for: ${customQuery}`);
   };
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    e.currentTarget.src = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1000&auto=format&fit=crop"; 
+  const handleImageError = (mealName: string) => {
+    setFailedImages(prev => ({ ...prev, [mealName]: true }));
   };
 
   const handleSavePlan = async () => {
@@ -87,14 +90,15 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
     setShowSavedModal(false);
   };
 
-  // Helper to generate recipe-focused image URL
+  // Improved Image Generation Prompt
   const getRecipeImageUrl = (meal: Meal) => {
-    // Prompt focused on the final plated dish
-    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Gourmet plated ${meal.name}, authentic Ayurvedic ${meal.type} dish, professional food photography, natural cinematic lighting, top down view, high resolution, delicious presentation`)}?width=400&height=300&nologo=true`;
+    const query = meal.image_keyword || meal.name;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Gourmet plated ${query}, authentic Ayurvedic dish, professional food photography, natural cinematic lighting, high resolution, delicious presentation, minimalist aesthetic`)}?width=400&height=300&nologo=true&seed=${encodeURIComponent(meal.name)}`;
   };
   
   const getRecipeImageUrlLarge = (meal: Meal) => {
-    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Close up of a delicious ${meal.name}, healthy Ayurvedic meal, steam rising, professional food styling, warm aesthetic kitchen background, 8k resolution`)}?width=800&height=1000&nologo=true`;
+    const query = meal.image_keyword || meal.name;
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(`Close up of delicious ${query}, healthy Ayurvedic recipe, professional food styling, warm kitchen background, 8k resolution, authentic spices`)}?width=800&height=1000&nologo=true&seed=${encodeURIComponent(meal.name)}`;
   };
 
   return (
@@ -192,14 +196,21 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
                       onClick={() => setSelectedMeal(meal)}
                       className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group flex flex-col h-full"
                     >
-                      <div className="h-48 overflow-hidden relative bg-gray-50">
-                        <img 
-                          src={getRecipeImageUrl(meal)} 
-                          alt={meal.name}
-                          onError={handleImageError}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          loading="lazy"
-                        />
+                      <div className="h-48 overflow-hidden relative bg-gray-50 flex items-center justify-center">
+                        {failedImages[meal.name] ? (
+                          <div className="flex flex-col items-center gap-2 text-gray-300">
+                             <ImageOff size={40} />
+                             <span className="text-[10px] font-bold uppercase tracking-widest">Preview Unavailable</span>
+                          </div>
+                        ) : (
+                          <img 
+                            src={getRecipeImageUrl(meal)} 
+                            alt={meal.name}
+                            onError={() => handleImageError(meal.name)}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            loading="lazy"
+                          />
+                        )}
                         <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-gray-800 shadow-sm">
                           {meal.type}
                         </div>
@@ -245,12 +256,19 @@ const DietKitchen: React.FC<DietKitchenProps> = ({ activeContext }) => {
 
             {/* Left Side: Image (Desktop) / Top (Mobile) */}
             <div className="w-full md:w-1/2 h-64 md:h-auto relative bg-earth-50 flex items-center justify-center">
-               <img 
-                src={getRecipeImageUrlLarge(selectedMeal)}
-                alt={selectedMeal.name}
-                className="w-full h-full object-cover"
-                onError={handleImageError}
-              />
+               {failedImages[selectedMeal.name] ? (
+                 <div className="flex flex-col items-center gap-4 text-earth-200">
+                    <ImageOff size={80} />
+                    <span className="font-bold uppercase tracking-widest text-sm">Detailed Visual Not Available</span>
+                 </div>
+               ) : (
+                 <img 
+                   src={getRecipeImageUrlLarge(selectedMeal)}
+                   alt={selectedMeal.name}
+                   className="w-full h-full object-cover"
+                   onError={() => handleImageError(selectedMeal.name)}
+                 />
+               )}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
                  <div className="text-white text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
                     <ChefHat size={12} /> Healing Recipe

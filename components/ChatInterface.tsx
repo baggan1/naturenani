@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Send, User, Bot, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles } from 'lucide-react';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
 import { Logo } from './Logo';
@@ -61,8 +61,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  const parseMessageContent = (rawText: string): { visibleText: string, metadata?: RecommendationMetadata } => {
-    const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendation"[\s\S]*?\})\s*```/;
+  const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[] } => {
+    const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendations"[\s\S]*?\})\s*```/;
     let match = rawText.match(jsonBlockRegex);
     let jsonString = '';
     let cleanText = rawText;
@@ -71,7 +71,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       jsonString = match[1];
       cleanText = rawText.replace(match[0], '').trim();
     } else {
-      const jsonLooseRegex = /(\{\s*"recommendation"[\s\S]*?\})\s*$/;
+      const jsonLooseRegex = /(\{\s*"recommendations"[\s\S]*?\})\s*$/;
       match = rawText.match(jsonLooseRegex);
       if (match && match[1]) {
         jsonString = match[1];
@@ -82,15 +82,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (jsonString) {
       try {
         const data = JSON.parse(jsonString);
-        if (data.recommendation) {
-          return { visibleText: cleanText, metadata: data.recommendation };
+        if (Array.isArray(data.recommendations)) {
+          return { visibleText: cleanText, metadata: data.recommendations };
         }
       } catch (e) {
-        console.warn("Failed to parse recommendation JSON", e);
+        // Fallback for old single recommendation format
+        try {
+           const singleData = JSON.parse(jsonString);
+           if (singleData.recommendation) {
+             return { visibleText: cleanText, metadata: [singleData.recommendation] };
+           }
+        } catch (e2) {}
       }
     }
     
-    return { visibleText: rawText };
+    return { visibleText: rawText, metadata: [] };
   };
 
   const handleAutoSend = async (text: string, isResuming = false) => {
@@ -146,7 +152,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       const { visibleText, metadata } = parseMessageContent(fullRawContent);
       setMessages(prev => prev.map(msg => 
-        msg.id === botMessageId ? { ...msg, content: visibleText, recommendation: metadata } : msg
+        msg.id === botMessageId ? { ...msg, content: visibleText, recommendations: metadata } : msg
       ));
 
       if (onMessageSent) onMessageSent();
@@ -241,19 +247,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <SourceAccordion sources={msg.sources} />
             )}
 
-            {msg.recommendation && (
-              <div className="ml-11 max-w-[85%] mt-1">
-                <div className="bg-white rounded-xl border border-earth-200 shadow-sm overflow-hidden group cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleCardClick(msg.recommendation!)}>
-                  <div className="bg-sage-50 border-b border-sage-100 p-3 flex items-center gap-2">
-                     {msg.recommendation.type === 'YOGA' ? <PlayCircle className="text-earth-600" size={16} /> : <FileText className="text-orange-600" size={16} />}
-                     <span className="text-xs font-bold text-sage-700 uppercase tracking-wide">{msg.recommendation.type} Plan</span>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg text-sage-900 mb-1">{msg.recommendation.title}</h3>
-                    <div className="mt-3 flex items-center gap-2">
-                       {isSubscribed ? <span className="bg-sage-100 text-sage-700 px-3 py-1.5 rounded-full font-bold text-xs flex items-center gap-2"><PlayCircle size={14} /> Open Now</span> : <div className="flex items-center gap-2 text-earth-600 font-bold text-xs"><Lock size={12} /> Upgrade to Unlock</div>}
+            {msg.recommendations && msg.recommendations.length > 0 && (
+              <div className="ml-11 max-w-[85%] mt-2">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  {msg.recommendations.map((rec, idx) => (
+                    <div 
+                      key={idx}
+                      className="flex-1 bg-white rounded-xl border border-earth-200 shadow-sm overflow-hidden group cursor-pointer hover:shadow-md transition-shadow" 
+                      onClick={() => handleCardClick(rec)}
+                    >
+                      <div className="bg-sage-50 border-b border-sage-100 p-3 flex items-center gap-2">
+                         {rec.type === 'YOGA' ? <PlayCircle className="text-earth-600" size={16} /> : <FileText className="text-orange-600" size={16} />}
+                         <span className="text-[10px] font-bold text-sage-700 uppercase tracking-wide">{rec.type} Specialist</span>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-bold text-sm text-sage-900 mb-2 line-clamp-1">{rec.title}</h3>
+                        <div className="flex items-center gap-2">
+                           {isSubscribed ? <span className="text-earth-600 font-bold text-[10px] flex items-center gap-1 group-hover:gap-2 transition-all">View Guide <Sparkles size={10} /></span> : <div className="flex items-center gap-1 text-gray-400 font-bold text-[10px]"><Lock size={10} /> Upgrade</div>}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}

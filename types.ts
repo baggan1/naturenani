@@ -32,7 +32,7 @@ export interface Message {
   content: string; // The visible text
   timestamp: number;
   sources?: RemedyDocument[]; 
-  recommendation?: RecommendationMetadata; // The hidden app intent
+  recommendations?: RecommendationMetadata[]; // Supporting multiple intents
 }
 
 export interface SubscriptionPlan {
@@ -96,7 +96,7 @@ export interface Meal {
   ingredients: string[];
   instructions: string;
   image_keyword: string;
-  key_ingredient?: string; // New field for focusing on the main healing ingredient
+  key_ingredient?: string; 
 }
 
 export interface DayPlan {
