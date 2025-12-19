@@ -39,8 +39,8 @@ export const BrandingKit: React.FC = () => {
                       <stop offset="0%" stopColor="#4A7C59" />
                       <stop offset="100%" stopColor="#2D422D" />
                     </linearGradient>
-                    {/* Path for curved text within inner margin */}
-                    <path id="zenTextPath" d="M 106, 256 a 150,150 0 0,0 300,0" />
+                    {/* Tighter path for curved text well within inner margin */}
+                    <path id="zenTextPath" d="M 126, 256 a 130,130 0 0,0 260,0" />
                   </defs>
                   <circle cx="256" cy="256" r="240" fill="url(#sageGrad)" />
                   <circle cx="256" cy="256" r="210" fill="none" stroke="white" strokeWidth="2" strokeOpacity="0.2" />
@@ -49,7 +49,7 @@ export const BrandingKit: React.FC = () => {
                     <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="#FDFBF7" fillOpacity="0.6" />
                     <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="#FDFBF7" fillOpacity="0.6" />
                   </g>
-                  <text textAnchor="middle" fontFamily="Merriweather" fontSize="42" fontWeight="bold" fill="#FDFBF7">
+                  <text textAnchor="middle" fontFamily="Merriweather" fontSize="38" fontWeight="bold" fill="#FDFBF7">
                     <textPath href="#zenTextPath" startOffset="50%">Nature Nani</textPath>
                   </text>
                 </svg>
@@ -68,12 +68,13 @@ export const BrandingKit: React.FC = () => {
                     <path id="circlePath" d="M 256, 256 m -180, 0 a 180,180 0 1,1 360,0 a 180,180 0 1,1 -360,0" fill="none" />
                     <circle cx="256" cy="256" r="256" fill="#FDFBF7" />
                     <circle cx="256" cy="256" r="240" fill="none" stroke="#8B0000" strokeWidth="4" />
-                    <g transform="translate(180, 150) scale(6)">
+                    <g transform="translate(180, 140) scale(6)">
                       <path d="M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z" fill="#4A7C59" />
                       <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="#4A7C59" fillOpacity="0.4" />
                       <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="#4A7C59" fillOpacity="0.4" />
                     </g>
-                    <text x="256" y="360" textAnchor="middle" fontFamily="Merriweather" fontSize="48" fontWeight="bold" fill="#8B0000">Nature Nani</text>
+                    {/* Reduced font size for Nature Nani to avoid overlap with circular text */}
+                    <text x="256" y="340" textAnchor="middle" fontFamily="Merriweather" fontSize="32" fontWeight="bold" fill="#8B0000">Nature Nani</text>
                     <text className="font-serif uppercase tracking-[0.4em] font-bold text-[24px]" fill="#8B0000">
                       <textPath href="#circlePath">ANCIENT WISDOM • MODERN WELLNESS • </textPath>
                     </text>
