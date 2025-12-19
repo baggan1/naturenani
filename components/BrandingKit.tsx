@@ -1,14 +1,54 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Copy, Download, Image as ImageIcon, Layout, ShieldCheck, Palette, Type } from 'lucide-react';
 
 export const BrandingKit: React.FC = () => {
+  const zenCircleRef = useRef<SVGSVGElement>(null);
+  const signatureStampRef = useRef<SVGSVGElement>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
+
   const colors = [
     { name: 'Nature Maroon', hex: '#8B0000', use: 'Primary Brand Identity' },
     { name: 'Sacred Sage', hex: '#4A7C59', use: 'Accent & Secondary' },
     { name: 'Earthy Cream', hex: '#FDFBF7', use: 'Backgrounds & Surfaces' },
     { name: 'Forest Green', hex: '#2D422D', use: 'Text & Deep Accents' },
   ];
+
+  const handleDownload = (ref: React.RefObject<SVGSVGElement | HTMLElement>, fileName: string) => {
+    if (!ref.current) return;
+
+    let svgData: string;
+    
+    // If it's the banner, we need to extract the SVG inside it or handle differently.
+    // For simplicity, we target the SVG inside the banner if applicable, 
+    // or just serialize the element if it's already an SVG.
+    const element = ref.current;
+    
+    if (element instanceof SVGSVGElement) {
+      const serializer = new XMLSerializer();
+      svgData = serializer.serializeToString(element);
+    } else {
+      // For the banner which is a div containing multiple elements, 
+      // we'll find the primary SVG or the container.
+      const serializer = new XMLSerializer();
+      svgData = serializer.serializeToString(element);
+    }
+
+    const preface = '<?xml version="1.0" standalone="no"?>\r\n';
+    const svgBlob = new Blob([preface, svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = svgUrl;
+    downloadLink.download = `${fileName}.svg`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert(`Copied ${text} to clipboard!`);
+  };
 
   return (
     <div className="h-full bg-slate-50 overflow-y-auto">
@@ -33,13 +73,12 @@ export const BrandingKit: React.FC = () => {
             {/* The Zen Circle */}
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
               <div className="w-64 h-64 relative group cursor-pointer mb-6">
-                <svg viewBox="0 0 512 512" className="w-full h-full drop-shadow-2xl">
+                <svg ref={zenCircleRef} viewBox="0 0 512 512" className="w-full h-full drop-shadow-2xl" xmlns="http://www.w3.org/2000/svg">
                   <defs>
                     <linearGradient id="sageGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stopColor="#4A7C59" />
                       <stop offset="100%" stopColor="#2D422D" />
                     </linearGradient>
-                    {/* Tighter path for curved text well within inner margin */}
                     <path id="zenTextPath" d="M 126, 256 a 130,130 0 0,0 260,0" />
                   </defs>
                   <circle cx="256" cy="256" r="240" fill="url(#sageGrad)" />
@@ -54,7 +93,12 @@ export const BrandingKit: React.FC = () => {
                   </text>
                 </svg>
                 <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                   <button className="bg-white p-3 rounded-full text-slate-800"><Download size={24} /></button>
+                   <button 
+                    onClick={() => handleDownload(zenCircleRef, 'NatureNani_Zen_Circle')}
+                    className="bg-white p-3 rounded-full text-slate-800 hover:scale-110 transition-transform"
+                   >
+                    <Download size={24} />
+                   </button>
                 </div>
               </div>
               <p className="text-sm font-bold text-slate-800">The "Zen Circle" Emblem</p>
@@ -64,7 +108,7 @@ export const BrandingKit: React.FC = () => {
             {/* The Wellness Stamp */}
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
               <div className="w-64 h-64 relative group cursor-pointer mb-6">
-                 <svg viewBox="0 0 512 512" className="w-full h-full">
+                 <svg ref={signatureStampRef} viewBox="0 0 512 512" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
                     <path id="circlePath" d="M 256, 256 m -180, 0 a 180,180 0 1,1 360,0 a 180,180 0 1,1 -360,0" fill="none" />
                     <circle cx="256" cy="256" r="256" fill="#FDFBF7" />
                     <circle cx="256" cy="256" r="240" fill="none" stroke="#8B0000" strokeWidth="4" />
@@ -73,14 +117,18 @@ export const BrandingKit: React.FC = () => {
                       <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="#4A7C59" fillOpacity="0.4" />
                       <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="#4A7C59" fillOpacity="0.4" />
                     </g>
-                    {/* Reduced font size for Nature Nani to avoid overlap with circular text */}
                     <text x="256" y="340" textAnchor="middle" fontFamily="Merriweather" fontSize="32" fontWeight="bold" fill="#8B0000">Nature Nani</text>
                     <text className="font-serif uppercase tracking-[0.4em] font-bold text-[24px]" fill="#8B0000">
                       <textPath href="#circlePath">ANCIENT WISDOM • MODERN WELLNESS • </textPath>
                     </text>
                  </svg>
                  <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                   <button className="bg-white p-3 rounded-full text-slate-800"><Download size={24} /></button>
+                   <button 
+                    onClick={() => handleDownload(signatureStampRef, 'NatureNani_Signature_Stamp')}
+                    className="bg-white p-3 rounded-full text-slate-800 hover:scale-110 transition-transform"
+                   >
+                    <Download size={24} />
+                   </button>
                 </div>
               </div>
               <p className="text-sm font-bold text-slate-800">The "Signature Stamp"</p>
@@ -97,7 +145,7 @@ export const BrandingKit: React.FC = () => {
           </div>
 
           <div className="bg-white p-2 rounded-3xl border border-slate-200 shadow-lg overflow-hidden relative group">
-             <div className="aspect-[3/1] w-full bg-[#FDFBF7] flex items-center justify-center px-12 relative overflow-hidden">
+             <div ref={bannerRef} className="aspect-[3/1] w-full bg-[#FDFBF7] flex items-center justify-center px-12 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-sage-50 rounded-full blur-3xl opacity-50 translate-x-32 -translate-y-32"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-earth-50 rounded-full blur-3xl opacity-50 -translate-x-32 translate-y-32"></div>
                 
@@ -121,8 +169,11 @@ export const BrandingKit: React.FC = () => {
                 </div>
              </div>
              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <button className="bg-white text-slate-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-2xl">
-                   <Download size={20} /> Download High-Res Header
+                <button 
+                  onClick={() => handleDownload(bannerRef, 'NatureNani_Banner')}
+                  className="bg-white text-slate-800 px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-2xl hover:scale-105 transition-transform"
+                >
+                   <Download size={20} /> Download Banner Asset
                 </button>
              </div>
           </div>
@@ -147,7 +198,10 @@ export const BrandingKit: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                            <p className="font-bold text-slate-800">{c.name}</p>
-                           <button className="text-xs font-mono text-slate-400 hover:text-sage-600 flex items-center gap-1">
+                           <button 
+                            onClick={() => copyToClipboard(c.hex)}
+                            className="text-xs font-mono text-slate-400 hover:text-sage-600 flex items-center gap-1"
+                           >
                               {c.hex} <Copy size={10} />
                            </button>
                         </div>
