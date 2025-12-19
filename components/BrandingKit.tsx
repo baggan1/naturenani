@@ -39,6 +39,8 @@ export const BrandingKit: React.FC = () => {
                       <stop offset="0%" stopColor="#4A7C59" />
                       <stop offset="100%" stopColor="#2D422D" />
                     </linearGradient>
+                    {/* Path for curved text within inner margin */}
+                    <path id="zenTextPath" d="M 106, 256 a 150,150 0 0,0 300,0" />
                   </defs>
                   <circle cx="256" cy="256" r="240" fill="url(#sageGrad)" />
                   <circle cx="256" cy="256" r="210" fill="none" stroke="white" strokeWidth="2" strokeOpacity="0.2" />
@@ -47,7 +49,9 @@ export const BrandingKit: React.FC = () => {
                     <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="#FDFBF7" fillOpacity="0.6" />
                     <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="#FDFBF7" fillOpacity="0.6" />
                   </g>
-                  <text x="256" y="440" textAnchor="middle" fontFamily="Merriweather" fontSize="48" fontWeight="bold" fill="#FDFBF7">NatureNani</text>
+                  <text textAnchor="middle" fontFamily="Merriweather" fontSize="42" fontWeight="bold" fill="#FDFBF7">
+                    <textPath href="#zenTextPath" startOffset="50%">Nature Nani</textPath>
+                  </text>
                 </svg>
                 <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                    <button className="bg-white p-3 rounded-full text-slate-800"><Download size={24} /></button>
@@ -64,12 +68,13 @@ export const BrandingKit: React.FC = () => {
                     <path id="circlePath" d="M 256, 256 m -180, 0 a 180,180 0 1,1 360,0 a 180,180 0 1,1 -360,0" fill="none" />
                     <circle cx="256" cy="256" r="256" fill="#FDFBF7" />
                     <circle cx="256" cy="256" r="240" fill="none" stroke="#8B0000" strokeWidth="4" />
-                    <g transform="translate(180, 180) scale(6)">
+                    <g transform="translate(180, 150) scale(6)">
                       <path d="M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z" fill="#4A7C59" />
                       <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="#4A7C59" fillOpacity="0.4" />
                       <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="#4A7C59" fillOpacity="0.4" />
                     </g>
-                    <text className="font-serif uppercase tracking-[0.4em] font-bold text-[28px]" fill="#8B0000">
+                    <text x="256" y="360" textAnchor="middle" fontFamily="Merriweather" fontSize="48" fontWeight="bold" fill="#8B0000">Nature Nani</text>
+                    <text className="font-serif uppercase tracking-[0.4em] font-bold text-[24px]" fill="#8B0000">
                       <textPath href="#circlePath">ANCIENT WISDOM • MODERN WELLNESS • </textPath>
                     </text>
                  </svg>
@@ -108,7 +113,7 @@ export const BrandingKit: React.FC = () => {
                         </svg>
                       </div>
                       <div className="flex flex-col">
-                        <h1 className="text-7xl font-serif font-bold text-[#8B0000] tracking-tight">NatureNani</h1>
+                        <h1 className="text-7xl font-serif font-bold text-[#8B0000] tracking-tight">Nature Nani</h1>
                         <p className="text-xl text-sage-600 font-bold uppercase tracking-[0.3em] mt-2">Ancient Wisdom for Modern Holistic Wellness</p>
                       </div>
                    </div>
