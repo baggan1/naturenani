@@ -9,8 +9,9 @@ import AccountSettings from './components/AccountSettings';
 import Library from './components/Library';
 import YogaAid from './components/YogaStudio'; 
 import NutriHeal from './components/DietKitchen'; 
+import { BrandingKit } from './components/BrandingKit';
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -182,6 +183,14 @@ const App: React.FC = () => {
             >
               <UserCircle size={18} /> Account
             </button>
+            
+            {/* Branding Kit Access */}
+            <button 
+              onClick={() => handleNav(AppView.BRANDING)} 
+              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.BRANDING ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <Palette size={18} /> Brand Assets
+            </button>
           </div>
         </div>
 
@@ -248,6 +257,7 @@ const App: React.FC = () => {
         {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={handleLibraryNavigate} />}
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
         {currentView === AppView.DIET && <NutriHeal activeContext={featureContext} />}
+        {currentView === AppView.BRANDING && <BrandingKit />}
       </div>
 
       <AuthForm isOpen={showAuthModal} onAuthSuccess={handleAuthSuccess} onClose={() => setShowAuthModal(false)} />

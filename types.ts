@@ -45,7 +45,8 @@ export enum AppView {
   ACCOUNT = 'ACCOUNT',
   YOGA = 'YOGA', 
   DIET = 'DIET',
-  LIBRARY = 'LIBRARY'
+  LIBRARY = 'LIBRARY',
+  BRANDING = 'BRANDING'
 }
 
 export interface QueryUsage {
