@@ -227,14 +227,25 @@ export const BrandingKit: React.FC = () => {
                 <rect width="1500" height="500" fill="#FDFBF7" />
                 <circle cx="1400" cy="50" r="150" fill="#e3ebe3" opacity="0.5" filter="url(#bannerBlur)" />
                 <circle cx="100" cy="450" r="150" fill="#f5efe6" opacity="0.5" filter="url(#bannerBlur)" />
+                
                 <g transform="translate(150, 250)">
-                   <path d="M-80 -100 C-100 -40 -100 10 -80 80 C-60 10 -60 -40 -80 -100 Z" fill="#4A7C59" opacity="0.1" transform="scale(3)" />
+                   {/* Background Decorative Logo */}
+                   <g transform="translate(-150, -100) scale(15)" opacity="0.05">
+                     <path d="M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z" fill="#4A7C59" />
+                   </g>
+
+                   {/* Main Logo Container */}
                    <rect x="0" y="-70" width="140" height="140" rx="20" fill="#4A7C59" />
                    <g transform="translate(70, 0) scale(4)">
-                      <path d="M0 -12 C-2 -6 -2 -1 0 6 C2 -1 2 -6 0 -12 Z" fill="white" opacity="0.3" />
-                      <path d="M0 6 C-4 2 -8 -2 -8 -6 C-8 -9 -5 -9 -2 -6" fill="white" opacity="0.3" />
-                      <path d="M0 6 C(4 2 8 -2 8 -6 C8 -9 5 -9 2 -6" fill="white" opacity="0.3" />
+                      {/* Centered Sprout Vector from Logo.tsx */}
+                      <g transform="translate(-12, -12)">
+                         <path d="M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z" fill="white" opacity="0.8" />
+                         <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="white" opacity="0.4" />
+                         <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="white" opacity="0.4" />
+                      </g>
                    </g>
+
+                   {/* Brand Text */}
                    <text x="180" y="5" className="font-serif" fontSize="110" fontWeight="bold" fill="#8B0000">Nature Nani</text>
                    <text x="182" y="55" className="font-sans" fontSize="24" fontWeight="bold" fill="#4A7C59" style={{ letterSpacing: '0.3em', textTransform: 'uppercase' }}>
                       Ancient Wisdom for Modern Holistic Wellness
