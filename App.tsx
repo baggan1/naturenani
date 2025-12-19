@@ -23,7 +23,7 @@ const App: React.FC = () => {
     {
       id: 'welcome',
       role: 'model',
-      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Ayurveda and Naturopathy for you.',
+      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.',
       timestamp: Date.now()
     }
   ]);
@@ -103,14 +103,14 @@ const App: React.FC = () => {
     <div className="h-screen w-screen flex flex-col md:flex-row overflow-hidden bg-sage-50">
       <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-sage-200 z-30">
         <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-sage-700 hover:bg-sage-50 rounded-lg transition-colors"><Menu size={24} /></button>
-        <Logo className="h-8 w-8" textClassName="text-xl" />
+        <Logo className="h-8 w-8" textClassName="text-xl" showSlogan={false} />
         <div className="w-10"></div>
       </div>
 
       <div className={`fixed md:relative inset-y-0 left-0 z-50 w-72 md:w-64 bg-white border-r border-sage-200 p-4 flex flex-col justify-between shadow-xl md:shadow-none transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="flex-1 overflow-y-auto scrollbar-hide">
           <div className="mb-6 px-2 flex items-center justify-between">
-             <Logo className="h-10 w-10" textClassName="text-2xl" />
+             <Logo className="h-10 w-10" textClassName="text-2xl" showSlogan={false} />
              <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={20} /></button>
           </div>
           

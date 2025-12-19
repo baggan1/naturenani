@@ -5,15 +5,17 @@ interface LogoProps {
   className?: string;
   textClassName?: string;
   showText?: boolean;
+  showSlogan?: boolean;
 }
 
 export const Logo: React.FC<LogoProps> = ({ 
   className = "h-8 w-8", 
   textClassName = "text-xl",
-  showText = true 
+  showText = true,
+  showSlogan = true
 }) => {
   return (
-    <div className="flex items-center gap-2 select-none">
+    <div className="flex items-center gap-2 select-none overflow-hidden">
       <svg 
         viewBox="0 0 24 24" 
         fill="none" 
@@ -21,7 +23,7 @@ export const Logo: React.FC<LogoProps> = ({
         strokeWidth="2" 
         strokeLinecap="round" 
         strokeLinejoin="round" 
-        className={`text-[#4a7c59] ${className}`}
+        className={`text-[#4a7c59] flex-shrink-0 ${className}`}
       >
         {/* Top Leaf */}
         <path 
@@ -43,9 +45,16 @@ export const Logo: React.FC<LogoProps> = ({
         />
       </svg>
       {showText && (
-        <span className={`font-serif font-bold text-[#8B0000] tracking-tight ${textClassName}`}>
-          Nature Nani
-        </span>
+        <div className="flex flex-col">
+          <span className={`font-serif font-bold text-[#8B0000] tracking-tight leading-none ${textClassName}`}>
+            NatureNani
+          </span>
+          {showSlogan && (
+            <span className="text-[9px] md:text-[10px] text-sage-600 font-bold uppercase tracking-widest mt-0.5 whitespace-nowrap hidden sm:block">
+              Ancient Wisdom for Modern Holistic Wellness
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

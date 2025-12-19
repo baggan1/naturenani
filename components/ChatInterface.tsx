@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf } from 'lucide-react';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } from '../types';
@@ -245,7 +246,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   return (
     <div className="flex flex-col h-full bg-sage-50">
       <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between">
-        <Logo className="h-8 w-8" textClassName="text-lg" />
+        <Logo className="h-8 w-8" textClassName="text-lg" showSlogan={false} />
         <button onClick={handleResetChat} className="p-2 text-sage-400 hover:text-sage-600 hover:bg-sage-50 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
            <RefreshCw size={14} /> Clear Consultation
         </button>
