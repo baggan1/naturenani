@@ -11,13 +11,14 @@ import YogaAid from './components/YogaStudio';
 import NutriHeal from './components/DietKitchen'; 
 import { BrandingKit } from './components/BrandingKit';
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette, Terminal } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(getCurrentUser());
   const [currentView, setCurrentView] = useState<AppView>(AppView.CHAT);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDevMode, setIsDevMode] = useState(false);
   const authInitialized = useRef(false);
   
   const [chatMessages, setChatMessages] = useState<Message[]>([
@@ -37,6 +38,14 @@ const App: React.FC = () => {
   const [triggerQuery, setTriggerQuery] = useState<string>('');
   
   const [queryUsage, setQueryUsage] = useState<QueryUsage>({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
+
+  // Developer Backdoor: Check for ?mode=dev in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'dev') {
+      setIsDevMode(true);
+    }
+  }, []);
 
   const refreshAppData = useCallback(async (u: User) => {
     try {
@@ -184,13 +193,20 @@ const App: React.FC = () => {
               <UserCircle size={18} /> Account
             </button>
             
-            {/* Branding Kit Access */}
-            <button 
-              onClick={() => handleNav(AppView.BRANDING)} 
-              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.BRANDING ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <Palette size={18} /> Brand Assets
-            </button>
+            {/* Hidden Developer Mode Access */}
+            {isDevMode && (
+              <div className="pt-4 mt-4 border-t border-red-50">
+                <p className="px-4 text-[10px] font-black text-red-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <Terminal size={12} /> Dev Tools
+                </p>
+                <button 
+                  onClick={() => handleNav(AppView.BRANDING)} 
+                  className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.BRANDING ? 'bg-red-50 text-red-800' : 'text-gray-400 hover:bg-red-50'}`}
+                >
+                  <Palette size={18} /> Brand Assets
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
