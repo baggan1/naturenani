@@ -1,11 +1,11 @@
 
 import React, { useRef } from 'react';
-import { Copy, Download, Image as ImageIcon, Layout, ShieldCheck, Palette, Type } from 'lucide-react';
+import { Copy, Download, Layout, ShieldCheck, Palette, Type } from 'lucide-react';
 
 export const BrandingKit: React.FC = () => {
   const zenCircleRef = useRef<SVGSVGElement>(null);
   const signatureStampRef = useRef<SVGSVGElement>(null);
-  const bannerRef = useRef<HTMLDivElement>(null);
+  const bannerRef = useRef<SVGSVGElement>(null);
 
   const colors = [
     { name: 'Nature Maroon', hex: '#8B0000', use: 'Primary Brand Identity' },
@@ -14,35 +14,47 @@ export const BrandingKit: React.FC = () => {
     { name: 'Forest Green', hex: '#2D422D', use: 'Text & Deep Accents' },
   ];
 
-  const handleDownload = (ref: React.RefObject<SVGSVGElement | HTMLElement>, fileName: string) => {
+  const handleDownload = (ref: React.RefObject<SVGSVGElement>, fileName: string) => {
     if (!ref.current) return;
 
-    let svgData: string;
-    
-    // If it's the banner, we need to extract the SVG inside it or handle differently.
-    // For simplicity, we target the SVG inside the banner if applicable, 
-    // or just serialize the element if it's already an SVG.
-    const element = ref.current;
-    
-    if (element instanceof SVGSVGElement) {
-      const serializer = new XMLSerializer();
-      svgData = serializer.serializeToString(element);
-    } else {
-      // For the banner which is a div containing multiple elements, 
-      // we'll find the primary SVG or the container.
-      const serializer = new XMLSerializer();
-      svgData = serializer.serializeToString(element);
-    }
+    try {
+      const element = ref.current;
+      // Ensure the SVG has the correct namespace
+      element.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      element.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
 
-    const preface = '<?xml version="1.0" standalone="no"?>\r\n';
-    const svgBlob = new Blob([preface, svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = svgUrl;
-    downloadLink.download = `${fileName}.svg`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
+      // Inject font styles into the SVG for standalone viewing
+      const style = document.createElement('style');
+      style.textContent = `
+        @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Lato:wght@700&display=swap');
+        .font-serif { font-family: 'Merriweather', serif; }
+        .font-sans { font-family: 'Lato', sans-serif; }
+      `;
+      element.prepend(style);
+
+      const serializer = new XMLSerializer();
+      let svgData = serializer.serializeToString(element);
+      
+      // Remove the injected style from the live DOM after serialization
+      element.removeChild(style);
+
+      const preface = '<?xml version="1.0" standalone="no"?>\r\n';
+      const svgBlob = new Blob([preface, svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      
+      const downloadLink = document.createElement('a');
+      downloadLink.href = svgUrl;
+      downloadLink.download = `${fileName}.svg`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      // Cleanup
+      setTimeout(() => URL.revokeObjectURL(svgUrl), 100);
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Failed to generate download. Please check console for details.");
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -57,7 +69,7 @@ export const BrandingKit: React.FC = () => {
           <Palette className="text-sage-600" /> Branding Kit & Social Assets
         </h1>
         <p className="text-slate-500 mt-2">
-          High-fidelity assets for social media platforms and marketing materials.
+          High-fidelity vector assets for social media platforms and marketing materials.
         </p>
       </div>
 
@@ -73,7 +85,7 @@ export const BrandingKit: React.FC = () => {
             {/* The Zen Circle */}
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
               <div className="w-64 h-64 relative group cursor-pointer mb-6">
-                <svg ref={zenCircleRef} viewBox="0 0 512 512" className="w-full h-full drop-shadow-2xl" xmlns="http://www.w3.org/2000/svg">
+                <svg ref={zenCircleRef} viewBox="0 0 512 512" className="w-full h-full drop-shadow-2xl">
                   <defs>
                     <linearGradient id="sageGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stopColor="#4A7C59" />
@@ -88,7 +100,7 @@ export const BrandingKit: React.FC = () => {
                     <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="#FDFBF7" fillOpacity="0.6" />
                     <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="#FDFBF7" fillOpacity="0.6" />
                   </g>
-                  <text textAnchor="middle" fontFamily="Merriweather" fontSize="38" fontWeight="bold" fill="#FDFBF7">
+                  <text textAnchor="middle" className="font-serif" fontSize="38" fontWeight="bold" fill="#FDFBF7">
                     <textPath href="#zenTextPath" startOffset="50%">Nature Nani</textPath>
                   </text>
                 </svg>
@@ -108,7 +120,7 @@ export const BrandingKit: React.FC = () => {
             {/* The Wellness Stamp */}
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center">
               <div className="w-64 h-64 relative group cursor-pointer mb-6">
-                 <svg ref={signatureStampRef} viewBox="0 0 512 512" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                 <svg ref={signatureStampRef} viewBox="0 0 512 512" className="w-full h-full">
                     <path id="circlePath" d="M 256, 256 m -180, 0 a 180,180 0 1,1 360,0 a 180,180 0 1,1 -360,0" fill="none" />
                     <circle cx="256" cy="256" r="256" fill="#FDFBF7" />
                     <circle cx="256" cy="256" r="240" fill="none" stroke="#8B0000" strokeWidth="4" />
@@ -117,8 +129,9 @@ export const BrandingKit: React.FC = () => {
                       <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="#4A7C59" fillOpacity="0.4" />
                       <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="#4A7C59" fillOpacity="0.4" />
                     </g>
-                    <text x="256" y="340" textAnchor="middle" fontFamily="Merriweather" fontSize="32" fontWeight="bold" fill="#8B0000">Nature Nani</text>
-                    <text className="font-serif uppercase tracking-[0.4em] font-bold text-[24px]" fill="#8B0000">
+                    {/* Small Nature Nani text to avoid overlap */}
+                    <text x="256" y="340" textAnchor="middle" className="font-serif" fontSize="32" fontWeight="bold" fill="#8B0000">Nature Nani</text>
+                    <text className="font-serif" style={{ fontSize: '24px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.4em' }} fill="#8B0000">
                       <textPath href="#circlePath">ANCIENT WISDOM • MODERN WELLNESS • </textPath>
                     </text>
                  </svg>
@@ -145,29 +158,43 @@ export const BrandingKit: React.FC = () => {
           </div>
 
           <div className="bg-white p-2 rounded-3xl border border-slate-200 shadow-lg overflow-hidden relative group">
-             <div ref={bannerRef} className="aspect-[3/1] w-full bg-[#FDFBF7] flex items-center justify-center px-12 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-sage-50 rounded-full blur-3xl opacity-50 translate-x-32 -translate-y-32"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-earth-50 rounded-full blur-3xl opacity-50 -translate-x-32 translate-y-32"></div>
+             {/* Converted to SVG for full download capability */}
+             <svg 
+              ref={bannerRef}
+              viewBox="0 0 1500 500" 
+              className="w-full aspect-[3/1]"
+             >
+                <defs>
+                   <filter id="bannerBlur">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="40" />
+                   </filter>
+                </defs>
+                {/* Background */}
+                <rect width="1500" height="500" fill="#FDFBF7" />
+                {/* Decorative Blurs */}
+                <circle cx="1400" cy="50" r="150" fill="#e3ebe3" opacity="0.5" filter="url(#bannerBlur)" />
+                <circle cx="100" cy="450" r="150" fill="#f5efe6" opacity="0.5" filter="url(#bannerBlur)" />
                 
-                <div className="flex items-center gap-12 relative z-10">
-                   <svg viewBox="0 0 24 24" className="w-48 h-48 text-sage-600 opacity-20 absolute -left-12 -top-12">
-                      <path d="M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z" fill="currentColor" />
-                   </svg>
-                   <div className="flex items-center gap-6">
-                      <div className="w-24 h-24 bg-sage-600 rounded-2xl flex items-center justify-center shadow-xl">
-                        <svg viewBox="0 0 24 24" className="w-16 h-16 text-white" stroke="white" strokeWidth="1.5">
-                           <path d="M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z" fill="white" fillOpacity="0.2" />
-                           <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="white" fillOpacity="0.2" />
-                           <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="white" fillOpacity="0.2" />
-                        </svg>
-                      </div>
-                      <div className="flex flex-col">
-                        <h1 className="text-7xl font-serif font-bold text-[#8B0000] tracking-tight">Nature Nani</h1>
-                        <p className="text-xl text-sage-600 font-bold uppercase tracking-[0.3em] mt-2">Ancient Wisdom for Modern Holistic Wellness</p>
-                      </div>
-                   </div>
-                </div>
-             </div>
+                {/* Main Content Group */}
+                <g transform="translate(150, 250)">
+                   {/* Ghost Logo */}
+                   <path d="M-80 -100 C-100 -40 -100 10 -80 80 C-60 10 -60 -40 -80 -100 Z" fill="#4A7C59" opacity="0.1" transform="scale(3)" />
+                   
+                   {/* Logo Box */}
+                   <rect x="0" y="-70" width="140" height="140" rx="20" fill="#4A7C59" />
+                   <g transform="translate(70, 0) scale(4)">
+                      <path d="M0 -12 C-2 -6 -2 -1 0 6 C2 -1 2 -6 0 -12 Z" fill="white" opacity="0.3" />
+                      <path d="M0 6 C-4 2 -8 -2 -8 -6 C-8 -9 -5 -9 -2 -6" fill="white" opacity="0.3" />
+                      <path d="M0 6 C(4 2 8 -2 8 -6 C8 -9 5 -9 2 -6" fill="white" opacity="0.3" />
+                   </g>
+
+                   {/* Text */}
+                   <text x="180" y="5" className="font-serif" fontSize="110" fontWeight="bold" fill="#8B0000">Nature Nani</text>
+                   <text x="182" y="55" className="font-sans" fontSize="24" fontWeight="bold" fill="#4A7C59" style={{ letterSpacing: '0.3em', textTransform: 'uppercase' }}>
+                      Ancient Wisdom for Modern Holistic Wellness
+                   </text>
+                </g>
+             </svg>
              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <button 
                   onClick={() => handleDownload(bannerRef, 'NatureNani_Banner')}
