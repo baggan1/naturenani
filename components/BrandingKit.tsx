@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Copy, Download, Layout, ShieldCheck, Palette, Type, HelpCircle, Share2, Printer } from 'lucide-react';
 
@@ -229,15 +228,17 @@ export const BrandingKit: React.FC = () => {
                 <circle cx="100" cy="450" r="150" fill="#f5efe6" opacity="0.5" filter="url(#bannerBlur)" />
                 
                 <g transform="translate(150, 250)">
-                   {/* Background Decorative Logo */}
+                   {/* Fixed Background Decorative Logo with all 3 leaves */}
                    <g transform="translate(-150, -100) scale(15)" opacity="0.05">
                      <path d="M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z" fill="#4A7C59" />
+                     <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="#4A7C59" />
+                     <path d="M12 21C16 17 20 13 20 9C20 6 17 6 14 9" fill="#4A7C59" />
                    </g>
 
                    {/* Main Logo Container */}
                    <rect x="0" y="-70" width="140" height="140" rx="20" fill="#4A7C59" />
                    <g transform="translate(70, 0) scale(4)">
-                      {/* Centered Sprout Vector from Logo.tsx */}
+                      {/* Fixed Centered Sprout Vector from Logo.tsx */}
                       <g transform="translate(-12, -12)">
                          <path d="M12 3C10 9 10 14 12 21C14 14 14 9 12 3Z" fill="white" opacity="0.8" />
                          <path d="M12 21C8 17 4 13 4 9C4 6 7 6 10 9" fill="white" opacity="0.4" />
