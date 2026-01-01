@@ -216,16 +216,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}
           components={{
-            h3: ({node, ...props}) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-100 pb-1" {...props} />,
-            h4: ({node, ...props}) => <h4 className="font-serif font-bold text-sage-600 text-md mt-4 mb-2" {...props} />,
-            strong: ({node, ...props}) => <strong className="font-bold text-[#8B0000]" {...props} />,
-            ul: ({node, ...props}) => <ul className="list-disc ml-5 space-y-2 my-4" {...props} />,
-            ol: ({node, ...props}) => <ol className="list-decimal ml-5 space-y-2 my-4" {...props} />,
-            li: ({node, ...props}) => <li className="text-gray-700 leading-relaxed" {...props} />,
-            p: ({node, ...props}) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
-            table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
-            th: ({node, ...props}) => <th className="px-3 py-3 bg-sage-600 text-left text-xs font-bold text-white uppercase tracking-wider" {...props} />,
-            td: ({node, ...props}) => <td className="px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50" {...props} />,
+            h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-100 pb-1" {...props} />,
+            h4: ({node, ...props}: any) => <h4 className="font-serif font-bold text-sage-600 text-md mt-4 mb-2" {...props} />,
+            strong: ({node, ...props}: any) => <strong className="font-bold text-[#8B0000]" {...props} />,
+            ul: ({node, ...props}: any) => <ul className="list-disc ml-5 space-y-2 my-4" {...props} />,
+            ol: ({node, ...props}: any) => <ol className="list-decimal ml-5 space-y-2 my-4" {...props} />,
+            li: ({node, ...props}: any) => <li className="text-gray-700 leading-relaxed" {...props} />,
+            p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
+            table: ({node, ...props}: any) => <div className="overflow-x-auto my-4"><table className="min-w-full divide-y divide-sage-200 border border-sage-100" {...props} /></div>,
+            thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
+            th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-xs font-bold text-white uppercase tracking-wider" {...props} />,
+            td: ({node, ...props}: any) => <td className="px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50" {...props} />,
           }}
         >
           {content}
@@ -235,14 +236,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const formatMessageWithDisclaimer = (content: string) => {
-    const disclaimerMarker = "Disclaimer: This information is provided by NatureNani AI";
+    const disclaimerMarker = "Disclaimer: This response was synthesized by NatureNani using Retrieval-Augmented Generation (RAG)";
     const index = content.lastIndexOf(disclaimerMarker);
     
     if (index !== -1) {
       const beforeDisclaimer = content.substring(0, index).trim();
       const fromDisclaimer = content.substring(index).trim();
       
-      const disclaimerSentenceEnd = "consult a professional.";
+      const disclaimerSentenceEnd = "starting any new herbal or dietary protocol.";
       const sentenceEndIndex = fromDisclaimer.indexOf(disclaimerSentenceEnd);
       
       let disclaimerText = fromDisclaimer;
@@ -360,7 +361,7 @@ const SourceAccordion: React.FC<{ sources: RemedyDocument[] }> = ({ sources }) =
     <div className="ml-11 max-w-[85%]">
       <div className="border border-sage-100 rounded-xl bg-sage-50/50 overflow-hidden">
         <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between p-3 text-xs font-bold text-sage-700 hover:bg-sage-100/50 transition-colors">
-          <div className="flex items-center gap-2"><BookOpen size={14} className="text-earth-600" /> Grounded in Ancient Texts</div>
+          <div className="flex items-center gap-2"><BookOpen size={14} className="text-earth-600" /> View Sources</div>
           {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
         {isOpen && (

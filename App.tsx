@@ -10,8 +10,11 @@ import Library from './components/Library';
 import YogaAid from './components/YogaStudio'; 
 import NutriHeal from './components/DietKitchen'; 
 import { BrandingKit } from './components/BrandingKit';
+import { LegalNotice } from './components/LegalNotice';
+import { AboutView } from './components/AboutView';
+import { LegalConsentModal } from './components/LegalConsentModal';
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette, Terminal } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette, Terminal, ShieldAlert, Info, ShieldCheck } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -19,6 +22,9 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.CHAT);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDevMode, setIsDevMode] = useState(false);
+  const [hasLegalConsent, setHasLegalConsent] = useState<boolean>(() => {
+    return localStorage.getItem('nature_nani_legal_consent') === 'true';
+  });
   const authInitialized = useRef(false);
   
   const [chatMessages, setChatMessages] = useState<Message[]>([
@@ -109,6 +115,11 @@ const App: React.FC = () => {
     setCurrentView(view === 'YOGA' ? AppView.YOGA : AppView.DIET);
   };
 
+  const handleLegalConsent = () => {
+    localStorage.setItem('nature_nani_legal_consent', 'true');
+    setHasLegalConsent(true);
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col md:flex-row overflow-hidden bg-sage-50">
       <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-sage-200 z-30">
@@ -193,6 +204,31 @@ const App: React.FC = () => {
               <UserCircle size={18} /> Account
             </button>
             
+            {/* Information Menu */}
+            <div className="pt-4 pb-2">
+              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                Information
+              </p>
+              <button 
+                onClick={() => handleNav(AppView.ABOUT)} 
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ABOUT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <Info size={18} /> About NatureNani
+              </button>
+              <button 
+                onClick={() => handleNav(AppView.LEGAL)} 
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.LEGAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <ShieldAlert size={18} /> Medical Disclaimer
+              </button>
+              <button 
+                onClick={() => handleNav(AppView.LEGAL)} 
+                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.LEGAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+              >
+                <ShieldCheck size={18} /> Privacy Policy
+              </button>
+            </div>
+
             {/* Hidden Developer Mode Access */}
             {isDevMode && (
               <div className="pt-4 mt-4 border-t border-red-50">
@@ -274,8 +310,11 @@ const App: React.FC = () => {
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
         {currentView === AppView.DIET && <NutriHeal activeContext={featureContext} />}
         {currentView === AppView.BRANDING && <BrandingKit />}
+        {currentView === AppView.LEGAL && <LegalNotice onBack={() => setCurrentView(AppView.CHAT)} />}
+        {currentView === AppView.ABOUT && <AboutView onBack={() => setCurrentView(AppView.CHAT)} />}
       </div>
 
+      {!hasLegalConsent && <LegalConsentModal onConsent={handleLegalConsent} />}
       <AuthForm isOpen={showAuthModal} onAuthSuccess={handleAuthSuccess} onClose={() => setShowAuthModal(false)} />
       <SubscriptionModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} isTrialExpired={subscriptionState.isTrialExpired} daysRemaining={subscriptionState.daysRemaining} />
     </div>
