@@ -81,7 +81,7 @@ export const LegalNotice: React.FC<LegalNoticeProps> = ({ onBack }) => {
             <div className="bg-[#8B0000]/5 p-6 rounded-xl border border-[#8B0000]/10 text-[#8B0000]">
               <h3 className="font-bold mb-2 uppercase tracking-widest text-xs">6. Emergency Situations</h3>
               <p className="text-sm font-medium">
-                NatureNani should never be used in a medical emergency. If you think you may have a medical emergency, call your doctor or emergency services (e.g., 911) immediately.
+                NatureNani should never be used in a medical emergency. If you think you may have a medical emergency, contact your local emergency services or go to the nearest hospital immediately.
               </p>
             </div>
           </div>
