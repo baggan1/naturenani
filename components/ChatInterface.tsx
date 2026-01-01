@@ -223,7 +223,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ol: ({node, ...props}) => <ol className="list-decimal ml-5 space-y-2 my-4" {...props} />,
             li: ({node, ...props}) => <li className="text-gray-700 leading-relaxed" {...props} />,
             p: ({node, ...props}) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
-            table: ({node, ...props}) => <div className="overflow-x-auto"><table {...props} /></div>,
+            table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
+            th: ({node, ...props}) => <th className="px-3 py-3 bg-sage-600 text-left text-xs font-bold text-white uppercase tracking-wider" {...props} />,
+            td: ({node, ...props}) => <td className="px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50" {...props} />,
           }}
         >
           {content}
