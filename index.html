@@ -51,6 +51,39 @@
       }
       .scrollbar-hide::-webkit-scrollbar { display: none; }
       .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      
+      /* Markdown Table Styles */
+      .markdown-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+        font-size: 0.875rem;
+        background-color: #FDFBF7;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        border: 1px solid #e3ebe3;
+      }
+      .markdown-content th {
+        background-color: #4a7c59;
+        color: white;
+        text-align: left;
+        padding: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+      }
+      .markdown-content td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #f5efe6;
+        color: #365336;
+      }
+      .markdown-content tr:last-child td {
+        border-bottom: none;
+      }
+      .markdown-content tr:nth-child(even) {
+        background-color: #fbf8f4;
+      }
     </style>
     <script type="importmap">
 {
@@ -64,7 +97,9 @@
     "@google/genai": "https://esm.sh/@google/genai@1.32.0",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.0",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.0"
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "react-markdown": "https://esm.sh/react-markdown@9.0.1?external=react",
+    "remark-gfm": "https://esm.sh/remark-gfm@4.0.0"
   }
 }
 </script>
