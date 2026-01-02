@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X, Sprout, TreePine, Star, ShieldCheck } from 'lucide-react';
-import { initiateStripeCheckout, getCurrentUser, startTrial } from '../services/backendService';
+import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X, Sprout, TreePine, Star, ShieldCheck, ArrowRight } from 'lucide-react';
+import { initiateStripeCheckout, getCurrentUser } from '../services/backendService';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -24,23 +24,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleStartTrial = async () => {
-    const user = getCurrentUser();
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      await startTrial(user);
-      onRefreshUser();
-      onClose();
-    } catch (e) {
-      console.error(e);
-      alert("Failed to start trial. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubscribe = async () => {
+  const handleStripeTrial = async () => {
     const user = getCurrentUser();
     if (!user) return;
 
@@ -76,10 +60,10 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             <TreePine className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-serif font-bold text-white mb-2">
-            The Healer Plan
+            Unlock the Healer Plan
           </h2>
           <p className="text-sage-100 text-sm opacity-90">
-            Unlock the exact path to clinical wellness.
+            7-Day Free Trial. Card required to prevent abuse.
           </p>
         </div>
 
@@ -87,8 +71,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           <div className="mb-6">
             <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex items-center gap-3 mb-6">
               <Star className="text-amber-500 fill-amber-500 flex-shrink-0" size={20} />
-              <p className="text-xs font-bold text-amber-900">
-                {isFree ? "SPECIAL OFFER: Start a 7-day Free Trial to unlock all features." : "Your trial is active. Upgrade for lifetime history."}
+              <p className="text-xs font-bold text-amber-900 leading-relaxed">
+                Start your 7-day free trial today. You won't be charged until the trial ends. Cancel anytime with one click.
               </p>
             </div>
 
@@ -97,7 +81,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                 <div className="bg-sage-100 p-1 rounded-full text-sage-700"><Check size={14} /></div>
                 <div>
                   <span className="font-bold text-sage-900 block text-sm">Visible Dosages & Timing</span>
-                  <span className="text-[10px] text-gray-500">Unblur exact healing frequencies in every response.</span>
+                  <span className="text-[10px] text-gray-500">Access full medicinal frequencies in every response.</span>
                 </div>
               </li>
               <li className="flex items-start gap-3">
@@ -111,14 +95,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                 <div className="bg-earth-100 p-1 rounded-full text-earth-700"><FileText size={14} /></div>
                 <div>
                   <span className="font-bold text-sage-900 block text-sm">Targeted Nutri Heal Plans</span>
-                  <span className="text-[10px] text-gray-500">Clinical diet protocols with preparation instructions.</span>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="bg-sage-100 p-1 rounded-full text-sage-700"><ShieldCheck size={14} /></div>
-                <div>
-                  <span className="font-bold text-sage-900 block text-sm">Unlimited Priority Consultations</span>
-                  <span className="text-[10px] text-gray-500">Ask any number of questions, no daily caps.</span>
+                  <span className="text-[10px] text-gray-500">Clinical diet protocols with prep instructions.</span>
                 </div>
               </li>
             </ul>
@@ -126,37 +103,27 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
           <div className="bg-sage-50 rounded-2xl p-4 mb-6 border border-sage-100 flex justify-between items-center">
              <div>
-                <span className="text-[10px] text-gray-400 uppercase tracking-widest font-black">Plan Cost</span>
+                <span className="text-[10px] text-gray-400 uppercase tracking-widest font-black">Membership Cost</span>
                 <div className="text-2xl font-bold text-sage-900">$9.99<span className="text-sm font-normal text-gray-400">/mo</span></div>
               </div>
               <div className="text-[10px] text-earth-700 font-bold bg-earth-100 px-3 py-1 rounded-full border border-earth-200">
-                CANCEL ANYTIME
+                7 DAYS FREE
               </div>
           </div>
 
-          {isFree ? (
-            <button
-              onClick={handleStartTrial}
-              disabled={isLoading}
-              className="w-full bg-sage-600 text-white py-4 rounded-xl font-bold text-base hover:bg-sage-700 transition-all shadow-lg shadow-sage-200 flex items-center justify-center gap-2 group mb-3"
-            >
-              {isLoading ? <Loader2 className="animate-spin" /> : <>Start 7-Day Free Trial</>}
-            </button>
-          ) : (
-             <button
-              onClick={handleSubscribe}
-              disabled={isLoading}
-              className="w-full bg-earth-600 text-white py-4 rounded-xl font-bold text-base hover:bg-earth-700 transition-all shadow-lg shadow-earth-200 flex items-center justify-center gap-2 group mb-3"
-            >
-              {isLoading ? <Loader2 className="animate-spin" /> : <>Activate Full Premium Plan</>}
-            </button>
-          )}
+          <button
+            onClick={handleStripeTrial}
+            disabled={isLoading}
+            className="w-full bg-sage-600 text-white py-4 rounded-xl font-bold text-base hover:bg-sage-700 transition-all shadow-lg shadow-sage-200 flex items-center justify-center gap-2 group mb-3"
+          >
+            {isLoading ? <Loader2 className="animate-spin" /> : <>Start My Free Trial <ArrowRight size={18} /></>}
+          </button>
           
           <button 
             onClick={onClose}
             className="w-full text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-gray-600 py-2"
           >
-            Keep using limited Free Plan
+            Not now, keep using Free Plan
           </button>
         </div>
       </div>

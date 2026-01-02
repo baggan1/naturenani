@@ -317,7 +317,14 @@ const App: React.FC = () => {
             onNavigateToFeature={handleFeatureHandoff} 
           />
         </div>
-        {currentView === AppView.ACCOUNT && user && <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={logoutUser} />}
+        {currentView === AppView.ACCOUNT && user && (
+          <AccountSettings 
+            user={user} 
+            onUpgrade={() => setShowPaywall(true)} 
+            onLogout={logoutUser} 
+            onRefresh={() => refreshAppData(user)}
+          />
+        )}
         {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={handleLibraryNavigate} />}
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
         {currentView === AppView.DIET && <NutriHeal activeContext={featureContext} />}

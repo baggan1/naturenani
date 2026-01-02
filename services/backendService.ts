@@ -1,7 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan, YogaPose, SavedYogaPlan, SubscriptionStatus } from '../types';
-import { DAILY_QUERY_LIMIT, TRIAL_DAYS } from '../utils/constants';
+import { DAILY_QUERY_LIMIT } from '../utils/constants';
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -42,7 +42,6 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
-  // Free users have a limit, Trialing and Active users are unlimited
   if (user.subscription_status === 'active' || user.subscription_status === 'trialing') {
     return { count: 0, limit: -1, remaining: 9999, isUnlimited: true };
   }
@@ -186,7 +185,7 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
 };
 
 export const signUpUser = async (email: string, name: string): Promise<User> => {
-  const startDate = new Date();
+  const trialEnd = new Date();
   
   let authUserId: string | undefined;
   if (supabase) {
@@ -198,9 +197,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
     email, 
     name,
     subscription_status: 'free',
-    is_subscribed: false,
-    trial_start: startDate.toISOString(),
-    trial_end: startDate.toISOString(), // Trial hasn't started yet
+    trial_end: trialEnd.toISOString(),
   };
 
   if (authUserId) userObj.id = authUserId;
@@ -231,55 +228,35 @@ const getOrCreateUser = async (email: string, name: string): Promise<User> => {
 };
 
 export const checkSubscriptionStatus = async (user: User) => {
-  // Logic to calculate subscription state
   const now = new Date();
-  const trialEnd = new Date(user.trial_end);
+  const trialEnd = user.trial_end ? new Date(user.trial_end) : now;
+  const billingEnd = user.current_period_end ? new Date(user.current_period_end) : null;
 
   let status = user.subscription_status;
 
+  // If trialing and time is up
   if (status === 'trialing' && now > trialEnd) {
     status = 'expired';
   }
 
+  // If active (paid) and billing cycle is up (and no renewal)
+  if (status === 'active' && billingEnd && now > billingEnd) {
+    status = 'expired';
+  }
+
   const hasAccess = status === 'trialing' || status === 'active';
-  const daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  
+  // Calculate remaining days for UI
+  const targetDate = status === 'active' && billingEnd ? billingEnd : trialEnd;
+  const daysRemaining = Math.max(0, Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 
   return { 
     hasAccess, 
     status,
     daysRemaining, 
-    isTrialExpired: status === 'expired' 
+    isTrialExpired: status === 'expired',
+    nextBillingDate: billingEnd ? billingEnd.toISOString() : (status === 'trialing' ? trialEnd.toISOString() : null)
   };
-};
-
-export const startTrial = async (user: User): Promise<User> => {
-  const trialStart = new Date();
-  const trialEnd = new Date(trialStart);
-  trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
-
-  const updates = {
-    subscription_status: 'trialing' as SubscriptionStatus,
-    trial_start: trialStart.toISOString(),
-    trial_end: trialEnd.toISOString(),
-  };
-
-  if (supabase) {
-    const { data, error } = await supabase
-      .from('app_users')
-      .update(updates)
-      .eq('id', user.id)
-      .select()
-      .single();
-    
-    if (!error && data) {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
-      return data as User;
-    }
-  }
-
-  const updatedUser = { ...user, ...updates };
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
-  return updatedUser;
 };
 
 export const logoutUser = async () => {
@@ -304,6 +281,7 @@ export const initiateStripeCheckout = async (user: User) => {
   if (!stripeLink) return;
   const url = new URL(stripeLink);
   url.searchParams.set('prefilled_email', user.email);
+  url.searchParams.set('client_reference_id', user.id);
   window.location.href = url.toString();
 };
 

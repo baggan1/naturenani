@@ -377,25 +377,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       <div className="p-4 bg-white border-t border-sage-200 relative">
-        {/* Trial Offer Popup */}
+        {/* Trial Offer Popup (The Paywall Trigger) */}
         {showTrialPrompt && (
           <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 w-[90%] max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
-             <div className="bg-white rounded-2xl shadow-2xl border border-sage-200 p-6 relative overflow-hidden">
+             <div className="bg-white rounded-2xl shadow-2xl border border-sage-200 p-6 relative overflow-hidden ring-4 ring-sage-50">
                 <button onClick={() => setShowTrialPrompt(false)} className="absolute top-3 right-3 text-gray-300 hover:text-gray-500"><ChevronDown size={20} /></button>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-sage-100 p-2 rounded-xl text-sage-600"><Sparkles size={20} /></div>
-                  <h4 className="font-serif font-bold text-sage-900 leading-tight text-sm">Experience the Full Healing Path</h4>
+                  <h4 className="font-serif font-bold text-sage-900 leading-tight text-base">🌿 Experience the Full Healing Path</h4>
                 </div>
-                <p className="text-xs text-gray-600 leading-relaxed mb-4">
-                  Get exact dosages for your <span className="font-bold text-sage-800">{lastAilment || 'health concerns'}</span>, plus cooling diet plans and soothing yoga sequences.
+                <p className="text-xs text-gray-600 leading-relaxed mb-5">
+                  Get the exact dosages for your <span className="font-bold text-sage-800">{lastAilment || 'health concerns'}</span> remedies, plus your 7-day Cooling Diet Plan and Soothing Yoga sequence.
                 </p>
                 <button 
                   onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }}
-                  className="w-full bg-sage-600 text-white py-3 rounded-xl font-bold text-xs hover:bg-sage-700 transition-all shadow-lg shadow-sage-100 flex items-center justify-center gap-2"
+                  className="w-full bg-sage-600 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-sage-700 transition-all shadow-lg shadow-sage-100 flex items-center justify-center gap-2"
                 >
                   Start Your 7-Day Free Trial
                 </button>
-                <p className="text-[10px] text-gray-400 mt-2 text-center italic">Then $9.99/month. Cancel anytime.</p>
+                <p className="text-[10px] text-gray-400 mt-3 text-center font-medium">Then $9.99/month. Cancel anytime.</p>
              </div>
           </div>
         )}

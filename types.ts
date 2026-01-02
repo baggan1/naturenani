@@ -1,15 +1,15 @@
 
-export type SubscriptionStatus = 'free' | 'trialing' | 'active' | 'expired';
+export type SubscriptionStatus = 'free' | 'trialing' | 'active' | 'expired' | 'canceled';
 
 export interface User {
   id: string;
   email: string;
   name: string;
   subscription_status: SubscriptionStatus;
-  is_subscribed: boolean; // Keep for backward compatibility/legacy logic
   stripe_customer_id?: string;
-  trial_start: string; // ISO Date String
-  trial_end: string;   // ISO Date String
+  stripe_subscription_id?: string; 
+  current_period_end?: string;      
+  trial_end: string;
   created_at: string;
 }
 

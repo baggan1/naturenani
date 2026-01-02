@@ -5,21 +5,23 @@ Nature Nani is a conversational AI assistant that combines ancient wisdom from A
 
 ## 🚀 Supabase Database Setup (CRITICAL)
 
-To fix the "Saving" functionality and 403/404 errors, run this entire script in your [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql):
+To enable the 7-Day Trial system and secure data storage, run this script in your [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql):
 
 ```sql
--- 1. Create the App Users table (profile data)
+-- 1. Create the App Users table (normalized)
 CREATE TABLE IF NOT EXISTS app_users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
   name TEXT,
-  is_subscribed BOOLEAN DEFAULT false,
-  trial_start TIMESTAMPTZ DEFAULT now(),
-  trial_end TIMESTAMPTZ DEFAULT (now() + interval '30 days'),
+  subscription_status TEXT DEFAULT 'free' CHECK (subscription_status IN ('free', 'trialing', 'active', 'expired', 'canceled')),
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  trial_end TIMESTAMPTZ DEFAULT now(),
+  current_period_end TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. Create the Saved Plans table (Consolidated for Yoga & Diet)
+-- 2. Create the Saved Plans table
 CREATE TABLE IF NOT EXISTS nani_saved_plans (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -33,7 +35,7 @@ CREATE TABLE IF NOT EXISTS nani_saved_plans (
 ALTER TABLE app_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE nani_saved_plans ENABLE ROW LEVEL SECURITY;
 
--- 4. RLS Policies for app_users
+-- 4. RLS Policies
 DROP POLICY IF EXISTS "Users can view own profile" ON app_users;
 CREATE POLICY "Users can view own profile" ON app_users FOR SELECT USING (auth.uid() = id);
 
@@ -43,30 +45,20 @@ CREATE POLICY "Users can update own profile" ON app_users FOR UPDATE USING (auth
 DROP POLICY IF EXISTS "Users can insert own profile" ON app_users;
 CREATE POLICY "Users can insert own profile" ON app_users FOR INSERT WITH CHECK (auth.uid() = id);
 
--- 5. RLS Policies for nani_saved_plans
-DROP POLICY IF EXISTS "Users can insert their own plans" ON nani_saved_plans;
-CREATE POLICY "Users can insert their own plans" 
-ON nani_saved_plans FOR INSERT 
-WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users can view their own plans" ON nani_saved_plans;
 CREATE POLICY "Users can view their own plans" 
 ON nani_saved_plans FOR SELECT 
 USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Users can delete their own plans" ON nani_saved_plans;
-CREATE POLICY "Users can delete their own plans" 
-ON nani_saved_plans FOR DELETE 
-USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Subscribers can insert plans" ON nani_saved_plans;
+CREATE POLICY "Subscribers can insert plans" 
+ON nani_saved_plans FOR INSERT 
+WITH CHECK (
+  auth.uid() = user_id AND 
+  EXISTS (
+    SELECT 1 FROM app_users 
+    WHERE id = auth.uid() 
+    AND (subscription_status = 'active' OR (subscription_status = 'trialing' AND trial_end > now()))
+  )
+);
 ```
-
-## Features
-
-- **Holistic Chat Interface**: Conversational AI grounded in ancient texts.
-- **Evergreen Library**: Save therapeutic protocols for long-term reference.
-- **Yoga Aid & Nutri Heal**: Specialized modules for movement and nutrition.
-
-## Tech Stack
-- **AI**: Google Gemini 3
-- **DB**: Supabase + pgvector
-- **Visuals**: Google Custom Search API
