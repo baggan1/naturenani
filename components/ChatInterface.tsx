@@ -376,7 +376,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <div className="p-4">
                         <h3 className="font-bold text-sm text-sage-900 mb-2 line-clamp-1">{rec.title}</h3>
                         <div className="flex items-center gap-2">
-                           {hasAccess ? <span className="text-earth-600 font-bold text-[10px] flex items-center gap-1 group-hover:gap-2 transition-all">Open Protocol <Sparkles size={10} /></span> : <div className="flex items-center gap-1 text-gray-400 font-bold text-[10px]"><Lock size={10} /> Premium Feature</div>}
+                           {hasAccess ? <span className="text-earth-600 font-bold text-[10px] flex items-center gap-1 group-hover:gap-2 transition-all">Open App <Sparkles size={10} /></span> : <div className="flex items-center gap-1 text-gray-400 font-bold text-[10px]"><Lock size={10} /> Premium Feature</div>}
                         </div>
                       </div>
                     </div>
