@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { User, AppView, QueryUsage, FeatureContext, Message } from './types';
+import { User, AppView, QueryUsage, FeatureContext, Message, SubscriptionStatus } from './types';
 import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit, setupAuthListener } from './services/backendService';
 import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
@@ -14,7 +14,7 @@ import { LegalNotice } from './components/LegalNotice';
 import { AboutView } from './components/AboutView';
 import { LegalConsentModal } from './components/LegalConsentModal';
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette, Terminal, ShieldAlert, Info, ShieldCheck } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette, Terminal, ShieldAlert, Info, ShieldCheck, Star } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -37,7 +37,7 @@ const App: React.FC = () => {
   ]);
 
   const [featureContext, setFeatureContext] = useState<FeatureContext | null>(null);
-  const [subscriptionState, setSubscriptionState] = useState({ hasAccess: true, daysRemaining: 30, isTrialExpired: false });
+  const [subscriptionState, setSubscriptionState] = useState({ hasAccess: false, daysRemaining: 0, isTrialExpired: false, status: 'free' as SubscriptionStatus });
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -62,8 +62,14 @@ const App: React.FC = () => {
       ]);
       setQueryUsage(usage);
       setSearchHistory(history);
-      setSubscriptionState({ hasAccess: subStatus.hasAccess, daysRemaining: subStatus.daysRemaining, isTrialExpired: !subStatus.hasAccess });
-      if (!subStatus.hasAccess) setShowPaywall(true);
+      setSubscriptionState({ 
+        hasAccess: subStatus.hasAccess, 
+        daysRemaining: subStatus.daysRemaining, 
+        isTrialExpired: subStatus.isTrialExpired,
+        status: subStatus.status as SubscriptionStatus
+      });
+      // Don't auto-show paywall on load unless trial just expired
+      if (subStatus.isTrialExpired) setShowPaywall(true);
     } catch (err) {
       console.error("[App] Data refresh failed:", err);
     }
@@ -91,8 +97,8 @@ const App: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
-  const handleNav = (view: AppView, isPremium = false) => {
-    if (isPremium && (!user || !user.is_subscribed)) {
+  const handleNav = (view: AppView, isPremiumFeature = false) => {
+    if (isPremiumFeature && !subscriptionState.hasAccess) {
       setShowPaywall(true);
       return;
     }
@@ -106,6 +112,10 @@ const App: React.FC = () => {
   };
 
   const handleFeatureHandoff = (view: AppView, id: string, title: string) => {
+    if (!subscriptionState.hasAccess) {
+      setShowPaywall(true);
+      return;
+    }
     setFeatureContext({ id, title });
     setCurrentView(view);
   };
@@ -145,7 +155,7 @@ const App: React.FC = () => {
             
             <div className="pt-4 pb-2">
               <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                Healing Aids {user?.is_subscribed && <Sparkles size={10} className="text-yellow-500" />}
+                Healing Aids {subscriptionState.hasAccess && <Sparkles size={10} className="text-yellow-500" />}
               </p>
               <button 
                 onClick={() => handleNav(AppView.YOGA, true)} 
@@ -154,7 +164,7 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <Flower2 size={18} className="text-pink-500" /> Yoga Aid
                 </div>
-                {!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}
+                {!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}
               </button>
               <button 
                 onClick={() => handleNav(AppView.DIET, true)} 
@@ -163,7 +173,7 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <Utensils size={18} className="text-orange-500" /> Nutri Heal
                 </div>
-                {!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}
+                {!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}
               </button>
             </div>
 
@@ -174,7 +184,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-3">
                 <BookMarked size={18} className="text-blue-500" /> Saved Library
               </div>
-              {!user?.is_subscribed && <Lock size={12} className="text-gray-400" />}
+              {!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}
             </button>
 
             {searchHistory.length > 0 && (
@@ -256,13 +266,15 @@ const App: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-sage-900 truncate">{user.name || 'User'}</p>
                   <div className="flex items-center gap-1">
-                    {user.is_subscribed ? (
+                    {subscriptionState.status === 'active' ? (
                       <TreePine size={10} className="text-sage-600" />
+                    ) : subscriptionState.status === 'trialing' ? (
+                      <Star size={10} className="text-amber-500" />
                     ) : (
                       <Sprout size={10} className="text-sage-400" />
                     )}
                     <p className="text-[10px] text-gray-400 truncate uppercase tracking-tighter">
-                      {user.is_subscribed ? 'Premium Plan' : 'Free Plan'}
+                      {subscriptionState.status === 'active' ? 'Healer Plan' : subscriptionState.status === 'trialing' ? 'Trial Access' : 'Free Plan'}
                     </p>
                   </div>
                 </div>
@@ -292,13 +304,13 @@ const App: React.FC = () => {
             setMessages={setChatMessages} 
             onTrialEnd={() => setShowPaywall(true)} 
             hasAccess={subscriptionState.hasAccess} 
+            subscriptionStatus={subscriptionState.status}
             initialMessage={triggerQuery} 
             onMessageSent={() => {
               if (user) refreshAppData(user);
               setTriggerQuery(''); 
             }} 
             usage={queryUsage} 
-            isSubscribed={user?.is_subscribed || false} 
             onUpgradeClick={() => setShowPaywall(true)} 
             isGuest={!user} 
             onShowAuth={() => setShowAuthModal(true)} 
@@ -316,7 +328,14 @@ const App: React.FC = () => {
 
       {!hasLegalConsent && <LegalConsentModal onConsent={handleLegalConsent} />}
       <AuthForm isOpen={showAuthModal} onAuthSuccess={handleAuthSuccess} onClose={() => setShowAuthModal(false)} />
-      <SubscriptionModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} isTrialExpired={subscriptionState.isTrialExpired} daysRemaining={subscriptionState.daysRemaining} />
+      <SubscriptionModal 
+        isOpen={showPaywall} 
+        onClose={() => setShowPaywall(false)} 
+        isTrialExpired={subscriptionState.isTrialExpired} 
+        daysRemaining={subscriptionState.daysRemaining} 
+        subscriptionStatus={subscriptionState.status}
+        onRefreshUser={() => user && refreshAppData(user)}
+      />
     </div>
   );
 };

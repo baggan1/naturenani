@@ -1,6 +1,7 @@
+
 import { createClient } from '@supabase/supabase-js';
-import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan, YogaPose, SavedYogaPlan } from '../types';
-import { DAILY_QUERY_LIMIT } from '../utils/constants';
+import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan, YogaPose, SavedYogaPlan, SubscriptionStatus } from '../types';
+import { DAILY_QUERY_LIMIT, TRIAL_DAYS } from '../utils/constants';
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -41,7 +42,8 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
-  if (user.is_subscribed) {
+  // Free users have a limit, Trialing and Active users are unlimited
+  if (user.subscription_status === 'active' || user.subscription_status === 'trialing') {
     return { count: 0, limit: -1, remaining: 9999, isUnlimited: true };
   }
 
@@ -185,10 +187,7 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
 
 export const signUpUser = async (email: string, name: string): Promise<User> => {
   const startDate = new Date();
-  const endDate = new Date(startDate);
-  // Free plan is forever, so we set a far future end date
-  endDate.setFullYear(endDate.getFullYear() + 100); 
-
+  
   let authUserId: string | undefined;
   if (supabase) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -198,9 +197,10 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   const userObj: any = {
     email, 
     name,
+    subscription_status: 'free',
     is_subscribed: false,
     trial_start: startDate.toISOString(),
-    trial_end: endDate.toISOString(),
+    trial_end: startDate.toISOString(), // Trial hasn't started yet
   };
 
   if (authUserId) userObj.id = authUserId;
@@ -231,8 +231,55 @@ const getOrCreateUser = async (email: string, name: string): Promise<User> => {
 };
 
 export const checkSubscriptionStatus = async (user: User) => {
-  // Free plan is now forever. 
-  return { hasAccess: true, daysRemaining: 9999, isTrialExpired: false };
+  // Logic to calculate subscription state
+  const now = new Date();
+  const trialEnd = new Date(user.trial_end);
+
+  let status = user.subscription_status;
+
+  if (status === 'trialing' && now > trialEnd) {
+    status = 'expired';
+  }
+
+  const hasAccess = status === 'trialing' || status === 'active';
+  const daysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
+  return { 
+    hasAccess, 
+    status,
+    daysRemaining, 
+    isTrialExpired: status === 'expired' 
+  };
+};
+
+export const startTrial = async (user: User): Promise<User> => {
+  const trialStart = new Date();
+  const trialEnd = new Date(trialStart);
+  trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
+
+  const updates = {
+    subscription_status: 'trialing' as SubscriptionStatus,
+    trial_start: trialStart.toISOString(),
+    trial_end: trialEnd.toISOString(),
+  };
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('app_users')
+      .update(updates)
+      .eq('id', user.id)
+      .select()
+      .single();
+    
+    if (!error && data) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+      return data as User;
+    }
+  }
+
+  const updatedUser = { ...user, ...updates };
+  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
+  return updatedUser;
 };
 
 export const logoutUser = async () => {

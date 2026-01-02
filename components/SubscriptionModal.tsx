@@ -1,18 +1,44 @@
+
 import React, { useState } from 'react';
-import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X, Sprout, TreePine } from 'lucide-react';
-import { initiateStripeCheckout, getCurrentUser } from '../services/backendService';
+import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X, Sprout, TreePine, Star, ShieldCheck } from 'lucide-react';
+import { initiateStripeCheckout, getCurrentUser, startTrial } from '../services/backendService';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   isTrialExpired: boolean;
   daysRemaining: number;
+  subscriptionStatus: string;
+  onRefreshUser: () => void;
 }
 
-const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, isTrialExpired, daysRemaining }) => {
+const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  isTrialExpired, 
+  daysRemaining,
+  subscriptionStatus,
+  onRefreshUser
+}) => {
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleStartTrial = async () => {
+    const user = getCurrentUser();
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      await startTrial(user);
+      onRefreshUser();
+      onClose();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to start trial. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubscribe = async () => {
     const user = getCurrentUser();
@@ -28,9 +54,11 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
     }
   };
 
+  const isFree = subscriptionStatus === 'free' || subscriptionStatus === 'expired';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-sage-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh] relative">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-sage-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh] relative border border-white/20">
         
         {/* Header */}
         <div className="bg-sage-700 p-8 text-center relative overflow-hidden">
@@ -39,98 +67,97 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, 
             className="absolute top-4 right-4 text-white/70 hover:text-white hover:bg-white/10 p-2 rounded-full transition-colors z-20"
             aria-label="Close"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
 
           <div className="absolute top-0 left-0 w-32 h-32 bg-white/5 rounded-full -translate-x-16 -translate-y-16"></div>
-          <div className="absolute bottom-0 right-0 w-24 h-24 bg-white/5 rounded-full translate-x-12 translate-y-12"></div>
           
           <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
             <TreePine className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-serif font-bold text-white mb-2">
-            Upgrade to Premium Plan
+            The Healer Plan
           </h2>
           <p className="text-sage-100 text-sm opacity-90">
-            Unlock the full potential of ancient healing.
+            Unlock the exact path to clinical wellness.
           </p>
         </div>
 
         <div className="p-8 overflow-y-auto">
-          <div className="mb-8">
-            <div className="flex justify-center gap-8 mb-6">
-              <div className="flex flex-col items-center opacity-50 grayscale">
-                <div className="p-3 bg-sage-50 rounded-xl mb-1 border border-sage-100"><Sprout size={24} className="text-sage-400" /></div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-sage-400">Free Forever</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="p-3 bg-sage-100 rounded-xl mb-1 border border-sage-200 shadow-sm"><TreePine size={24} className="text-sage-700" /></div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-sage-700">Premium</span>
-              </div>
+          <div className="mb-6">
+            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex items-center gap-3 mb-6">
+              <Star className="text-amber-500 fill-amber-500 flex-shrink-0" size={20} />
+              <p className="text-xs font-bold text-amber-900">
+                {isFree ? "SPECIAL OFFER: Start a 7-day Free Trial to unlock all features." : "Your trial is active. Upgrade for lifetime history."}
+              </p>
             </div>
 
-            <p className="text-gray-600 text-center mb-6 text-sm">
-              Stop guessing. Get visual guides, meal plans, and unlimited wisdom.
-            </p>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <div className="bg-sage-100 p-1 rounded-full text-sage-700"><Check size={14} /></div>
                 <div>
-                  <span className="font-bold text-sage-900 block">Unlimited Chat Queries</span>
-                  <span className="text-xs text-gray-500">No more daily limits. Ask anytime.</span>
+                  <span className="font-bold text-sage-900 block text-sm">Visible Dosages & Timing</span>
+                  <span className="text-[10px] text-gray-500">Unblur exact healing frequencies in every response.</span>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <div className="bg-earth-100 p-1 rounded-full text-earth-700"><PlayCircle size={14} /></div>
                 <div>
-                  <span className="font-bold text-sage-900 block">Visual Yoga Guides</span>
-                  <span className="text-xs text-gray-500">See the poses, don't just read about them.</span>
+                  <span className="font-bold text-sage-900 block text-sm">Full Yoga Aid Access</span>
+                  <span className="text-[10px] text-gray-500">Therapeutic sequences with visual pose guides.</span>
                 </div>
               </li>
               <li className="flex items-start gap-3">
                 <div className="bg-earth-100 p-1 rounded-full text-earth-700"><FileText size={14} /></div>
                 <div>
-                  <span className="font-bold text-sage-900 block">Weekly Meal Plans</span>
-                  <span className="text-xs text-gray-500">Personalized diet charts with prep guides.</span>
+                  <span className="font-bold text-sage-900 block text-sm">Targeted Nutri Heal Plans</span>
+                  <span className="text-[10px] text-gray-500">Clinical diet protocols with preparation instructions.</span>
                 </div>
               </li>
               <li className="flex items-start gap-3">
-                <div className="bg-sage-100 p-1 rounded-full text-sage-700"><Check size={14} /></div>
+                <div className="bg-sage-100 p-1 rounded-full text-sage-700"><ShieldCheck size={14} /></div>
                 <div>
-                  <span className="font-bold text-sage-900 block">Full Conversation History</span>
-                  <span className="text-xs text-gray-500">Save your healing journey forever.</span>
+                  <span className="font-bold text-sage-900 block text-sm">Unlimited Priority Consultations</span>
+                  <span className="text-[10px] text-gray-500">Ask any number of questions, no daily caps.</span>
                 </div>
               </li>
             </ul>
           </div>
 
-          <div className="bg-sage-50 rounded-xl p-4 mb-6 border border-sage-200 flex justify-between items-center">
+          <div className="bg-sage-50 rounded-2xl p-4 mb-6 border border-sage-100 flex justify-between items-center">
              <div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-bold flex items-center gap-1">
-                  <TreePine size={12} className="text-sage-600" /> Premium Plan
-                </span>
-                <div className="text-2xl font-bold text-sage-900">$9.99<span className="text-sm font-normal text-gray-500">/mo</span></div>
+                <span className="text-[10px] text-gray-400 uppercase tracking-widest font-black">Plan Cost</span>
+                <div className="text-2xl font-bold text-sage-900">$9.99<span className="text-sm font-normal text-gray-400">/mo</span></div>
               </div>
-              <div className="text-xs text-earth-700 font-bold bg-earth-100 px-3 py-1 rounded-full border border-earth-200">
-                LIFETIME HEALTH
+              <div className="text-[10px] text-earth-700 font-bold bg-earth-100 px-3 py-1 rounded-full border border-earth-200">
+                CANCEL ANYTIME
               </div>
           </div>
 
-          <button
-            onClick={handleSubscribe}
-            disabled={isLoading}
-            className="w-full bg-earth-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-earth-700 transition-all shadow-lg shadow-earth-200 flex items-center justify-center gap-2 group"
-          >
-            {isLoading ? <Loader2 className="animate-spin" /> : (
-              <>
-                <CreditCard size={20} /> Upgrade to Premium Plan
-              </>
-            )}
-          </button>
+          {isFree ? (
+            <button
+              onClick={handleStartTrial}
+              disabled={isLoading}
+              className="w-full bg-sage-600 text-white py-4 rounded-xl font-bold text-base hover:bg-sage-700 transition-all shadow-lg shadow-sage-200 flex items-center justify-center gap-2 group mb-3"
+            >
+              {isLoading ? <Loader2 className="animate-spin" /> : <>Start 7-Day Free Trial</>}
+            </button>
+          ) : (
+             <button
+              onClick={handleSubscribe}
+              disabled={isLoading}
+              className="w-full bg-earth-600 text-white py-4 rounded-xl font-bold text-base hover:bg-earth-700 transition-all shadow-lg shadow-earth-200 flex items-center justify-center gap-2 group mb-3"
+            >
+              {isLoading ? <Loader2 className="animate-spin" /> : <>Activate Full Premium Plan</>}
+            </button>
+          )}
           
-          <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-            <Lock size={10} /> Secure payment via Stripe
-          </p>
+          <button 
+            onClick={onClose}
+            className="w-full text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-gray-600 py-2"
+          >
+            Keep using limited Free Plan
+          </button>
         </div>
       </div>
     </div>

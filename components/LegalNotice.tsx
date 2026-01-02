@@ -99,7 +99,7 @@ export const LegalNotice: React.FC<LegalNoticeProps> = ({ onBack }) => {
               <div>
                 <h3 className="font-bold text-sage-800 mb-2">1. Data Collection</h3>
                 <p className="text-sm">
-                  NatureNani collects the queries you input to provide relevant responses. We do not collect personally identifiable information (PII) unless voluntarily provided. Please do not input sensitive personal identifiers (such as your full name, SSN, or address) into the chat.
+                  NatureNani collects the queries you input to provide relevant responses. We do not collect personally identifiable information (PII) unless voluntarily provided. Please do not input sensitive personal identifiers (such as your full name, Date of Birth, or address) into the chat.
                 </p>
               </div>
               <div>

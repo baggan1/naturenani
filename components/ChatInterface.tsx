@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView } from '../types';
+import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
 import { Logo } from './Logo';
 
@@ -12,10 +12,10 @@ interface ChatInterfaceProps {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   onTrialEnd: () => void;
   hasAccess: boolean;
+  subscriptionStatus: SubscriptionStatus;
   initialMessage?: string;
   onMessageSent?: () => void;
   usage: QueryUsage;
-  isSubscribed: boolean;
   onUpgradeClick: () => void;
   isGuest: boolean;
   onShowAuth: () => void;
@@ -28,10 +28,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   setMessages,
   onTrialEnd, 
   hasAccess, 
+  subscriptionStatus,
   initialMessage, 
   onMessageSent, 
   usage,
-  isSubscribed,
   onUpgradeClick,
   isGuest,
   onShowAuth,
@@ -40,8 +40,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showTrialPrompt, setShowTrialPrompt] = useState(false);
+  const [lastAilment, setLastAilment] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);
+
+  const isRestricted = !hasAccess;
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -107,8 +111,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    if (!hasAccess || (!usage.isUnlimited && usage.remaining <= 0)) return;
+    if (!usage.isUnlimited && usage.remaining <= 0 && !hasAccess) {
+      onTrialEnd();
+      return;
+    }
     
+    setLastAilment(text);
     const historyToPass = [...messages];
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -155,6 +163,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       ));
 
       if (onMessageSent) onMessageSent();
+
+      // Trigger trial prompt if user is free and just asked about an ailment
+      if (subscriptionStatus === 'free' || subscriptionStatus === 'expired') {
+        setTimeout(() => setShowTrialPrompt(true), 1500);
+      }
       
     } catch (error: any) {
       console.error("Chat UI error", error);
@@ -203,7 +216,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleCardClick = (rec: RecommendationMetadata) => {
-    if (!isSubscribed) {
+    if (!hasAccess) {
       onUpgradeClick();
     } else {
       onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title);
@@ -223,10 +236,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ol: ({node, ...props}: any) => <ol className="list-decimal ml-5 space-y-2 my-4" {...props} />,
             li: ({node, ...props}: any) => <li className="text-gray-700 leading-relaxed" {...props} />,
             p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
-            table: ({node, ...props}: any) => <div className="overflow-x-auto my-4"><table className="min-w-full divide-y divide-sage-200 border border-sage-100" {...props} /></div>,
+            table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 shadow-sm rounded-xl overflow-hidden border border-sage-100"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
             thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
-            th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-xs font-bold text-white uppercase tracking-wider" {...props} />,
-            td: ({node, ...props}: any) => <td className="px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50" {...props} />,
+            th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider" {...props} />,
+            td: ({node, ...props}: any) => {
+               // Logic to blur specific columns for free users
+               const thNodes = node?.parent?.children?.[0]?.children?.[0]?.children;
+               const index = node?.parent?.children?.indexOf(node);
+               const headerText = thNodes?.[index]?.children?.[0]?.value?.toLowerCase() || "";
+               const shouldBlur = isRestricted && (headerText.includes("dosage") || headerText.includes("instruction") || headerText.includes("timing") || headerText.includes("frequency"));
+               
+               return (
+                 <td className="px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative" {...props}>
+                    <div className={shouldBlur ? "blur-[5px] select-none opacity-50" : ""}>
+                      {props.children}
+                    </div>
+                    {shouldBlur && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Lock size={12} className="text-sage-400 opacity-80" />
+                      </div>
+                    )}
+                 </td>
+               );
+            },
           }}
         >
           {content}
@@ -272,9 +304,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <div className="flex flex-col h-full bg-sage-50">
       <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between">
         <Logo className="h-8 w-8" textClassName="text-lg" showSlogan={false} />
-        <button onClick={handleResetChat} className="p-2 text-sage-400 hover:text-sage-600 hover:bg-sage-50 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
-           <RefreshCw size={14} /> Clear Consultation
-        </button>
+        <div className="flex items-center gap-4">
+          {!hasAccess && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100 text-[10px] font-bold text-amber-700 uppercase tracking-widest">
+              <Star size={12} className="fill-amber-400 text-amber-400" /> Free Plan
+            </div>
+          )}
+          <button onClick={handleResetChat} className="p-2 text-sage-400 hover:text-sage-600 hover:bg-sage-50 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+            <RefreshCw size={14} /> Clear Consultation
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-8">
@@ -314,7 +353,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <div className="p-4">
                         <h3 className="font-bold text-sm text-sage-900 mb-2 line-clamp-1">{rec.title}</h3>
                         <div className="flex items-center gap-2">
-                           {isSubscribed ? <span className="text-earth-600 font-bold text-[10px] flex items-center gap-1 group-hover:gap-2 transition-all">Open Protocol <Sparkles size={10} /></span> : <div className="flex items-center gap-1 text-gray-400 font-bold text-[10px]"><Lock size={10} /> Premium Feature</div>}
+                           {hasAccess ? <span className="text-earth-600 font-bold text-[10px] flex items-center gap-1 group-hover:gap-2 transition-all">Open Protocol <Sparkles size={10} /></span> : <div className="flex items-center gap-1 text-gray-400 font-bold text-[10px]"><Lock size={10} /> Premium Feature</div>}
                         </div>
                       </div>
                     </div>
@@ -337,7 +376,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-white border-t border-sage-200">
+      <div className="p-4 bg-white border-t border-sage-200 relative">
+        {/* Trial Offer Popup */}
+        {showTrialPrompt && (
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 w-[90%] max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+             <div className="bg-white rounded-2xl shadow-2xl border border-sage-200 p-6 relative overflow-hidden">
+                <button onClick={() => setShowTrialPrompt(false)} className="absolute top-3 right-3 text-gray-300 hover:text-gray-500"><ChevronDown size={20} /></button>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-sage-100 p-2 rounded-xl text-sage-600"><Sparkles size={20} /></div>
+                  <h4 className="font-serif font-bold text-sage-900 leading-tight text-sm">Experience the Full Healing Path</h4>
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed mb-4">
+                  Get exact dosages for your <span className="font-bold text-sage-800">{lastAilment || 'health concerns'}</span>, plus cooling diet plans and soothing yoga sequences.
+                </p>
+                <button 
+                  onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }}
+                  className="w-full bg-sage-600 text-white py-3 rounded-xl font-bold text-xs hover:bg-sage-700 transition-all shadow-lg shadow-sage-100 flex items-center justify-center gap-2"
+                >
+                  Start Your 7-Day Free Trial
+                </button>
+                <p className="text-[10px] text-gray-400 mt-2 text-center italic">Then $9.99/month. Cancel anytime.</p>
+             </div>
+          </div>
+        )}
+
          <div className="max-w-4xl mx-auto relative flex items-center gap-2">
           <textarea
             value={input}

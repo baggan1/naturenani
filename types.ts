@@ -1,9 +1,12 @@
 
+export type SubscriptionStatus = 'free' | 'trialing' | 'active' | 'expired';
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  is_subscribed: boolean;
+  subscription_status: SubscriptionStatus;
+  is_subscribed: boolean; // Keep for backward compatibility/legacy logic
   stripe_customer_id?: string;
   trial_start: string; // ISO Date String
   trial_end: string;   // ISO Date String
@@ -19,7 +22,6 @@ export interface RemedyDocument {
   similarity?: number;
 }
 
-// SearchSource defines the origin of the information provided to the user
 export type SearchSource = 'RAG' | 'AI' | 'Search';
 
 export interface RecommendationMetadata {
