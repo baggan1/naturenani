@@ -45,7 +45,7 @@ const App: React.FC = () => {
   
   const [queryUsage, setQueryUsage] = useState<QueryUsage>({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
 
-  // Developer Backdoor: Check for ?mode=dev in URL
+  // Developer Backdoor
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'dev') {
@@ -68,8 +68,7 @@ const App: React.FC = () => {
         isTrialExpired: subStatus.isTrialExpired,
         status: subStatus.status as SubscriptionStatus
       });
-      // Don't auto-show paywall on load unless trial just expired
-      if (subStatus.isTrialExpired) setShowPaywall(true);
+      // REMOVED: Automatic paywall trigger here to prevent blocking free users on login
     } catch (err) {
       console.error("[App] Data refresh failed:", err);
     }
@@ -91,9 +90,7 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     setIsMobileMenuOpen(false);
-    // Optimistically clear local state
     handleAuthChange(null);
-    // Perform backend logout
     await logoutUser();
   };
 
@@ -230,7 +227,6 @@ const App: React.FC = () => {
               <UserCircle size={18} /> Account
             </button>
             
-            {/* Information Menu */}
             <div className="pt-4 pb-2">
               <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                 Information
@@ -255,7 +251,6 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Hidden Developer Mode Access */}
             {isDevMode && (
               <div className="pt-4 mt-4 border-t border-red-50">
                 <p className="px-4 text-[10px] font-black text-red-400 uppercase tracking-widest mb-2 flex items-center gap-2">

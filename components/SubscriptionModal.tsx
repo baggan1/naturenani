@@ -38,8 +38,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     }
   };
 
-  const isFree = subscriptionStatus === 'free' || subscriptionStatus === 'expired';
-
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-sage-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh] relative border border-white/20">
