@@ -260,17 +260,26 @@ export const checkSubscriptionStatus = async (user: User) => {
 };
 
 export const logoutUser = async () => {
-  if (supabase) await supabase.auth.signOut();
-  localStorage.removeItem(CURRENT_USER_KEY);
-  window.location.reload();
+  try {
+    if (supabase) await supabase.auth.signOut();
+  } catch (e) {
+    console.error("Supabase signOut error", e);
+  } finally {
+    localStorage.removeItem(CURRENT_USER_KEY);
+    // Only reload if absolutely necessary for auth cleanup, 
+    // but React state clearing is faster.
+    window.location.reload();
+  }
 };
 
-export const setupAuthListener = (onAuthChange: (user: User) => void) => {
+export const setupAuthListener = (onAuthChange: (user: User | null) => void) => {
   if (!supabase) return () => {};
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user?.email) {
       const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
       onAuthChange(user);
+    } else if (event === 'SIGNED_OUT') {
+      onAuthChange(null);
     }
   });
   return () => subscription.unsubscribe();

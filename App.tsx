@@ -75,11 +75,27 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleAuthSuccess = useCallback((loggedInUser: User) => {
-    setUser(loggedInUser);
-    setShowAuthModal(false);
-    refreshAppData(loggedInUser);
+  const handleAuthChange = useCallback((u: User | null) => {
+    if (u) {
+      setUser(u);
+      setShowAuthModal(false);
+      refreshAppData(u);
+    } else {
+      setUser(null);
+      setSearchHistory([]);
+      setQueryUsage({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
+      setSubscriptionState({ hasAccess: false, daysRemaining: 0, isTrialExpired: false, status: 'free' as SubscriptionStatus });
+      setCurrentView(AppView.CHAT);
+    }
   }, [refreshAppData]);
+
+  const handleLogout = async () => {
+    setIsMobileMenuOpen(false);
+    // Optimistically clear local state
+    handleAuthChange(null);
+    // Perform backend logout
+    await logoutUser();
+  };
 
   useEffect(() => {
     if (!authInitialized.current) {
@@ -87,9 +103,9 @@ const App: React.FC = () => {
       warmupDatabase();
       const u = getCurrentUser();
       if (u) refreshAppData(u);
-      setupAuthListener(handleAuthSuccess);
+      setupAuthListener(handleAuthChange);
     }
-  }, [handleAuthSuccess, refreshAppData]);
+  }, [handleAuthChange, refreshAppData]);
 
   const handleHistoryClick = (query: string) => {
     setTriggerQuery(query);
@@ -280,7 +296,7 @@ const App: React.FC = () => {
                 </div>
               </div>
               <button 
-                onClick={logoutUser} 
+                onClick={handleLogout} 
                 className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"
               >
                 <LogOut size={14} /> Sign Out
@@ -321,7 +337,7 @@ const App: React.FC = () => {
           <AccountSettings 
             user={user} 
             onUpgrade={() => setShowPaywall(true)} 
-            onLogout={logoutUser} 
+            onLogout={handleLogout} 
             onRefresh={() => refreshAppData(user)}
           />
         )}
@@ -334,7 +350,7 @@ const App: React.FC = () => {
       </div>
 
       {!hasLegalConsent && <LegalConsentModal onConsent={handleLegalConsent} />}
-      <AuthForm isOpen={showAuthModal} onAuthSuccess={handleAuthSuccess} onClose={() => setShowAuthModal(false)} />
+      <AuthForm isOpen={showAuthModal} onAuthSuccess={(u) => handleAuthChange(u)} onClose={() => setShowAuthModal(false)} />
       <SubscriptionModal 
         isOpen={showPaywall} 
         onClose={() => setShowPaywall(false)} 
