@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
@@ -163,11 +163,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       ));
 
       if (onMessageSent) onMessageSent();
-
-      // Trigger trial prompt if user is free and just asked about an ailment
-      if (subscriptionStatus === 'free' || subscriptionStatus === 'expired') {
-        setTimeout(() => setShowTrialPrompt(true), 1500);
-      }
       
     } catch (error: any) {
       console.error("Chat UI error", error);
@@ -217,7 +212,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleCardClick = (rec: RecommendationMetadata) => {
     if (!hasAccess) {
-      onUpgradeClick();
+      setShowTrialPrompt(true);
     } else {
       onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title);
     }
@@ -240,23 +235,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider" {...props} />,
             td: ({node, ...props}: any) => {
-               // Robust logic to find the column index and header name
                const trNode = node?.parent;
-               if (!trNode) return <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />;
+               if (!trNode || trNode.tagName !== 'tr') return <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />;
 
-               // Find index of this td in its parent row
                const cellsInRow = trNode.children.filter((c: any) => c.type === 'element' && (c.tagName === 'td' || c.tagName === 'th'));
                const columnIndex = cellsInRow.indexOf(node);
 
-               // Get the parent table -> head -> row -> headers
-               const tableNode = trNode.parent?.tagName === 'tbody' ? trNode.parent.parent : trNode.parent;
+               const tbodyOrTable = trNode.parent;
+               const tableNode = tbodyOrTable?.tagName === 'tbody' ? tbodyOrTable.parent : tbodyOrTable;
                const theadNode = tableNode?.children?.find((c: any) => c.tagName === 'thead');
                const headRow = theadNode?.children?.find((c: any) => c.tagName === 'tr');
                const headers = headRow?.children?.filter((c: any) => c.type === 'element' && c.tagName === 'th') || [];
                
-               // Extract header text
                const header = headers[columnIndex];
-               const headerText = header?.children?.map((c: any) => c.value || '').join('').toLowerCase() || "";
+               const headerText = header?.children?.map((c: any) => c.value || (c.children ? c.children.map((cc:any)=>cc.value).join('') : '')).join('').toLowerCase() || "";
 
                const shouldBlur = isRestricted && (
                  headerText.includes("dosage") || 
@@ -268,18 +260,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                return (
                  <td 
                   className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative ${shouldBlur ? 'cursor-pointer' : ''}`} 
-                  onClick={shouldBlur ? onUpgradeClick : undefined}
+                  onClick={shouldBlur ? () => setShowTrialPrompt(true) : undefined}
                   {...props}
                  >
-                    <div className={shouldBlur ? "blur-[5px] select-none opacity-50" : ""}>
+                    <div className={shouldBlur ? "blur-[6px] select-none opacity-40 transition-all" : ""}>
                       {props.children}
                     </div>
                     {shouldBlur && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/10 backdrop-blur-[1px] group transition-all">
-                        <div className="bg-white/80 p-1.5 rounded-full shadow-sm border border-sage-100 animate-pulse">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/5 backdrop-blur-[1px] group transition-all">
+                        <div className="bg-white/90 p-1.5 rounded-full shadow-md border border-sage-100 animate-pulse">
                           <Lock size={12} className="text-sage-600" />
                         </div>
-                        <span className="text-[8px] font-bold text-sage-600 mt-1 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Unlock</span>
+                        <span className="text-[9px] font-bold text-sage-700 mt-1 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-sm">Unlock Wisdom</span>
                       </div>
                     )}
                  </td>
@@ -300,7 +292,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (index !== -1) {
       const beforeDisclaimer = content.substring(0, index).trim();
       const fromDisclaimer = content.substring(index).trim();
-      
       const disclaimerSentenceEnd = "starting any new herbal or dietary protocol.";
       const sentenceEndIndex = fromDisclaimer.indexOf(disclaimerSentenceEnd);
       
@@ -403,17 +394,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       <div className="p-4 bg-white border-t border-sage-200 relative">
-        {/* Trial Offer Popup (The Paywall Trigger) */}
         {showTrialPrompt && (
           <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 w-[90%] max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
              <div className="bg-white rounded-2xl shadow-2xl border border-sage-200 p-6 relative overflow-hidden ring-4 ring-sage-50">
-                <button onClick={() => setShowTrialPrompt(false)} className="absolute top-3 right-3 text-gray-300 hover:text-gray-500"><ChevronDown size={20} /></button>
-                <div className="flex items-center gap-3 mb-4">
+                <button 
+                  onClick={() => setShowTrialPrompt(false)} 
+                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all z-20"
+                >
+                  <X size={18} />
+                </button>
+                <div className="flex items-center gap-3 mb-4 pr-6">
                   <div className="bg-sage-100 p-2 rounded-xl text-sage-600"><Sparkles size={20} /></div>
                   <h4 className="font-serif font-bold text-sage-900 leading-tight text-base">🌿 Experience the Full Healing Path</h4>
                 </div>
                 <p className="text-xs text-gray-600 leading-relaxed mb-5">
-                  Get the exact dosages for your <span className="font-bold text-sage-800">{lastAilment || 'health concerns'}</span> remedies, plus your 7-day Cooling Diet Plan and Soothing Yoga sequence.
+                  Unlock exact dosages for your <span className="font-bold text-sage-800">{lastAilment || 'health concerns'}</span> remedies, plus targeted Diet Plans and visual Yoga Aid sequences.
                 </p>
                 <button 
                   onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }}
@@ -466,9 +461,5 @@ const SourceAccordion: React.FC<{ sources: RemedyDocument[] }> = ({ sources }) =
     </div>
   );
 };
-
-const ChevronRight: React.FC<{ className?: string, size?: number }> = ({ className, size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>
-);
 
 export default ChatInterface;
