@@ -68,10 +68,8 @@ const App: React.FC = () => {
         isTrialExpired: subStatus.isTrialExpired,
         status: subStatus.status as SubscriptionStatus
       });
-      // ONLY show paywall if trial is EXPIRED, not if they are just on the free plan
-      if (subStatus.isTrialExpired && subStatus.status === 'expired') {
-        setShowPaywall(true);
-      }
+      // Don't auto-show paywall on load unless trial just expired
+      if (subStatus.isTrialExpired) setShowPaywall(true);
     } catch (err) {
       console.error("[App] Data refresh failed:", err);
     }

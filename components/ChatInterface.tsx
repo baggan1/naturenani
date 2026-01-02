@@ -111,9 +111,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Check query limit for free users
-    if (!usage.isUnlimited && usage.remaining <= 0) {
-      onUpgradeClick(); // Show full paywall if limit hit
+    if (!usage.isUnlimited && usage.remaining <= 0 && !hasAccess) {
+      onTrialEnd();
       return;
     }
     
@@ -236,29 +235,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider" {...props} />,
             td: ({node, ...props}: any) => {
-               // Logic to identify if this is a sensitive column for free users
+               // Resiliently find the table row and the column headers
                const trNode = node?.parent;
                if (!trNode || trNode.tagName !== 'tr') return <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />;
 
+               // Find the column index of this cell
                const cellsInRow = trNode.children.filter((c: any) => c.type === 'element' && (c.tagName === 'td' || c.tagName === 'th'));
                const columnIndex = cellsInRow.indexOf(node);
 
-               // Look for table -> thead -> tr -> th list
-               const tableNode = trNode.parent?.tagName === 'tbody' ? trNode.parent.parent : trNode.parent;
+               // Find the table header row
+               const tbodyNode = trNode.parent;
+               const tableNode = tbodyNode?.parent;
                const theadNode = tableNode?.children?.find((c: any) => c.tagName === 'thead');
                const headRow = theadNode?.children?.find((c: any) => c.tagName === 'tr');
                const headers = headRow?.children?.filter((c: any) => c.type === 'element' && c.tagName === 'th') || [];
                
-               // Robust header text extraction
-               const extractText = (header: any): string => {
-                  if (!header) return "";
-                  if (header.value) return header.value;
-                  if (header.children) return header.children.map((c: any) => extractText(c)).join('');
-                  return "";
-               };
+               // Extract text from the corresponding header cell
+               const header = headers[columnIndex];
+               const headerText = header?.children?.map((c: any) => {
+                 if (c.type === 'text') return c.value;
+                 if (c.children) return c.children.map((cc: any) => cc.value).join('');
+                 return '';
+               }).join('').toLowerCase() || "";
 
-               const headerText = extractText(headers[columnIndex]).toLowerCase();
-
+               // Determine if this column contains restricted premium information
                const shouldBlur = isRestricted && (
                  headerText.includes("dosage") || 
                  headerText.includes("instruction") || 
@@ -271,15 +271,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative ${shouldBlur ? 'cursor-pointer' : ''}`} 
                   onClick={shouldBlur ? () => setShowTrialPrompt(true) : undefined}
                  >
-                    <div className={shouldBlur ? "blur-[10px] select-none opacity-10 pointer-events-none transition-all" : ""}>
+                    <div className={shouldBlur ? "blur-[8px] select-none opacity-20 pointer-events-none" : ""}>
                       {props.children}
                     </div>
                     {shouldBlur && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/5 backdrop-blur-[1px] group transition-all">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/10 backdrop-blur-[1px] group transition-all">
                         <div className="bg-white/90 p-1.5 rounded-full shadow-lg border border-sage-100 animate-pulse">
                           <Lock size={14} className="text-sage-600" />
                         </div>
-                        <span className="text-[9px] font-bold text-sage-800 mt-1 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 px-2 py-0.5 rounded-full border border-sage-50">Locked Feature</span>
+                        <span className="text-[9px] font-bold text-sage-800 mt-1 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 px-2 py-0.5 rounded-full">Unlock Information</span>
                       </div>
                     )}
                  </td>
@@ -402,7 +402,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       <div className="p-4 bg-white border-t border-sage-200 relative">
-        {/* Trial Offer Popup Triggered manually by locked clicks */}
         {showTrialPrompt && (
           <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 w-[90%] max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
              <div className="bg-white rounded-2xl shadow-2xl border border-sage-200 p-6 relative overflow-hidden ring-4 ring-sage-50">
