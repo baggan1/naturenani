@@ -240,20 +240,46 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider" {...props} />,
             td: ({node, ...props}: any) => {
-               // Logic to blur specific columns for free users
-               const thNodes = node?.parent?.children?.[0]?.children?.[0]?.children;
-               const index = node?.parent?.children?.indexOf(node);
-               const headerText = thNodes?.[index]?.children?.[0]?.value?.toLowerCase() || "";
-               const shouldBlur = isRestricted && (headerText.includes("dosage") || headerText.includes("instruction") || headerText.includes("timing") || headerText.includes("frequency"));
+               // Robust logic to find the column index and header name
+               const trNode = node?.parent;
+               if (!trNode) return <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />;
+
+               // Find index of this td in its parent row
+               const cellsInRow = trNode.children.filter((c: any) => c.type === 'element' && (c.tagName === 'td' || c.tagName === 'th'));
+               const columnIndex = cellsInRow.indexOf(node);
+
+               // Get the parent table -> head -> row -> headers
+               const tableNode = trNode.parent?.tagName === 'tbody' ? trNode.parent.parent : trNode.parent;
+               const theadNode = tableNode?.children?.find((c: any) => c.tagName === 'thead');
+               const headRow = theadNode?.children?.find((c: any) => c.tagName === 'tr');
+               const headers = headRow?.children?.filter((c: any) => c.type === 'element' && c.tagName === 'th') || [];
+               
+               // Extract header text
+               const header = headers[columnIndex];
+               const headerText = header?.children?.map((c: any) => c.value || '').join('').toLowerCase() || "";
+
+               const shouldBlur = isRestricted && (
+                 headerText.includes("dosage") || 
+                 headerText.includes("instruction") || 
+                 headerText.includes("timing") || 
+                 headerText.includes("frequency")
+               );
                
                return (
-                 <td className="px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative" {...props}>
+                 <td 
+                  className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative ${shouldBlur ? 'cursor-pointer' : ''}`} 
+                  onClick={shouldBlur ? onUpgradeClick : undefined}
+                  {...props}
+                 >
                     <div className={shouldBlur ? "blur-[5px] select-none opacity-50" : ""}>
                       {props.children}
                     </div>
                     {shouldBlur && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Lock size={12} className="text-sage-400 opacity-80" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/10 backdrop-blur-[1px] group transition-all">
+                        <div className="bg-white/80 p-1.5 rounded-full shadow-sm border border-sage-100 animate-pulse">
+                          <Lock size={12} className="text-sage-600" />
+                        </div>
+                        <span className="text-[8px] font-bold text-sage-600 mt-1 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Unlock</span>
                       </div>
                     )}
                  </td>
