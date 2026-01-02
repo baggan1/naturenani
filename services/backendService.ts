@@ -134,7 +134,11 @@ export const searchVectorDatabase = async (
       match_count: 10
     });
 
-    if (error) return getMockRemedies(queryText);
+    // If RPC fails (500 or not found), fallback to mock data immediately
+    if (error) {
+      console.warn("[Backend] Vector search RPC failed, using fallback.", error.message);
+      return getMockRemedies(queryText);
+    }
 
     let results = (data || []).map((doc: any) => ({
       id: doc.id.toString(),
@@ -153,6 +157,7 @@ export const searchVectorDatabase = async (
 
     return results.slice(0, 5); 
   } catch (e) {
+    console.warn("[Backend] Exception in vector search, using fallback.");
     return getMockRemedies(queryText);
   }
 };

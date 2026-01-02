@@ -111,7 +111,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Check query limit for free users - ONLY block if limit is reached
+    // Only block if they are truly out of queries. 
+    // Free users should not see a popup on every submission.
     if (!usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
       return;
