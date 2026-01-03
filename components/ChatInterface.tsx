@@ -119,7 +119,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
     
     setLastAilment(text);
-    const historyToPass = [...messages];
+    
+    // Crucial: Snapshot history now to avoid race conditions with setMessages
+    const historyToPass = [...messages]; 
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -172,7 +174,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => [...prev, {
         id: 'error-' + Date.now(),
         role: 'model',
-        content: "I'm having trouble connecting to the wisdom archives. Please try again.",
+        content: "I'm having trouble connecting to the wisdom archives. Please try again in a few moments.",
         timestamp: Date.now()
       }]);
     } finally {
@@ -233,13 +235,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ol: ({node, ...props}: any) => <ol className="list-decimal ml-5 space-y-2 my-4" {...props} />,
             li: ({node, ...props}: any) => <li className="text-gray-700 leading-relaxed" {...props} />,
             p: ({node, ...props}: any) => {
-              const text = props.children?.toString().toLowerCase() || "";
+              // Convert children to string recursively for reliable detection
+              const extractText = (children: any): string => {
+                if (typeof children === 'string') return children;
+                if (Array.isArray(children)) return children.map(extractText).join('');
+                if (children?.props?.children) return extractText(children.props.children);
+                return "";
+              };
+              
+              const text = extractText(props.children).toLowerCase();
               const isProtocolIntro = text.includes("following table outlines") || 
                                      text.includes("recommended protocol") || 
-                                     text.includes("outlined in the table below");
+                                     text.includes("outlined in the table below") ||
+                                     text.includes("remedies that address");
               
               if (isRestricted && isProtocolIntro) {
-                return null; // Hide the intro text as requested
+                return null; // Hide the intro text
               }
               return <p className="mb-4 last:mb-0 leading-relaxed" {...props} />;
             },

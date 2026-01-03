@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Utensils, ShoppingCart, Loader2, Search, X, ChefHat, Check, Camera, BookOpen, Save, ListChecks } from 'lucide-react';
 import { FeatureContext, DayPlan, Meal } from '../types';
@@ -73,8 +74,16 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
   };
 
   useEffect(() => {
-    if (activeContext?.id) {
-      loadPlan(activeContext.id, activeContext.title);
+    if (activeContext) {
+      // Check if we have cached data from Library
+      const context = activeContext as any;
+      if (context.cachedPlan && context.cachedPlan.length > 0) {
+        setPlan(context.cachedPlan);
+        setTitle(context.title);
+        setLoading(false);
+      } else if (activeContext.id) {
+        loadPlan(activeContext.id, activeContext.title);
+      }
     }
   }, [activeContext]);
 

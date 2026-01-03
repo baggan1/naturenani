@@ -67,8 +67,16 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
   };
 
   useEffect(() => {
-    if (activeContext?.id) {
-      loadRoutine(activeContext.id, activeContext.title);
+    if (activeContext) {
+      // Check if we have cached data from Library
+      const context = activeContext as any;
+      if (context.cachedPoses && context.cachedPoses.length > 0) {
+        setRoutine(context.cachedPoses);
+        setTitle(context.title);
+        setLoading(false);
+      } else if (activeContext.id) {
+        loadRoutine(activeContext.id, activeContext.title);
+      }
     }
   }, [activeContext]);
 

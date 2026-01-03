@@ -41,15 +41,11 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
-/**
- * Fetches the latest user record from the database to ensure 
- * subscription updates (manual or via Stripe) are reflected.
- */
 export const fetchUserRecord = async (email: string): Promise<User | null> => {
   if (!supabase) return null;
   try {
     const { data, error } = await supabase
-      .from('app_users') // Strictly lowercase
+      .from('app_users')
       .select('*')
       .eq('email', email)
       .maybeSingle();
@@ -80,7 +76,7 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
     const { count, error } = await supabase
-      .from('nani_analytics') // Confirmed table name
+      .from('nani_analytics')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gt('created_at', oneDayAgo);
@@ -330,8 +326,8 @@ export const createStripePortalSession = async () => {
 const saveToLibrary = async (user: User, planData: any, title: string, type: 'YOGA' | 'DIET') => {
   if (!supabase) return null;
   
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const uid = authUser?.id || user.id;
+  // Use the ID from the passed user object consistently
+  const uid = user.id;
 
   const { data, error } = await supabase.from('nani_saved_plans').insert({
     user_id: uid,
@@ -358,8 +354,7 @@ export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: stri
 export const getUserLibrary = async (user: User) => {
   if (!supabase) return { diet: [], yoga: [] };
   
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  const uid = authUser?.id || user.id;
+  const uid = user.id;
 
   const { data, error } = await supabase
     .from('nani_saved_plans')
