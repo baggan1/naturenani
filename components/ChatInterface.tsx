@@ -45,6 +45,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);
 
+  // hasAccess is true for 'active' or 'trialing' subscriptions. 
+  // If false, we restrict certain column data.
   const isRestricted = !hasAccess;
 
   const scrollToBottom = useCallback(() => {
@@ -111,8 +113,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Only block if they are truly out of queries. 
-    // Free users should not see a popup on every submission.
+    // Daily limit check: Only block if not unlimited and count is exhausted
     if (!usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
       return;
@@ -237,12 +238,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider" {...props} />,
             td: ({node, ...props}: any) => {
+               // Logic to detect if current column should be blurred for free users
                const trNode = node?.parent;
                if (!trNode || trNode.tagName !== 'tr') return <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />;
 
-               const cellsInRow = trNode.children.filter((c: any) => c.type === 'element' && (c.tagName === 'td' || c.tagName === 'th'));
-               const columnIndex = cellsInRow.indexOf(node);
+               // Find index of this TD in the TR
+               const siblings = trNode.children.filter((c: any) => c.type === 'element' && (c.tagName === 'td' || c.tagName === 'th'));
+               const columnIndex = siblings.indexOf(node);
 
+               // Find the table and then find the corresponding TH for this column
                const tableNode = trNode.parent?.tagName === 'tbody' ? trNode.parent.parent : trNode.parent;
                const theadNode = tableNode?.children?.find((c: any) => c.tagName === 'thead');
                const headRow = theadNode?.children?.find((c: any) => c.tagName === 'tr');
@@ -250,34 +254,36 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                
                const extractText = (header: any): string => {
                   if (!header) return "";
-                  if (header.value) return header.value;
-                  if (header.children) return header.children.map((c: any) => extractText(c)).join('');
+                  if (typeof header.children === 'string') return header.children;
+                  if (Array.isArray(header.children)) return header.children.map((c: any) => {
+                    if (typeof c === 'string') return c;
+                    if (c.value) return c.value;
+                    if (c.children) return extractText(c);
+                    return "";
+                  }).join('');
                   return "";
                };
 
                const headerText = extractText(headers[columnIndex]).toLowerCase();
 
-               const shouldBlur = isRestricted && (
-                 headerText.includes("dosage") || 
-                 headerText.includes("instruction") || 
-                 headerText.includes("timing") || 
-                 headerText.includes("frequency")
-               );
+               // Define sensitive columns that require a subscription
+               const sensitiveKeywords = ["dosage", "instruction", "timing", "frequency", "prep", "duration", "repetition"];
+               const shouldBlur = isRestricted && sensitiveKeywords.some(key => headerText.includes(key));
                
                return (
                  <td 
-                  className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative ${shouldBlur ? 'cursor-pointer' : ''}`} 
+                  className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative group ${shouldBlur ? 'cursor-pointer' : ''}`} 
                   onClick={shouldBlur ? () => setShowTrialPrompt(true) : undefined}
                  >
-                    <div className={shouldBlur ? "blur-[12px] select-none opacity-5 pointer-events-none transition-all" : ""}>
+                    <div className={shouldBlur ? "blur-[8px] select-none opacity-20 pointer-events-none transition-all duration-500" : ""}>
                       {props.children}
                     </div>
                     {shouldBlur && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/10 backdrop-blur-[1px] group transition-all">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 backdrop-blur-[2px] transition-all">
                         <div className="bg-white/95 p-1.5 rounded-full shadow-lg border border-sage-200 animate-pulse">
                           <Lock size={14} className="text-sage-600" />
                         </div>
-                        <span className="text-[9px] font-black text-sage-900 mt-1 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-2 py-0.5 rounded-full border border-sage-100 shadow-sm">Locked Content</span>
+                        <span className="text-[9px] font-black text-sage-900 mt-1.5 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-2 py-0.5 rounded-full border border-sage-100 shadow-sm">Premium Feature</span>
                       </div>
                     )}
                  </td>
@@ -329,7 +335,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <Logo className="h-8 w-8" textClassName="text-lg" showSlogan={false} />
         <div className="flex items-center gap-4">
           {!hasAccess && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100 text-[10px] font-bold text-amber-700 uppercase tracking-widest">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100 text-[10px] font-bold text-amber-700 uppercase tracking-widest cursor-pointer hover:bg-amber-100 transition-colors" onClick={onUpgradeClick}>
               <Star size={12} className="fill-amber-400 text-amber-400" /> Free Plan
             </div>
           )}
@@ -432,13 +438,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe your symptoms or ask a question..."
-            className="w-full bg-sage-50 border border-sage-200 rounded-2xl px-5 py-4 pr-14 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[68px] scrollbar-hide"
+            placeholder={usage.remaining > 0 || usage.isUnlimited ? "Describe your symptoms or ask a question..." : "Daily limit reached. Upgrade for more."}
+            disabled={!usage.isUnlimited && usage.remaining <= 0}
+            className={`w-full bg-sage-50 border border-sage-200 rounded-2xl px-5 py-4 pr-14 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[68px] scrollbar-hide ${!usage.isUnlimited && usage.remaining <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           />
-          <button onClick={handleSend} disabled={isLoading || !input.trim()} className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 bg-sage-600 text-white rounded-xl hover:bg-sage-700 disabled:opacity-50 transition-all active:scale-95 shadow-lg shadow-sage-100">
+          <button 
+            onClick={handleSend} 
+            disabled={isLoading || !input.trim() || (!usage.isUnlimited && usage.remaining <= 0)} 
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 bg-sage-600 text-white rounded-xl hover:bg-sage-700 disabled:opacity-50 transition-all active:scale-95 shadow-lg shadow-sage-100"
+          >
             <Send size={20} />
           </button>
         </div>
+        
+        {!usage.isUnlimited && usage.remaining <= 3 && usage.remaining > 0 && (
+          <p className="text-[9px] text-center text-sage-400 font-bold uppercase tracking-widest mt-2">
+            {usage.remaining} consultations remaining today
+          </p>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X, Sprout, TreePine, Star, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Check, Lock, Loader2, CreditCard, Sparkles, PlayCircle, FileText, X, Sprout, TreePine, Star, ShieldCheck, ArrowRight, Zap } from 'lucide-react';
 import { initiateStripeCheckout, getCurrentUser } from '../services/backendService';
 
 interface SubscriptionModalProps {
@@ -78,8 +78,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               <li className="flex items-start gap-3">
                 <div className="bg-sage-100 p-1 rounded-full text-sage-700"><Check size={14} /></div>
                 <div>
+                  <span className="font-bold text-sage-900 block text-sm">Unlimited AI Consultations</span>
+                  <span className="text-[10px] text-gray-500">Remove the 3-query daily limit. Consult as often as needed.</span>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="bg-sage-100 p-1 rounded-full text-sage-700"><Check size={14} /></div>
+                <div>
                   <span className="font-bold text-sage-900 block text-sm">Visible Dosages & Timing</span>
-                  <span className="text-[10px] text-gray-500">Access full medicinal frequencies in every response.</span>
+                  <span className="text-[10px] text-gray-500">Access full medicinal frequencies and precise timings in every response.</span>
                 </div>
               </li>
               <li className="flex items-start gap-3">
