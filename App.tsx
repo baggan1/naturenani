@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { User, AppView, QueryUsage, FeatureContext, Message, SubscriptionStatus } from './types';
-import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit, setupAuthListener } from './services/backendService';
+import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit, setupAuthListener, fetchUserRecord } from './services/backendService';
 import AuthForm from './components/AuthForm';
 import ChatInterface from './components/ChatInterface';
 import SubscriptionModal from './components/SubscriptionModal';
@@ -55,11 +55,20 @@ const App: React.FC = () => {
 
   const refreshAppData = useCallback(async (u: User) => {
     try {
+      // Re-fetch user from database to sync manual updates (like Premium status)
+      const freshUser = await fetchUserRecord(u.email);
+      const activeUser = freshUser || u;
+      
+      if (freshUser) {
+        setUser(freshUser);
+      }
+
       const [usage, history, subStatus] = await Promise.all([
-        checkDailyQueryLimit(u),
-        getUserSearchHistory(u),
-        checkSubscriptionStatus(u)
+        checkDailyQueryLimit(activeUser),
+        getUserSearchHistory(activeUser),
+        checkSubscriptionStatus(activeUser)
       ]);
+      
       setQueryUsage(usage);
       setSearchHistory(history);
       setSubscriptionState({ 
@@ -68,7 +77,6 @@ const App: React.FC = () => {
         isTrialExpired: subStatus.isTrialExpired,
         status: subStatus.status as SubscriptionStatus
       });
-      // REMOVED: Automatic paywall trigger here to prevent blocking free users on login
     } catch (err) {
       console.error("[App] Data refresh failed:", err);
     }

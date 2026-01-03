@@ -41,6 +41,34 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
+/**
+ * Fetches the latest user record from the database to ensure 
+ * subscription updates (manual or via Stripe) are reflected.
+ */
+export const fetchUserRecord = async (email: string): Promise<User | null> => {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('app_users') // Using lowercase to match Supabase table name
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[Backend] Error fetching user:", error.message);
+      return null;
+    }
+
+    if (data) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+      return data as User;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   if (user.subscription_status === 'active' || user.subscription_status === 'trialing') {
     return { count: 0, limit: -1, remaining: 9999, isUnlimited: true };
@@ -82,8 +110,8 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, boo
     const payload = { 
       query, 
       source, 
-      details: bookSources.join(', '), // Keeping text summary for backwards compatibility in 'details'
-      book_sources: bookSources,       // New structured array column
+      details: bookSources.join(', '), 
+      book_sources: bookSources,       
       user_id: user.id 
     };
     await supabase.from('nani_analytics').insert(payload);
@@ -208,7 +236,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   if (authUserId) userObj.id = authUserId;
 
   if (supabase) {
-    const { data, error } = await supabase.from('App_users').upsert(userObj).select().single();
+    const { data, error } = await supabase.from('app_users').upsert(userObj).select().single();
     if (!error && data) {
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
       return data as User;
@@ -223,7 +251,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
 const getOrCreateUser = async (email: string, name: string): Promise<User> => {
   if (!supabase) return signUpUser(email, name);
   
-  const { data: existingUser } = await supabase.from('App_users').select('*').eq('email', email).maybeSingle();
+  const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
   if (existingUser) {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;

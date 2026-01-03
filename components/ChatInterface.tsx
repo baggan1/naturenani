@@ -45,7 +45,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);
 
-  // Users without active/trialing status have restricted content
+  // hasAccess is true for 'active' or 'trialing' subscriptions. 
+  // If false, we restrict certain column data.
   const isRestricted = !hasAccess;
 
   const scrollToBottom = useCallback(() => {
@@ -112,7 +113,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Strict Enforcement of Daily Limit
+    // Daily limit check: Only block if not unlimited and count is exhausted
     if (!usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
       return;
@@ -254,19 +255,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                const extractText = (header: any): string => {
                   if (!header) return "";
                   if (typeof header.children === 'string') return header.children;
-                  if (Array.isArray(header.children)) return header.children.map((c: any) => {
-                    if (typeof c === 'string') return c;
-                    if (c.value) return c.value;
-                    if (c.children) return extractText(c);
-                    return "";
-                  }).join('');
+                  if (Array.isArray(header.children)) {
+                    return header.children.map((c: any) => {
+                      if (typeof c === 'string') return c;
+                      if (c.value) return c.value;
+                      if (c.children) return extractText(c);
+                      if (c.props?.children) return extractText({ children: c.props.children });
+                      return "";
+                    }).join('');
+                  }
                   return "";
                };
 
                const headerText = extractText(headers[columnIndex]).toLowerCase();
 
                // Define sensitive columns that require a subscription
-               const sensitiveKeywords = ["dosage", "instruction", "timing", "frequency", "prep", "duration", "repetition"];
+               const sensitiveKeywords = ["dosage", "instruction", "timing", "frequency", "prep", "duration", "repetition", "amount", "quantity"];
                const shouldBlur = isRestricted && sensitiveKeywords.some(key => headerText.includes(key));
                
                return (
@@ -274,11 +278,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative group ${shouldBlur ? 'cursor-pointer' : ''}`} 
                   onClick={shouldBlur ? () => setShowTrialPrompt(true) : undefined}
                  >
-                    <div className={shouldBlur ? "blur-[8px] select-none opacity-10 pointer-events-none transition-all duration-500" : ""}>
+                    <div className={shouldBlur ? "blur-[12px] select-none opacity-5 pointer-events-none transition-all duration-700" : ""}>
                       {props.children}
                     </div>
                     {shouldBlur && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[1px] transition-all">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[2px] transition-all">
                         <div className="bg-white/95 p-1.5 rounded-full shadow-lg border border-sage-200 animate-pulse">
                           <Lock size={12} className="text-sage-600" />
                         </div>
