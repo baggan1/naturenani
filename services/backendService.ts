@@ -49,7 +49,7 @@ export const fetchUserRecord = async (email: string): Promise<User | null> => {
   if (!supabase) return null;
   try {
     const { data, error } = await supabase
-      .from('app_users') // Using lowercase to match Supabase table name
+      .from('app_users') // Strictly lowercase
       .select('*')
       .eq('email', email)
       .maybeSingle();
@@ -80,7 +80,7 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
     const { count, error } = await supabase
-      .from('nani_analytics')
+      .from('nani_analytics') // Confirmed table name
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gt('created_at', oneDayAgo);

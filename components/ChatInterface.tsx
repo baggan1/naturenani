@@ -45,8 +45,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);
 
-  // hasAccess is true for 'active' or 'trialing' subscriptions. 
-  // If false, we restrict certain column data.
+  // restricted if not active or trialing
   const isRestricted = !hasAccess;
 
   const scrollToBottom = useCallback(() => {
@@ -113,7 +112,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Daily limit check: Only block if not unlimited and count is exhausted
+    // MANDATORY: Check 3-query limit before proceeding
     if (!usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
       return;
@@ -238,55 +237,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider" {...props} />,
             td: ({node, ...props}: any) => {
-               // Logic to detect if current column should be blurred for free users
                const trNode = node?.parent;
                if (!trNode || trNode.tagName !== 'tr') return <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />;
 
-               // Find index of this TD in the TR
                const siblings = trNode.children.filter((c: any) => c.type === 'element' && (c.tagName === 'td' || c.tagName === 'th'));
                const columnIndex = siblings.indexOf(node);
 
-               // Find the table and then find the corresponding TH for this column
                const tableNode = trNode.parent?.tagName === 'tbody' ? trNode.parent.parent : trNode.parent;
                const theadNode = tableNode?.children?.find((c: any) => c.tagName === 'thead');
                const headRow = theadNode?.children?.find((c: any) => c.tagName === 'tr');
                const headers = headRow?.children?.filter((c: any) => c.type === 'element' && c.tagName === 'th') || [];
                
-               const extractText = (header: any): string => {
-                  if (!header) return "";
-                  if (typeof header.children === 'string') return header.children;
-                  if (Array.isArray(header.children)) {
-                    return header.children.map((c: any) => {
-                      if (typeof c === 'string') return c;
-                      if (c.value) return c.value;
-                      if (c.children) return extractText(c);
-                      if (c.props?.children) return extractText({ children: c.props.children });
-                      return "";
-                    }).join('');
-                  }
+               const extractTextRecursive = (h: any): string => {
+                  if (!h) return "";
+                  if (typeof h === 'string') return h;
+                  if (h.value) return h.value;
+                  if (Array.isArray(h.children)) return h.children.map(extractTextRecursive).join('');
+                  if (h.props?.children) return extractTextRecursive({ children: h.props.children });
                   return "";
                };
 
-               const headerText = extractText(headers[columnIndex]).toLowerCase();
+               const headerText = extractTextRecursive(headers[columnIndex]).toLowerCase();
 
-               // Define sensitive columns that require a subscription
                const sensitiveKeywords = ["dosage", "instruction", "timing", "frequency", "prep", "duration", "repetition", "amount", "quantity"];
                const shouldBlur = isRestricted && sensitiveKeywords.some(key => headerText.includes(key));
                
                return (
                  <td 
-                  className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative group ${shouldBlur ? 'cursor-pointer' : ''}`} 
+                  className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative group ${shouldBlur ? 'cursor-pointer overflow-hidden' : ''}`} 
                   onClick={shouldBlur ? () => setShowTrialPrompt(true) : undefined}
                  >
-                    <div className={shouldBlur ? "blur-[12px] select-none opacity-5 pointer-events-none transition-all duration-700" : ""}>
+                    <div className={shouldBlur ? "blur-[20px] select-none opacity-0 pointer-events-none transition-all duration-700" : ""}>
                       {props.children}
                     </div>
                     {shouldBlur && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[2px] transition-all">
-                        <div className="bg-white/95 p-1.5 rounded-full shadow-lg border border-sage-200 animate-pulse">
-                          <Lock size={12} className="text-sage-600" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[4px] transition-all">
+                        <div className="bg-white/95 p-2 rounded-full shadow-xl border border-sage-200 animate-bounce">
+                          <Lock size={14} className="text-sage-600" />
                         </div>
-                        <span className="text-[8px] font-black text-sage-900 mt-1 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-1.5 py-0.5 rounded-full border border-sage-100 shadow-sm">Unlock Dosage</span>
+                        <span className="text-[9px] font-black text-sage-900 mt-2 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-2 py-0.5 rounded-full border border-sage-100 shadow-sm">Premium Feature</span>
                       </div>
                     )}
                  </td>
