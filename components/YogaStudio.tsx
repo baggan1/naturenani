@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Flower2, Info, Loader2, Search, X, Check, Repeat, AlertCircle, Camera, ShieldCheck, Save, Wind, Sparkles } from 'lucide-react';
+import { Flower2, Info, Loader2, Search, X, Check, Repeat, AlertCircle, Camera, ShieldCheck, Save, Wind, Sparkles, ChevronRight } from 'lucide-react';
 import { FeatureContext, YogaPose } from '../types';
 import { generateYogaRoutine } from '../services/geminiService';
 import { fetchImageFromSearch } from '../services/searchService';
@@ -16,7 +16,7 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
   const [imageLoading, setImageLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [title, setTitle] = useState(activeContext?.title || "Yoga Aid Routine");
+  const [title, setTitle] = useState("Yoga Aid Routine");
   const [customQuery, setCustomQuery] = useState("");
   const [selectedPose, setSelectedPose] = useState<YogaPose | null>(null);
 
@@ -24,6 +24,7 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
     setLoading(true);
     setSaveSuccess(false);
     setTitle(displayTitle);
+    setRoutine([]); // Clear old state
     try {
       const poses = await generateYogaRoutine(query);
       if (poses && poses.length > 0) {
@@ -56,11 +57,10 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        alert("Failed to save routine. Please ensure you have a stable connection and are signed in correctly.");
+        alert("Failed to save routine.");
       }
     } catch (e) {
       console.error("Save Error:", e);
-      alert("An unexpected error occurred while saving.");
     } finally {
       setSaveLoading(false);
     }
@@ -68,7 +68,6 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
 
   useEffect(() => {
     if (activeContext) {
-      // Check if we have cached data from Library
       const context = activeContext as any;
       if (context.cachedPoses && context.cachedPoses.length > 0) {
         setRoutine(context.cachedPoses);
@@ -227,9 +226,5 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
     </div>
   );
 };
-
-const ChevronRight: React.FC<{ size?: number }> = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-);
 
 export default YogaAid;

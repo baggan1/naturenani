@@ -4,21 +4,16 @@
  * Ensures authentic visuals for Yoga Aid poses and Nutri Heal recipes.
  */
 export const fetchImageFromSearch = async (query: string, category: 'yoga' | 'food'): Promise<string> => {
-  // Try various possible environment variable mappings (Vite vs standard)
   const apiKey = process.env.GOOGLE_SEARCH_KEY || (import.meta as any).env?.VITE_GOOGLE_SEARCH_KEY;
   const cx = process.env.GOOGLE_SEARCH_CX || (import.meta as any).env?.VITE_GOOGLE_SEARCH_CX;
 
   if (!apiKey || !cx) {
-    console.error("[SearchService] Google Search credentials missing. Ensure GOOGLE_SEARCH_KEY and GOOGLE_SEARCH_CX are set in your environment.");
+    console.error("[SearchService] Google Search credentials missing.");
     return '';
   }
 
-  // Refine search to reliable domains for 100% accuracy
-  const siteRestriction = category === 'yoga' 
-    ? 'site:yogajournal.com OR site:shutterstock.com OR site:vogue.com'
-    : 'site:epicurious.com OR site:allrecipes.com OR site:healthline.com';
-
-  const fullQuery = `${query} ${siteRestriction}`;
+  // Simplified query to ensure higher hit rate while maintaining quality
+  const fullQuery = category === 'yoga' ? `yoga pose ${query}` : `healthy ${query} recipe`;
   const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(fullQuery)}&searchType=image&num=1`;
 
   try {
@@ -32,8 +27,6 @@ export const fetchImageFromSearch = async (query: string, category: 'yoga' | 'fo
 
     if (data.items && data.items.length > 0) {
       return data.items[0].link;
-    } else {
-      console.warn(`[SearchService] No images found for: ${query}. Ensure "Image Search" is enabled in your Google Custom Search dashboard.`);
     }
     return '';
   } catch (error) {

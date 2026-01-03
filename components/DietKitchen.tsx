@@ -16,7 +16,7 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
   const [imageLoading, setImageLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [title, setTitle] = useState(activeContext?.title || "Nutri Heal Plan");
+  const [title, setTitle] = useState("Nutri Heal Plan");
   const [customQuery, setCustomQuery] = useState("");
   const [selectedMeal, setSelectedMeal] = useState<Meal | any>(null);
 
@@ -24,6 +24,7 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
     setLoading(true);
     setSaveSuccess(false);
     setTitle(displayTitle);
+    setPlan([]); // Clear old state
     try {
       const data = await generateDietPlan(query);
       if (data.meals && data.meals.length > 0) {
@@ -63,11 +64,10 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        alert("Failed to save plan. Please ensure you are signed in and have a stable connection.");
+        alert("Failed to save plan.");
       }
     } catch (e) {
       console.error("Save Error:", e);
-      alert("An unexpected error occurred while saving.");
     } finally {
       setSaveLoading(false);
     }
@@ -75,7 +75,6 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
 
   useEffect(() => {
     if (activeContext) {
-      // Check if we have cached data from Library
       const context = activeContext as any;
       if (context.cachedPlan && context.cachedPlan.length > 0) {
         setPlan(context.cachedPlan);

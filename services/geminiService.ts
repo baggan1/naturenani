@@ -12,19 +12,43 @@ const getAiClient = () => {
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
-    // Use 'contents' instead of 'content' as per @google/genai specification for EmbedContentParameters
     const response = await ai.models.embedContent({
       model: 'text-embedding-004',
       contents: { parts: [{ text }] }
     });
-    
-    // Access 'embeddings' as an array from EmbedContentResponse and retrieve values from the first element
     const result = response.embeddings?.[0]?.values;
     return result || null;
   } catch (e) { 
     console.error("[GeminiService] Embedding failed:", e);
     return null; 
   }
+};
+
+/**
+ * Gemini is strict about history roles alternating User/Model.
+ * This helper ensures the history passed to the chat is valid.
+ */
+const cleanHistory = (history: Message[]) => {
+  const cleaned = history
+    .filter(m => m.content && m.content.trim() !== '')
+    .map(m => ({
+      role: m.role === 'model' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+  // Ensure it starts with 'user' if there's any history at all
+  // Actually, Gemini supports starting with 'model' (like our welcome), 
+  // but roles MUST alternate.
+  const alternating: any[] = [];
+  let lastRole = '';
+
+  for (const msg of cleaned) {
+    if (msg.role !== lastRole) {
+      alternating.push(msg);
+      lastRole = msg.role;
+    }
+  }
+  return alternating;
 };
 
 export const sendMessageWithRAG = async function* (
@@ -44,7 +68,6 @@ export const sendMessageWithRAG = async function* (
       hasRAG = contextDocs.length > 0;
     }
 
-    // Extract unique book names as an array
     const bookNamesArray = Array.from(new Set(
       contextDocs
         .map(doc => doc.book_name)
@@ -57,10 +80,7 @@ export const sendMessageWithRAG = async function* (
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.7,
       },
-      history: history.filter(m => m.content).map(m => ({
-        role: m.role === 'model' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      }))
+      history: cleanHistory(history)
     });
 
     const augmentedMessage = hasRAG 
@@ -73,7 +93,6 @@ export const sendMessageWithRAG = async function* (
       if (c.text) yield c.text;
     }
     
-    // Log analytics with the new structured array
     logAnalyticsEvent(
       message, 
       hasRAG ? 'RAG' : 'AI', 
