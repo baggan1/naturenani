@@ -1,27 +1,64 @@
 
 # Nature Nani - Ayurveda & Naturopathy AI Assistant
 
-Nature Nani is a conversational AI assistant that combines ancient wisdom from Ayurveda and Naturopathy with modern Retrieval-Augmented Generation (RAG) technology.
+## 🚀 Supabase Database Setup (Existing Schema)
 
-## 🚀 Supabase Database Setup (CRITICAL)
+Run this script in your [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql) to link the AI to your existing Knowledge Base.
 
-To enable the 7-Day Trial system and secure data storage, run this script in your [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql):
+### 1. Vector Search Function (The RPC)
+Since you already have the `documents_gemini` table, this function enables the frontend to perform similarity searches on it.
 
 ```sql
--- 1. Create the App Users table (normalized)
+-- This function matches user queries against your existing 'documents_gemini' table
+CREATE OR REPLACE FUNCTION match_documents_gemini (
+  query_embedding VECTOR(768),
+  match_threshold FLOAT,
+  match_count INT
+)
+RETURNS TABLE (
+  id BIGINT,
+  content TEXT,
+  source TEXT,
+  book_name TEXT,
+  similarity FLOAT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    dg.id,
+    dg.content,
+    dg.source,
+    dg.book_name,
+    1 - (dg.embedding <=> query_embedding) AS similarity
+  FROM documents_gemini dg
+  WHERE 1 - (dg.embedding <=> query_embedding) > match_threshold
+  ORDER BY similarity DESC
+  LIMIT match_count;
+END;
+$$;
+```
+
+### 2. Analytics Optimization (NEW)
+Add this column to your existing `nani_analytics` table to store book sources as a structured array:
+
+```sql
+ALTER TABLE nani_analytics ADD COLUMN IF NOT EXISTS book_sources text[];
+```
+
+### 3. User & Subscription Tables
+Ensure these tables exist for the trial and library features to function:
+```sql
 CREATE TABLE IF NOT EXISTS app_users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
   name TEXT,
-  subscription_status TEXT DEFAULT 'free' CHECK (subscription_status IN ('free', 'trialing', 'active', 'expired', 'canceled')),
-  stripe_customer_id TEXT,
-  stripe_subscription_id TEXT,
-  trial_end TIMESTAMPTZ DEFAULT now(),
-  current_period_end TIMESTAMPTZ,
+  subscription_status TEXT DEFAULT 'free',
+  trial_end TIMESTAMPTZ DEFAULT (now() + interval '7 days'),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. Create the Saved Plans table
 CREATE TABLE IF NOT EXISTS nani_saved_plans (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -29,36 +66,5 @@ CREATE TABLE IF NOT EXISTS nani_saved_plans (
   plan_data JSONB NOT NULL,
   type TEXT CHECK (type IN ('YOGA', 'DIET')),
   created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 3. Enable Row Level Security
-ALTER TABLE app_users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE nani_saved_plans ENABLE ROW LEVEL SECURITY;
-
--- 4. RLS Policies
-DROP POLICY IF EXISTS "Users can view own profile" ON app_users;
-CREATE POLICY "Users can view own profile" ON app_users FOR SELECT USING (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can update own profile" ON app_users;
-CREATE POLICY "Users can update own profile" ON app_users FOR UPDATE USING (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can insert own profile" ON app_users;
-CREATE POLICY "Users can insert own profile" ON app_users FOR INSERT WITH CHECK (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can view their own plans" ON nani_saved_plans;
-CREATE POLICY "Users can view their own plans" 
-ON nani_saved_plans FOR SELECT 
-USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Subscribers can insert plans" ON nani_saved_plans;
-CREATE POLICY "Subscribers can insert plans" 
-ON nani_saved_plans FOR INSERT 
-WITH CHECK (
-  auth.uid() = user_id AND 
-  EXISTS (
-    SELECT 1 FROM app_users 
-    WHERE id = auth.uid() 
-    AND (subscription_status = 'active' OR (subscription_status = 'trialing' AND trial_end > now()))
-  )
 );
 ```

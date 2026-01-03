@@ -1,24 +1,30 @@
 
-import { GoogleGenAI, Chat, Type } from "@google/genai";
+import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
 import { SearchSource, RemedyDocument, YogaPose, Message, Meal } from "../types";
 
+// Helper to create a new AI instance with the current API key
 const getAiClient = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
+    // Use 'contents' instead of 'content' as per @google/genai specification for EmbedContentParameters
     const response = await ai.models.embedContent({
       model: 'text-embedding-004',
-      contents: [{ parts: [{ text }] }]
-    } as any);
+      contents: { parts: [{ text }] }
+    });
     
-    const result = (response as any).embeddings?.[0]?.values || (response as any).embedding?.values;
+    // Access 'embeddings' as an array from EmbedContentResponse and retrieve values from the first element
+    const result = response.embeddings?.[0]?.values;
     return result || null;
-  } catch (e) { return null; }
+  } catch (e) { 
+    console.error("[GeminiService] Embedding failed:", e);
+    return null; 
+  }
 };
 
 export const sendMessageWithRAG = async function* (
@@ -38,8 +44,15 @@ export const sendMessageWithRAG = async function* (
       hasRAG = contextDocs.length > 0;
     }
 
+    // Extract unique book names as an array
+    const bookNamesArray = Array.from(new Set(
+      contextDocs
+        .map(doc => doc.book_name)
+        .filter((name): name is string => !!name)
+    ));
+
     const chat = ai.chats.create({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.7,
@@ -56,10 +69,20 @@ export const sendMessageWithRAG = async function* (
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
     for await (const chunk of result) {
-      if (chunk.text) yield chunk.text;
+      const c = chunk as GenerateContentResponse;
+      if (c.text) yield c.text;
     }
-    logAnalyticsEvent(message, hasRAG ? 'RAG' : 'AI');
-  } catch (error: any) { throw error; }
+    
+    // Log analytics with the new structured array
+    logAnalyticsEvent(
+      message, 
+      hasRAG ? 'RAG' : 'AI', 
+      bookNamesArray.length > 0 ? bookNamesArray : ['General Knowledge']
+    );
+  } catch (error: any) { 
+    console.error("[GeminiService] Chat stream error:", error);
+    throw error; 
+  }
 };
 
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
@@ -70,7 +93,7 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
   
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: { parts: [{ text: prompt }] },
       config: { 
         responseMimeType: 'application/json',
@@ -90,8 +113,12 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
         }
       }
     });
-    return response.text ? JSON.parse(response.text) : [];
-  } catch (e) { return []; }
+    const jsonStr = response.text || "[]";
+    return JSON.parse(jsonStr);
+  } catch (e) { 
+    console.error("[GeminiService] Yoga generation failed:", e);
+    return []; 
+  }
 };
 
 export const generateDietPlan = async (ailmentId: string): Promise<any> => {
@@ -100,7 +127,7 @@ export const generateDietPlan = async (ailmentId: string): Promise<any> => {
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: { parts: [{ text: prompt }] },
       config: { 
         responseMimeType: 'application/json',
@@ -126,6 +153,10 @@ export const generateDietPlan = async (ailmentId: string): Promise<any> => {
         }
       }
     });
-    return response.text ? JSON.parse(response.text) : { meals: [] };
-  } catch (e) { return { meals: [] }; }
+    const jsonStr = response.text || "{\"meals\": []}";
+    return JSON.parse(jsonStr);
+  } catch (e) { 
+    console.error("[GeminiService] Diet plan generation failed:", e);
+    return { meals: [] }; 
+  }
 };

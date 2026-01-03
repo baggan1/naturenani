@@ -73,7 +73,7 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   }
 };
 
-export const logAnalyticsEvent = async (query: string, source: SearchSource, details?: string) => {
+export const logAnalyticsEvent = async (query: string, source: SearchSource, bookSources: string[] = []) => {
   if (!supabase) return;
   try {
     const user = getCurrentUser();
@@ -82,7 +82,8 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, det
     const payload = { 
       query, 
       source, 
-      details,
+      details: bookSources.join(', '), // Keeping text summary for backwards compatibility in 'details'
+      book_sources: bookSources,       // New structured array column
       user_id: user.id 
     };
     await supabase.from('nani_analytics').insert(payload);
@@ -134,7 +135,6 @@ export const searchVectorDatabase = async (
       match_count: 10
     });
 
-    // If RPC fails (500 or not found), fallback to mock data immediately
     if (error) {
       console.warn("[Backend] Vector search RPC failed, using fallback.", error.message);
       return getMockRemedies(queryText);
@@ -208,7 +208,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   if (authUserId) userObj.id = authUserId;
 
   if (supabase) {
-    const { data, error } = await supabase.from('app_users').upsert(userObj).select().single();
+    const { data, error } = await supabase.from('App_users').upsert(userObj).select().single();
     if (!error && data) {
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
       return data as User;
@@ -223,7 +223,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
 const getOrCreateUser = async (email: string, name: string): Promise<User> => {
   if (!supabase) return signUpUser(email, name);
   
-  const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
+  const { data: existingUser } = await supabase.from('App_users').select('*').eq('email', email).maybeSingle();
   if (existingUser) {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
@@ -239,19 +239,16 @@ export const checkSubscriptionStatus = async (user: User) => {
 
   let status = user.subscription_status;
 
-  // If trialing and time is up
   if (status === 'trialing' && now > trialEnd) {
     status = 'expired';
   }
 
-  // If active (paid) and billing cycle is up (and no renewal)
   if (status === 'active' && billingEnd && now > billingEnd) {
     status = 'expired';
   }
 
   const hasAccess = status === 'trialing' || status === 'active';
   
-  // Calculate remaining days for UI
   const targetDate = status === 'active' && billingEnd ? billingEnd : trialEnd;
   const daysRemaining = Math.max(0, Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 
@@ -271,8 +268,6 @@ export const logoutUser = async () => {
     console.error("Supabase signOut error", e);
   } finally {
     localStorage.removeItem(CURRENT_USER_KEY);
-    // Only reload if absolutely necessary for auth cleanup, 
-    // but React state clearing is faster.
     window.location.reload();
   }
 };
