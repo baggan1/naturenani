@@ -45,8 +45,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sentInitialRef = useRef(false);
 
-  // hasAccess is true for 'active' or 'trialing' subscriptions. 
-  // If false, we restrict certain column data.
+  // Users without active/trialing status have restricted content
   const isRestricted = !hasAccess;
 
   const scrollToBottom = useCallback(() => {
@@ -113,7 +112,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Daily limit check: Only block if not unlimited and count is exhausted
+    // Strict Enforcement of Daily Limit
     if (!usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
       return;
@@ -275,15 +274,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative group ${shouldBlur ? 'cursor-pointer' : ''}`} 
                   onClick={shouldBlur ? () => setShowTrialPrompt(true) : undefined}
                  >
-                    <div className={shouldBlur ? "blur-[8px] select-none opacity-20 pointer-events-none transition-all duration-500" : ""}>
+                    <div className={shouldBlur ? "blur-[8px] select-none opacity-10 pointer-events-none transition-all duration-500" : ""}>
                       {props.children}
                     </div>
                     {shouldBlur && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 backdrop-blur-[2px] transition-all">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[1px] transition-all">
                         <div className="bg-white/95 p-1.5 rounded-full shadow-lg border border-sage-200 animate-pulse">
-                          <Lock size={14} className="text-sage-600" />
+                          <Lock size={12} className="text-sage-600" />
                         </div>
-                        <span className="text-[9px] font-black text-sage-900 mt-1.5 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-2 py-0.5 rounded-full border border-sage-100 shadow-sm">Premium Feature</span>
+                        <span className="text-[8px] font-black text-sage-900 mt-1 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-1.5 py-0.5 rounded-full border border-sage-100 shadow-sm">Unlock Dosage</span>
                       </div>
                     )}
                  </td>
@@ -451,9 +450,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </button>
         </div>
         
-        {!usage.isUnlimited && usage.remaining <= 3 && usage.remaining > 0 && (
+        {!usage.isUnlimited && usage.remaining <= 3 && usage.remaining >= 0 && (
           <p className="text-[9px] text-center text-sage-400 font-bold uppercase tracking-widest mt-2">
-            {usage.remaining} consultations remaining today
+            {usage.remaining === 0 ? "No" : usage.remaining} consultations remaining today
           </p>
         )}
       </div>
