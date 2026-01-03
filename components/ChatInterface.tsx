@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
@@ -232,55 +232,52 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ul: ({node, ...props}: any) => <ul className="list-disc ml-5 space-y-2 my-4" {...props} />,
             ol: ({node, ...props}: any) => <ol className="list-decimal ml-5 space-y-2 my-4" {...props} />,
             li: ({node, ...props}: any) => <li className="text-gray-700 leading-relaxed" {...props} />,
-            p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
-            table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 shadow-sm rounded-xl overflow-hidden border border-sage-100"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
+            p: ({node, ...props}: any) => {
+              const text = props.children?.toString().toLowerCase() || "";
+              const isProtocolIntro = text.includes("following table outlines") || 
+                                     text.includes("recommended protocol") || 
+                                     text.includes("outlined in the table below");
+              
+              if (isRestricted && isProtocolIntro) {
+                return null; // Hide the intro text as requested
+              }
+              return <p className="mb-4 last:mb-0 leading-relaxed" {...props} />;
+            },
+            table: ({node, ...props}: any) => {
+              if (isRestricted) {
+                return (
+                  <div className="my-6 p-1 bg-gradient-to-br from-sage-100 to-earth-100 rounded-3xl border border-sage-200 shadow-xl overflow-hidden animate-pulse-slow">
+                    <div className="bg-white/80 backdrop-blur-md rounded-[22px] p-8 flex flex-col items-center text-center">
+                       <div className="w-16 h-16 bg-sage-600 rounded-full flex items-center justify-center text-white shadow-lg mb-6 ring-4 ring-white">
+                         <Lock size={28} />
+                       </div>
+                       <h5 className="text-lg font-serif font-bold text-sage-900 mb-2">Detailed Healing Protocol Locked</h5>
+                       <p className="text-sm text-gray-500 max-w-xs mb-8 leading-relaxed">
+                         The precise <span className="text-sage-700 font-bold underline decoration-sage-200">Dosages</span>, <span className="text-sage-700 font-bold underline decoration-sage-200">Instructional Frequencies</span>, and <span className="text-sage-700 font-bold underline decoration-sage-200">Medicinal Timing</span> for these remedies are available on the Healer Plan.
+                       </p>
+                       <button 
+                        onClick={onUpgradeClick}
+                        className="bg-sage-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm hover:bg-sage-700 transition-all shadow-xl shadow-sage-200 flex items-center gap-2 group active:scale-95"
+                       >
+                         Start 7-Day Free Trial <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                       </button>
+                       <div className="mt-6 flex items-center gap-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                          <span className="flex items-center gap-1"><ShieldCheck size={12} /> Full Visibility</span>
+                          <span className="flex items-center gap-1"><Zap size={12} /> Priority AI</span>
+                       </div>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="overflow-x-auto my-4 shadow-sm rounded-xl overflow-hidden border border-sage-100">
+                  <table className="min-w-full divide-y divide-sage-200" {...props} />
+                </div>
+              );
+            },
             thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider" {...props} />,
-            td: ({node, ...props}: any) => {
-               const trNode = node?.parent;
-               if (!trNode || trNode.tagName !== 'tr') return <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />;
-
-               const siblings = trNode.children.filter((c: any) => c.type === 'element' && (c.tagName === 'td' || c.tagName === 'th'));
-               const columnIndex = siblings.indexOf(node);
-
-               const tableNode = trNode.parent?.tagName === 'tbody' ? trNode.parent.parent : trNode.parent;
-               const theadNode = tableNode?.children?.find((c: any) => c.tagName === 'thead');
-               const headRow = theadNode?.children?.find((c: any) => c.tagName === 'tr');
-               const headers = headRow?.children?.filter((c: any) => c.type === 'element' && c.tagName === 'th') || [];
-               
-               const extractTextRecursive = (h: any): string => {
-                  if (!h) return "";
-                  if (typeof h === 'string') return h;
-                  if (h.value) return h.value;
-                  if (Array.isArray(h.children)) return h.children.map(extractTextRecursive).join('');
-                  if (h.props?.children) return extractTextRecursive({ children: h.props.children });
-                  return "";
-               };
-
-               const headerText = extractTextRecursive(headers[columnIndex]).toLowerCase();
-
-               const sensitiveKeywords = ["dosage", "instruction", "timing", "frequency", "prep", "duration", "repetition", "amount", "quantity"];
-               const shouldBlur = isRestricted && sensitiveKeywords.some(key => headerText.includes(key));
-               
-               return (
-                 <td 
-                  className={`px-3 py-3 whitespace-normal text-sm text-gray-700 border-b border-sage-50 relative group ${shouldBlur ? 'cursor-pointer overflow-hidden' : ''}`} 
-                  onClick={shouldBlur ? () => setShowTrialPrompt(true) : undefined}
-                 >
-                    <div className={shouldBlur ? "blur-[20px] select-none opacity-0 pointer-events-none transition-all duration-700" : ""}>
-                      {props.children}
-                    </div>
-                    {shouldBlur && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[4px] transition-all">
-                        <div className="bg-white/95 p-2 rounded-full shadow-xl border border-sage-200 animate-bounce">
-                          <Lock size={14} className="text-sage-600" />
-                        </div>
-                        <span className="text-[9px] font-black text-sage-900 mt-2 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 px-2 py-0.5 rounded-full border border-sage-100 shadow-sm">Premium Feature</span>
-                      </div>
-                    )}
-                 </td>
-               );
-            },
+            td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
           }}
         >
           {content}
