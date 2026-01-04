@@ -1,10 +1,11 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
+import { MAX_PROMPT_LENGTH } from '../utils/constants';
 import { Logo } from './Logo';
 
 interface ChatInterfaceProps {
@@ -102,6 +103,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       onShowAuth();
       return;
     }
+    
+    // Check limit before sending
+    if (!usage.isUnlimited && usage.remaining <= 0) {
+      onUpgradeClick();
+      return;
+    }
+
     setLastAilment(text);
     const historyToPass = [...messages]; 
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() };
@@ -151,7 +159,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleCardAction = (rec: RecommendationMetadata) => {
     if (rec.type === 'REMEDY') {
-      setSelectedDetail(rec);
+      if (!hasAccess) {
+        setShowTrialPrompt(true);
+      } else {
+        setSelectedDetail(rec);
+      }
     } else {
       if (!hasAccess) {
         setShowTrialPrompt(true);
@@ -161,23 +173,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  const renderMarkdown = (content: string) => (
-    <div className="markdown-content prose prose-slate max-w-none">
-      <ReactMarkdown 
-        remarkPlugins={[remarkGfm]}
-        components={{
-          h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-50 pb-2" {...props} />,
-          p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700" {...props} />,
-          table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
-          th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
-          td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
-          ul: ({node, ...props}: any) => <ul className="list-disc ml-4 mb-4 space-y-2 text-sm text-gray-700" {...props} />,
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
-  );
+  const renderMarkdown = (content: string) => {
+    // Clean potential leftover json backticks if model hallucinates them in detail field
+    const cleaned = content.replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, '');
+    
+    return (
+      <div className="markdown-content prose prose-slate max-w-none">
+        <ReactMarkdown 
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-50 pb-2" {...props} />,
+            p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700" {...props} />,
+            table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
+            th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
+            td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
+            ul: ({node, ...props}: any) => <ul className="list-disc ml-4 mb-4 space-y-2 text-sm text-gray-700" {...props} />,
+          }}
+        >
+          {cleaned}
+        </ReactMarkdown>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full bg-sage-50">
@@ -207,7 +224,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             </div>
 
-            {/* Conditionally render Action Cards only if they are present in the recommendations array */}
             {msg.recommendations && msg.recommendations.length > 0 && (
               <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4 duration-500">
                 {msg.recommendations.map((rec, idx) => (
@@ -236,7 +252,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           'bg-sage-600 text-white hover:bg-sage-700'
                         }`}
                       >
-                        {!hasAccess && rec.type !== 'REMEDY' && <Lock size={14} />}
+                        {!hasAccess && <Lock size={14} />}
                         {rec.type === 'YOGA' ? '[Explore Yoga]' : rec.type === 'DIET' ? '[See Healing Diet]' : '[View Remedies]'}
                         <ChevronRight size={16} />
                       </button>
@@ -246,7 +262,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             )}
 
-            {/* Progressive Chat Suggestions */}
             {msg.suggestions && msg.suggestions.length > 0 && (
               <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-700">
                 <div className="w-full mb-1 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
@@ -329,18 +344,36 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         )}
 
-         <div className="max-w-4xl mx-auto relative flex items-center gap-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-            placeholder={usage.remaining > 0 || usage.isUnlimited ? "Share your symptoms with Nani..." : "Daily limit reached. Upgrade for more."}
-            disabled={!usage.isUnlimited && usage.remaining <= 0}
-            className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4.5 pr-14 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:bg-white resize-none h-[72px] scrollbar-hide shadow-inner transition-all"
-          />
-          <button onClick={handleSend} disabled={isLoading || !input.trim() || (!usage.isUnlimited && usage.remaining <= 0)} className="absolute right-3.5 top-1/2 -translate-y-1/2 p-3 bg-sage-600 text-white rounded-2xl hover:bg-sage-700 disabled:opacity-50 shadow-lg shadow-sage-100 transition-all active:scale-95">
-            {isLoading ? <RefreshCw size={20} className="animate-spin" /> : <Send size={20} />}
-          </button>
+        <div className="max-w-4xl mx-auto">
+          <div className="relative flex items-center gap-2 mb-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value.substring(0, MAX_PROMPT_LENGTH))}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
+              placeholder={usage.remaining > 0 || usage.isUnlimited ? "Share your symptoms with Nani..." : "Daily limit reached. Upgrade for more."}
+              disabled={!usage.isUnlimited && usage.remaining <= 0}
+              className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4.5 pr-14 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:bg-white resize-none h-[72px] scrollbar-hide shadow-inner transition-all"
+            />
+            <button onClick={handleSend} disabled={isLoading || !input.trim() || (!usage.isUnlimited && usage.remaining <= 0)} className="absolute right-3.5 top-1/2 -translate-y-1/2 p-3 bg-sage-600 text-white rounded-2xl hover:bg-sage-700 disabled:opacity-50 shadow-lg shadow-sage-100 transition-all active:scale-95">
+              {isLoading ? <RefreshCw size={20} className="animate-spin" /> : <Send size={20} />}
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-between px-4 text-[10px] font-bold uppercase tracking-widest">
+            <div className="flex items-center gap-2">
+              {input.length > MAX_PROMPT_LENGTH * 0.8 && (
+                <span className={`${input.length >= MAX_PROMPT_LENGTH ? 'text-red-500' : 'text-amber-500'} flex items-center gap-1`}>
+                  <AlertCircle size={10} /> {input.length}/{MAX_PROMPT_LENGTH}
+                </span>
+              )}
+            </div>
+            {!usage.isUnlimited && (
+              <div className={`flex items-center gap-1.5 ${usage.remaining === 0 ? 'text-red-500' : 'text-sage-400'}`}>
+                {usage.remaining === 0 ? <Lock size={10} /> : <Zap size={10} />}
+                Queries: {usage.count}/{usage.limit} used
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

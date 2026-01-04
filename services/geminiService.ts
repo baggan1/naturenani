@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
-import { SYSTEM_INSTRUCTION } from "../utils/constants";
+import { SYSTEM_INSTRUCTION, MAX_PROMPT_LENGTH } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
 import { SearchSource, RemedyDocument, YogaPose, Message, Meal } from "../types";
 
@@ -29,7 +29,7 @@ const cleanHistory = (history: Message[]) => {
     .filter(m => m.content && m.content.trim() !== '' && m.id !== 'welcome')
     .map(m => ({
       role: m.role === 'model' ? 'model' : 'user',
-      parts: [{ text: m.content }]
+      parts: [{ text: m.content.substring(0, MAX_PROMPT_LENGTH) }]
     }));
 
   const alternating: any[] = [];
@@ -55,13 +55,15 @@ export const sendMessageWithRAG = async function* (
   onSourcesFound?: (sources: RemedyDocument[]) => void
 ) {
   try {
+    // Prevent massive prompts from hanging the system
+    const safeMessage = message.substring(0, MAX_PROMPT_LENGTH);
     const ai = getAiClient();
     let contextDocs: RemedyDocument[] = [];
     let hasRAG = false;
 
-    const queryVector = await generateEmbedding(message);
+    const queryVector = await generateEmbedding(safeMessage);
     if (queryVector) {
-      contextDocs = await searchVectorDatabase(message, queryVector);
+      contextDocs = await searchVectorDatabase(safeMessage, queryVector);
       if (onSourcesFound) onSourcesFound(contextDocs);
       hasRAG = contextDocs.length > 0;
     }
@@ -87,8 +89,8 @@ export const sendMessageWithRAG = async function* (
 
     const contextText = contextDocs.map(d => d.content).join('\n');
     const augmentedMessage = hasRAG 
-      ? "Context for Wisdom Retrieval:\n" + contextText + "\n\nUser Message: " + message
-      : message;
+      ? "Context for Wisdom Retrieval:\n" + contextText + "\n\nUser Message: " + safeMessage
+      : safeMessage;
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
     for await (const chunk of result) {
@@ -97,7 +99,7 @@ export const sendMessageWithRAG = async function* (
     }
     
     logAnalyticsEvent(
-      message, 
+      safeMessage, 
       hasRAG ? 'RAG' : 'AI', 
       bookNamesArray.length > 0 ? bookNamesArray : ['General Knowledge']
     );

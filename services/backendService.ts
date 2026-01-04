@@ -12,6 +12,19 @@ const supabase: any = (supabaseUrl && supabaseKey)
 
 const CURRENT_USER_KEY = 'nature_nani_current_user';
 
+// Helper for Incognito mode where localStorage might be restricted
+const safeStorage = {
+  getItem: (key: string) => {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  },
+  setItem: (key: string, value: string) => {
+    try { localStorage.setItem(key, value); } catch (e) {}
+  },
+  removeItem: (key: string) => {
+    try { localStorage.removeItem(key); } catch (e) {}
+  }
+};
+
 const getMockRemedies = (query: string): RemedyDocument[] => {
   return [
     {
@@ -32,7 +45,7 @@ const getMockRemedies = (query: string): RemedyDocument[] => {
 };
 
 export const getCurrentUser = (): User | null => {
-  const stored = localStorage.getItem(CURRENT_USER_KEY);
+  const stored = safeStorage.getItem(CURRENT_USER_KEY);
   if (!stored) return null;
   try {
     return JSON.parse(stored);
@@ -56,7 +69,7 @@ export const fetchUserRecord = async (email: string): Promise<User | null> => {
     }
 
     if (data) {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+      safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
       return data as User;
     }
     return null;
@@ -75,11 +88,11 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
-    const { count, error } = await supabase
-      .from('nani_analytics')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gt('created_at', oneDayAgo);
+    // Add a timeout to prevent hanging on slow network/incognito issues
+    const { count, error } = await Promise.race([
+      supabase.from('nani_analytics').select('*', { count: 'exact', head: true }).eq('user_id', user.id).gt('created_at', oneDayAgo),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+    ]) as any;
 
     if (error) {
       return { count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false };
@@ -137,11 +150,8 @@ export const getUserSearchHistory = async (user: User): Promise<string[]> => {
 export const warmupDatabase = async () => {
   if (!supabase) return;
   try {
-    await supabase.rpc('match_documents_gemini', {
-      query_embedding: new Array(768).fill(0.01),
-      match_threshold: 0.01,
-      match_count: 1
-    });
+    // Ping the database to ensure connection is warm
+    await supabase.from('app_users').select('id').limit(1);
   } catch (e) {}
 };
 
@@ -234,13 +244,13 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   if (supabase) {
     const { data, error } = await supabase.from('app_users').upsert(userObj).select().single();
     if (!error && data) {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+      safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
       return data as User;
     }
   }
 
   const fallbackUser = { ...userObj, id: authUserId || crypto.randomUUID(), created_at: new Date().toISOString() };
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fallbackUser));
+  safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fallbackUser));
   return fallbackUser as User;
 };
 
@@ -249,7 +259,7 @@ const getOrCreateUser = async (email: string, name: string): Promise<User> => {
   
   const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
   if (existingUser) {
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
+    safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }
   
@@ -291,7 +301,7 @@ export const logoutUser = async () => {
   } catch (e) {
     console.error("Supabase signOut error", e);
   } finally {
-    localStorage.removeItem(CURRENT_USER_KEY);
+    safeStorage.removeItem(CURRENT_USER_KEY);
     window.location.reload();
   }
 };
