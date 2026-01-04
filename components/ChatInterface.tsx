@@ -92,19 +92,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleAutoSend = async (text: string, isResuming = false) => {
     if (isLoading || !text.trim()) return;
-
-    if (text === "New Consultation") {
-      handleResetChat();
-      return;
-    }
-
-    if (isGuest) {
-      sessionStorage.setItem('nani_pending_message', text);
-      onShowAuth();
-      return;
-    }
+    if (text === "New Consultation") { handleResetChat(); return; }
+    if (isGuest) { sessionStorage.setItem('nani_pending_message', text); onShowAuth(); return; }
     
-    // Check limit before sending
+    // Safety check for usage
     if (!usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
       return;
@@ -158,24 +149,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleCardAction = (rec: RecommendationMetadata) => {
+    if (!hasAccess) {
+      setShowTrialPrompt(true);
+      return;
+    }
     if (rec.type === 'REMEDY') {
-      if (!hasAccess) {
-        setShowTrialPrompt(true);
-      } else {
-        setSelectedDetail(rec);
-      }
+      setSelectedDetail(rec);
     } else {
-      if (!hasAccess) {
-        setShowTrialPrompt(true);
-      } else {
-        onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title);
-      }
+      onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title);
     }
   };
 
   const renderMarkdown = (content: string) => {
-    // Clean potential leftover json backticks if model hallucinates them in detail field
-    const cleaned = content.replace(/^```[a-z]*\n/i, '').replace(/\n```$/i, '');
+    // Robust cleaning to prevent code-like rendering
+    const cleaned = content
+      .replace(/^```[a-z]*\n/i, '')
+      .replace(/\n```$/i, '')
+      .replace(/\\n/g, '\n');
     
     return (
       <div className="markdown-content prose prose-slate max-w-none">
@@ -187,7 +177,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
             td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
-            ul: ({node, ...props}: any) => <ul className="list-disc ml-4 mb-4 space-y-2 text-sm text-gray-700" {...props} />,
           }}
         >
           {cleaned}
@@ -227,10 +216,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {msg.recommendations && msg.recommendations.length > 0 && (
               <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4 duration-500">
                 {msg.recommendations.map((rec, idx) => (
-                  <div 
-                    key={idx}
-                    className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden"
-                  >
+                  <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
                     <div className="p-6 flex-1">
                       <div className="flex items-center gap-2 mb-4">
                         <div className={`p-3 rounded-2xl ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-600' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-600' : 'bg-sage-50 text-sage-600'}`}>
@@ -252,7 +238,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           'bg-sage-600 text-white hover:bg-sage-700'
                         }`}
                       >
-                        {!hasAccess && <Lock size={14} />}
+                        {!hasAccess && <Lock size={14} className="mr-1" />}
                         {rec.type === 'YOGA' ? '[Explore Yoga]' : rec.type === 'DIET' ? '[See Healing Diet]' : '[View Remedies]'}
                         <ChevronRight size={16} />
                       </button>
@@ -296,7 +282,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 <div className="p-3 bg-white rounded-2xl text-sage-600 shadow-sm border border-sage-100"><Stethoscope size={24} /></div>
                 <div>
                   <h2 className="text-2xl font-serif font-bold text-sage-900">{selectedDetail.title}</h2>
-                  <p className="text-[10px] font-bold text-sage-400 uppercase tracking-widest mt-0.5">Clinical Remedy Detail</p>
+                  <p className="text-[10px] font-bold text-sage-400 uppercase tracking-widest mt-0.5">Step-By-Step Guide</p>
                 </div>
               </div>
               <button onClick={() => setSelectedDetail(null)} className="p-2.5 text-gray-400 hover:text-sage-600 hover:bg-white rounded-full transition-all"><X size={20} /></button>
@@ -307,11 +293,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                  <p className="text-[10px] font-bold text-sage-700 mb-2 uppercase tracking-widest flex items-center gap-2"><Sparkles size={12} className="text-yellow-500" /> Snapshot Summary</p>
                  <p className="text-gray-600 text-sm leading-relaxed">"{selectedDetail.summary}"</p>
               </div>
-              
               <div className="pb-8">
                 {renderMarkdown(selectedDetail.detail || '')}
               </div>
-              
               {!hasAccess && (
                 <div className="mt-8 p-8 bg-amber-50 rounded-[2rem] border border-amber-100 text-center shadow-inner">
                    <Lock className="mx-auto text-amber-500 mb-3" size={32} />
@@ -336,7 +320,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <div className="bg-sage-100 p-2.5 rounded-xl text-sage-600"><Sparkles size={20} /></div>
                   <h4 className="font-serif font-bold text-sage-900">Unlock Healing Aid</h4>
                 </div>
-                <p className="text-xs text-gray-600 leading-relaxed mb-6">Access targeted Nutri Heal plans and therapeutic Yoga sequences for <span className="font-bold text-sage-800">{lastAilment || 'your health'}</span>.</p>
+                <p className="text-xs text-gray-600 leading-relaxed mb-6">Access targeted Nutri Heal plans and therapeutic Yoga sequences for your health.</p>
                 <button onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }} className="w-full bg-sage-600 text-white py-4 rounded-2xl font-bold text-sm shadow-lg shadow-sage-200 hover:bg-sage-700 transition-all flex items-center justify-center gap-2">
                   Upgrade to Healer Plan <Zap size={14} />
                 </button>
@@ -368,9 +352,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               )}
             </div>
             {!usage.isUnlimited && (
-              <div className={`flex items-center gap-1.5 ${usage.remaining === 0 ? 'text-red-500' : 'text-sage-400'}`}>
+              <div className={`flex items-center gap-1.5 ${usage.remaining === 0 ? 'text-red-500 font-black' : 'text-sage-400'}`}>
                 {usage.remaining === 0 ? <Lock size={10} /> : <Zap size={10} />}
-                Queries: {usage.count}/{usage.limit} used
+                Consultations: {usage.count}/{usage.limit}
               </div>
             )}
           </div>

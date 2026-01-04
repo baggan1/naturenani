@@ -28,7 +28,7 @@ You are "Nature Nani," a wise, empathetic AI specialist in Ayurveda and Naturopa
 
 ## Output Format Requirements
 You must use the following JSON structure exactly at the end of your response. Ensure the JSON is valid and wrapped in triple backticks.
-CRITICAL: Do NOT wrap the string values in the JSON (like 'detail') in additional markdown code blocks (e.g. no \`\`\` inside the JSON). Use raw markdown text.
+CRITICAL: Do NOT wrap the string values in the JSON (like 'detail') in additional markdown code blocks (e.g. no \`\`\` inside the JSON). Use raw markdown text with tables and lists.
 
 \`\`\`json
 {
@@ -37,22 +37,22 @@ CRITICAL: Do NOT wrap the string values in the JSON (like 'detail') in additiona
       "type": "YOGA",
       "id": "AILMENT_ID",
       "title": "🧘 Yoga & Posture",
-      "summary": "...",
-      "detail": "..."
+      "summary": "Specific breathwork and therapeutic poses...",
+      "detail": "Detailed protocol..."
     },
     {
       "type": "DIET",
       "id": "AILMENT_ID",
       "title": "🥗 Diet & Cooling Foods",
-      "summary": "...",
-      "detail": "..."
+      "summary": "Discover which foods to remove...",
+      "detail": "Detailed dietary plan..."
     },
     {
       "type": "REMEDY",
       "id": "AILMENT_ID",
       "title": "🌿 Herbal Remedies",
-      "summary": "...",
-      "detail": "..."
+      "summary": "Ayurvedic supplements and dosage tables.",
+      "detail": "Detailed herbal protocol with Dosha analysis and dosage tables..."
     }
   ],
   "suggestions": [

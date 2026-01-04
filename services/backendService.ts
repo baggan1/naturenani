@@ -30,14 +30,14 @@ const getMockRemedies = (query: string): RemedyDocument[] => {
     {
       id: 'mock-1',
       condition: query,
-      content: 'A soothing ginger and honey tea can help alleviate the symptoms described. In Ayurveda, this balances Kapha and Vata.',
+      content: 'A soothing ginger and honey tea can help alleviate the symptoms described.',
       source: 'Ayurveda',
       book_name: 'Traditional Home Remedies'
     },
     {
       id: 'mock-2',
       condition: query,
-      content: 'Drinking warm water with lemon in the morning helps detoxify the digestive system, a common practice in Naturopathy.',
+      content: 'Drinking warm water with lemon helps detoxify the digestive system.',
       source: 'Naturopathy',
       book_name: 'Natural Living Guide'
     }
@@ -63,10 +63,7 @@ export const fetchUserRecord = async (email: string): Promise<User | null> => {
       .eq('email', email)
       .maybeSingle();
 
-    if (error) {
-      console.error("[Backend] Error fetching user:", error.message);
-      return null;
-    }
+    if (error) return null;
 
     if (data) {
       safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
@@ -88,17 +85,13 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
-    // Add a timeout to prevent hanging on slow network/incognito issues
-    const { count, error } = await Promise.race([
+    // timeout to prevent hanging in incognito
+    const result = await Promise.race([
       supabase.from('nani_analytics').select('*', { count: 'exact', head: true }).eq('user_id', user.id).gt('created_at', oneDayAgo),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
     ]) as any;
 
-    if (error) {
-      return { count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false };
-    }
-
-    const used = count || 0;
+    const used = result.count || 0;
     return {
       count: used,
       limit: DAILY_QUERY_LIMIT,
@@ -135,13 +128,11 @@ export const getUserSearchHistory = async (user: User): Promise<string[]> => {
       .select('query')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(10);
 
     if (error || !data) return [];
-    
     const queryList: string[] = (data as any[]).map(item => String(item.query));
-    const distinctQueries = Array.from(new Set(queryList));
-    return distinctQueries.slice(0, 5); 
+    return Array.from(new Set(queryList)).slice(0, 5); 
   } catch (e) {
     return [];
   }
@@ -150,15 +141,13 @@ export const getUserSearchHistory = async (user: User): Promise<string[]> => {
 export const warmupDatabase = async () => {
   if (!supabase) return;
   try {
-    // Ping the database to ensure connection is warm
     await supabase.from('app_users').select('id').limit(1);
   } catch (e) {}
 };
 
 export const searchVectorDatabase = async (
   queryText: string, 
-  queryEmbedding: number[] | null,
-  filterSource?: string 
+  queryEmbedding: number[] | null
 ): Promise<RemedyDocument[]> => {
   if (!supabase || !queryEmbedding) return getMockRemedies(queryText);
 
@@ -166,15 +155,12 @@ export const searchVectorDatabase = async (
     const { data, error } = await supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
       match_threshold: 0.35, 
-      match_count: 10
+      match_count: 5
     });
 
-    if (error) {
-      console.warn("[Backend] Vector search RPC failed, using fallback.", error.message);
-      return getMockRemedies(queryText);
-    }
+    if (error) return getMockRemedies(queryText);
 
-    let results = (data || []).map((doc: any) => ({
+    return (data || []).map((doc: any) => ({
       id: doc.id.toString(),
       condition: 'Related Topic',
       content: doc.content,
@@ -182,16 +168,7 @@ export const searchVectorDatabase = async (
       book_name: doc.book_name,
       similarity: doc.similarity
     }));
-
-    if (filterSource) {
-      results = results.filter((r: RemedyDocument) => 
-        r.source && r.source.toLowerCase() === filterSource.toLowerCase()
-      );
-    }
-
-    return results.slice(0, 5); 
   } catch (e) {
-    console.warn("[Backend] Exception in vector search, using fallback.");
     return getMockRemedies(queryText);
   }
 };
@@ -225,22 +202,18 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
 
 export const signUpUser = async (email: string, name: string): Promise<User> => {
   const trialEnd = new Date();
-  
   let authUserId: string | undefined;
   if (supabase) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     authUserId = authUser?.id;
   }
-
   const userObj: any = {
     email, 
     name,
     subscription_status: 'free',
     trial_end: trialEnd.toISOString(),
   };
-
   if (authUserId) userObj.id = authUserId;
-
   if (supabase) {
     const { data, error } = await supabase.from('app_users').upsert(userObj).select().single();
     if (!error && data) {
@@ -248,7 +221,6 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
       return data as User;
     }
   }
-
   const fallbackUser = { ...userObj, id: authUserId || crypto.randomUUID(), created_at: new Date().toISOString() };
   safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fallbackUser));
   return fallbackUser as User;
@@ -256,13 +228,11 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
 
 const getOrCreateUser = async (email: string, name: string): Promise<User> => {
   if (!supabase) return signUpUser(email, name);
-  
   const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
   if (existingUser) {
     safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }
-  
   return await signUpUser(email, name);
 };
 
@@ -270,37 +240,18 @@ export const checkSubscriptionStatus = async (user: User) => {
   const now = new Date();
   const trialEnd = user.trial_end ? new Date(user.trial_end) : now;
   const billingEnd = user.current_period_end ? new Date(user.current_period_end) : null;
-
   let status = user.subscription_status;
-
-  if (status === 'trialing' && now > trialEnd) {
-    status = 'expired';
-  }
-
-  if (status === 'active' && billingEnd && now > billingEnd) {
-    status = 'expired';
-  }
-
+  if (status === 'trialing' && now > trialEnd) status = 'expired';
+  if (status === 'active' && billingEnd && now > billingEnd) status = 'expired';
   const hasAccess = status === 'trialing' || status === 'active';
-  
   const targetDate = status === 'active' && billingEnd ? billingEnd : trialEnd;
   const daysRemaining = Math.max(0, Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-
-  return { 
-    hasAccess, 
-    status,
-    daysRemaining, 
-    isTrialExpired: status === 'expired',
-    nextBillingDate: billingEnd ? billingEnd.toISOString() : (status === 'trialing' ? trialEnd.toISOString() : null)
-  };
+  return { hasAccess, status, daysRemaining, isTrialExpired: status === 'expired', nextBillingDate: billingEnd?.toISOString() || null };
 };
 
 export const logoutUser = async () => {
-  try {
-    if (supabase) await supabase.auth.signOut();
-  } catch (e) {
-    console.error("Supabase signOut error", e);
-  } finally {
+  try { if (supabase) await supabase.auth.signOut(); } catch (e) {}
+  finally {
     safeStorage.removeItem(CURRENT_USER_KEY);
     window.location.reload();
   }
@@ -333,49 +284,22 @@ export const createStripePortalSession = async () => {
   if (portalLink) window.location.href = portalLink;
 };
 
-const saveToLibrary = async (user: User, planData: any, title: string, type: 'YOGA' | 'DIET') => {
-  if (!supabase) return null;
-  const uid = user.id;
-
-  const { data, error } = await supabase.from('nani_saved_plans').insert({
-    user_id: uid,
-    title,
-    plan_data: planData,
-    type: type
-  }).select().single();
-
-  if (error) {
-    console.error(`[Backend] Save ${type} failed:`, error.message);
-    return null;
-  }
-  return data;
-};
-
 export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string) => {
-  return await saveToLibrary(user, poses, title, 'YOGA');
+  if (!supabase) return null;
+  return await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: poses, type: 'YOGA' }).select().single();
 };
 
 export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: string) => {
-  return await saveToLibrary(user, plan_data, title, 'DIET');
+  if (!supabase) return null;
+  return await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data, type: 'DIET' }).select().single();
 };
 
 export const getUserLibrary = async (user: User) => {
   if (!supabase) return { diet: [], yoga: [] };
-  const uid = user.id;
-
-  const { data, error } = await supabase
-    .from('nani_saved_plans')
-    .select('*')
-    .eq('user_id', uid)
-    .order('created_at', { ascending: false });
-
-  if (error || !data) return { diet: [], yoga: [] };
-
+  const { data } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+  if (!data) return { diet: [], yoga: [] };
   return {
     diet: data.filter((item: any) => item.type === 'DIET'),
-    yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({
-      ...item,
-      poses: item.plan_data 
-    }))
+    yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({ ...item, poses: item.plan_data }))
   };
 };

@@ -15,16 +15,13 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
       model: 'text-embedding-004',
       contents: { parts: [{ text }] }
     });
-    const result = response.embeddings?.[0]?.values;
-    return result || null;
+    return response.embeddings?.[0]?.values || null;
   } catch (e) { 
-    console.error("[GeminiService] Embedding failed:", e);
     return null; 
   }
 };
 
 const cleanHistory = (history: Message[]) => {
-  // Filter out system messages or broken turns
   const cleaned = history
     .filter(m => m.content && m.content.trim() !== '' && m.id !== 'welcome')
     .map(m => ({
@@ -40,7 +37,6 @@ const cleanHistory = (history: Message[]) => {
       alternating.push(msg);
       lastRole = msg.role;
     } else {
-      // Append content to existing part if same role (Gemini requires alternating)
       alternating[alternating.length - 1].parts[0].text += "\n" + msg.parts[0].text;
     }
   }
@@ -55,7 +51,6 @@ export const sendMessageWithRAG = async function* (
   onSourcesFound?: (sources: RemedyDocument[]) => void
 ) {
   try {
-    // Prevent massive prompts from hanging the system
     const safeMessage = message.substring(0, MAX_PROMPT_LENGTH);
     const ai = getAiClient();
     let contextDocs: RemedyDocument[] = [];
@@ -68,28 +63,18 @@ export const sendMessageWithRAG = async function* (
       hasRAG = contextDocs.length > 0;
     }
 
-    const bookNamesArray = Array.from(new Set(
-      contextDocs
-        .map(doc => doc.book_name)
-        .filter((name): name is string => !!name)
-    ));
-
     const dynamicSystemInstruction = SYSTEM_INSTRUCTION + 
-      "\n\nCURRENT SESSION CONTEXT:\nUser Tier: " + userTier + 
-      "\nCurrent Query Count: " + queryCount;
+      "\n\nCONTEXT:\nTier: " + userTier + "\nUsage: " + queryCount;
 
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
-      config: {
-        systemInstruction: dynamicSystemInstruction,
-        temperature: 0.7,
-      },
+      config: { systemInstruction: dynamicSystemInstruction, temperature: 0.7 },
       history: cleanHistory(history)
     });
 
     const contextText = contextDocs.map(d => d.content).join('\n');
     const augmentedMessage = hasRAG 
-      ? "Context for Wisdom Retrieval:\n" + contextText + "\n\nUser Message: " + safeMessage
+      ? "Wisdom Context:\n" + contextText + "\n\nUser: " + safeMessage
       : safeMessage;
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
@@ -98,23 +83,17 @@ export const sendMessageWithRAG = async function* (
       if (c.text) yield c.text;
     }
     
-    logAnalyticsEvent(
-      safeMessage, 
-      hasRAG ? 'RAG' : 'AI', 
-      bookNamesArray.length > 0 ? bookNamesArray : ['General Knowledge']
-    );
+    logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Archive'));
   } catch (error: any) { 
-    console.error("[GeminiService] Chat stream error:", error);
+    console.error("[Service] Stuck turn detected, yielding error.");
+    yield "I apologize, but I am having trouble connecting to the ancient archives right now. Please try again in a moment.";
     throw error; 
   }
 };
 
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
   const ai = getAiClient();
-  const prompt = "You are a yoga therapist. Recommend 3 specific yoga asanas AND 1 Pranayama (breathing exercise) for: \"" + ailmentId + "\". " + 
-  "Return only a JSON list with the keys: 'pose_name', 'type' (either 'Asana' or 'Pranayama'), 'benefit', 'instructions', and 'contraindications'. " + 
-  "Provide deep therapeutic instructions.";
-  
+  const prompt = `Recommend 3 specific asanas and 1 pranayama for: ${ailmentId}. Return JSON list.`;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -138,17 +117,12 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
       }
     });
     return JSON.parse(response.text || "[]");
-  } catch (e) { 
-    console.error("[GeminiService] Yoga generation failed:", e);
-    return []; 
-  }
+  } catch (e) { return []; }
 };
 
 export const generateDietPlan = async (ailmentId: string): Promise<any> => {
   const ai = getAiClient();
-  const prompt = "Create a 3-day meal plan for: " + ailmentId + ". " + 
-  "Return only a JSON object with a \"meals\" array. Keys: \"type\", \"dish_name\", \"search_query\", \"ingredients\", \"benefit\", \"preparation_instructions\".";
-
+  const prompt = `3-day meal plan for: ${ailmentId}. JSON only.`;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -178,8 +152,5 @@ export const generateDietPlan = async (ailmentId: string): Promise<any> => {
       }
     });
     return JSON.parse(response.text || "{\"meals\": []}");
-  } catch (e) { 
-    console.error("[GeminiService] Diet plan generation failed:", e);
-    return { meals: [] }; 
-  }
+  } catch (e) { return { meals: [] }; }
 };
