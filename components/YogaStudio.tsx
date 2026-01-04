@@ -49,7 +49,12 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
 
   const handleSave = async () => {
     const user = getCurrentUser();
-    if (!user || routine.length === 0) return;
+    if (!user) {
+      alert("Please sign in to save routines.");
+      return;
+    }
+    if (routine.length === 0) return;
+    
     setSaveLoading(true);
     try {
       const result = await saveYogaPlan(user, routine, title);
@@ -57,10 +62,11 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        alert("Failed to save routine.");
+        alert("Failed to save routine. Please check your connection.");
       }
     } catch (e) {
       console.error("Save Error:", e);
+      alert("An unexpected error occurred while saving.");
     } finally {
       setSaveLoading(false);
     }
@@ -76,6 +82,10 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
       } else if (activeContext.id) {
         loadRoutine(activeContext.id, activeContext.title);
       }
+    } else {
+        // Reset state if context is cleared
+        setRoutine([]);
+        setTitle("Yoga Aid Routine");
     }
   }, [activeContext]);
 

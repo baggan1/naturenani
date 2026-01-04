@@ -60,7 +60,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setMessages([{
       id: 'welcome',
       role: 'model',
-      content: 'Namaste. How can I help you today?',
+      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.',
       timestamp: Date.now()
     }]);
     sessionStorage.removeItem('nani_pending_message');
@@ -112,15 +112,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // MANDATORY: Check 3-query limit before proceeding
-    if (!usage.isUnlimited && usage.remaining <= 0) {
-      onUpgradeClick();
-      return;
-    }
-    
     setLastAilment(text);
     
-    // Crucial: Snapshot history now to avoid race conditions with setMessages
     const historyToPass = [...messages]; 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -147,11 +140,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         sources: [] 
       }]);
 
-      const stream = sendMessageWithRAG(text, historyToPass, (foundSources) => {
-        setMessages(prev => prev.map(msg => 
-          msg.id === botMessageId ? { ...msg, sources: foundSources } : msg
-        ));
-      });
+      const stream = sendMessageWithRAG(
+        text, 
+        historyToPass, 
+        hasAccess ? 'Premium' : 'Free',
+        usage.count,
+        (foundSources) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === botMessageId ? { ...msg, sources: foundSources } : msg
+          ));
+        }
+      );
 
       for await (const chunk of stream) {
         fullRawContent += chunk;
@@ -234,58 +233,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ul: ({node, ...props}: any) => <ul className="list-disc ml-5 space-y-2 my-4" {...props} />,
             ol: ({node, ...props}: any) => <ol className="list-decimal ml-5 space-y-2 my-4" {...props} />,
             li: ({node, ...props}: any) => <li className="text-gray-700 leading-relaxed" {...props} />,
-            p: ({node, ...props}: any) => {
-              // Convert children to string recursively for reliable detection
-              const extractText = (children: any): string => {
-                if (typeof children === 'string') return children;
-                if (Array.isArray(children)) return children.map(extractText).join('');
-                if (children?.props?.children) return extractText(children.props.children);
-                return "";
-              };
-              
-              const text = extractText(props.children).toLowerCase();
-              const isProtocolIntro = text.includes("following table outlines") || 
-                                     text.includes("recommended protocol") || 
-                                     text.includes("outlined in the table below") ||
-                                     text.includes("remedies that address");
-              
-              if (isRestricted && isProtocolIntro) {
-                return null; // Hide the intro text
-              }
-              return <p className="mb-4 last:mb-0 leading-relaxed" {...props} />;
-            },
-            table: ({node, ...props}: any) => {
-              if (isRestricted) {
-                return (
-                  <div className="my-6 p-1 bg-gradient-to-br from-sage-100 to-earth-100 rounded-3xl border border-sage-200 shadow-xl overflow-hidden animate-pulse-slow">
-                    <div className="bg-white/80 backdrop-blur-md rounded-[22px] p-8 flex flex-col items-center text-center">
-                       <div className="w-16 h-16 bg-sage-600 rounded-full flex items-center justify-center text-white shadow-lg mb-6 ring-4 ring-white">
-                         <Lock size={28} />
-                       </div>
-                       <h5 className="text-lg font-serif font-bold text-sage-900 mb-2">Detailed Healing Protocol Locked</h5>
-                       <p className="text-sm text-gray-500 max-w-xs mb-8 leading-relaxed">
-                         The precise <span className="text-sage-700 font-bold underline decoration-sage-200">Dosages</span>, <span className="text-sage-700 font-bold underline decoration-sage-200">Instructional Frequencies</span>, and <span className="text-sage-700 font-bold underline decoration-sage-200">Medicinal Timing</span> for these remedies are available on the Healer Plan.
-                       </p>
-                       <button 
-                        onClick={onUpgradeClick}
-                        className="bg-sage-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm hover:bg-sage-700 transition-all shadow-xl shadow-sage-200 flex items-center gap-2 group active:scale-95"
-                       >
-                         Start 7-Day Free Trial <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                       </button>
-                       <div className="mt-6 flex items-center gap-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                          <span className="flex items-center gap-1"><ShieldCheck size={12} /> Full Visibility</span>
-                          <span className="flex items-center gap-1"><Zap size={12} /> Priority AI</span>
-                       </div>
-                    </div>
-                  </div>
-                );
-              }
-              return (
-                <div className="overflow-x-auto my-4 shadow-sm rounded-xl overflow-hidden border border-sage-100">
-                  <table className="min-w-full divide-y divide-sage-200" {...props} />
-                </div>
-              );
-            },
+            p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed" {...props} />,
+            table: ({node, ...props}: any) => (
+              <div className="overflow-x-auto my-4 shadow-sm rounded-xl overflow-hidden border border-sage-100">
+                <table className="min-w-full divide-y divide-sage-200" {...props} />
+              </div>
+            ),
             thead: ({node, ...props}: any) => <thead className="bg-sage-600" {...props} />,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider" {...props} />,
             td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
@@ -298,30 +251,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const formatMessageWithDisclaimer = (content: string) => {
-    const disclaimerMarker = "Disclaimer: This response was synthesized by NatureNani using Retrieval-Augmented Generation (RAG)";
+    const disclaimerMarker = "Disclaimer: This information is for educational purposes only. Please consult a professional before starting any new protocol.";
     const index = content.lastIndexOf(disclaimerMarker);
     
     if (index !== -1) {
       const beforeDisclaimer = content.substring(0, index).trim();
       const fromDisclaimer = content.substring(index).trim();
-      const disclaimerSentenceEnd = "starting any new herbal or dietary protocol.";
-      const sentenceEndIndex = fromDisclaimer.indexOf(disclaimerSentenceEnd);
       
-      let disclaimerText = fromDisclaimer;
-      let textAfterDisclaimer = "";
-      
-      if (sentenceEndIndex !== -1) {
-        const endOfSentence = sentenceEndIndex + disclaimerSentenceEnd.length;
-        disclaimerText = fromDisclaimer.substring(0, endOfSentence);
-        textAfterDisclaimer = fromDisclaimer.substring(endOfSentence).trim();
-      }
-
       return (
         <>
           {renderMarkdown(beforeDisclaimer)}
-          {textAfterDisclaimer && <div className="mt-4">{renderMarkdown(textAfterDisclaimer)}</div>}
-          <div className="mt-6 pt-4 border-t border-sage-100 text-[10px] text-gray-500 italic leading-relaxed">
-            {disclaimerText}
+          <div className="mt-6 pt-4 border-t border-sage-100 text-[10px] text-gray-400 italic leading-relaxed">
+            {fromDisclaimer}
           </div>
         </>
       );

@@ -4,7 +4,6 @@ import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
 import { SearchSource, RemedyDocument, YogaPose, Message, Meal } from "../types";
 
-// Helper to create a new AI instance with the current API key
 const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
@@ -24,10 +23,6 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
   }
 };
 
-/**
- * Gemini is strict about history roles alternating User/Model.
- * This helper ensures the history passed to the chat is valid.
- */
 const cleanHistory = (history: Message[]) => {
   const cleaned = history
     .filter(m => m.content && m.content.trim() !== '')
@@ -36,9 +31,6 @@ const cleanHistory = (history: Message[]) => {
       parts: [{ text: m.content }]
     }));
 
-  // Ensure it starts with 'user' if there's any history at all
-  // Actually, Gemini supports starting with 'model' (like our welcome), 
-  // but roles MUST alternate.
   const alternating: any[] = [];
   let lastRole = '';
 
@@ -54,6 +46,8 @@ const cleanHistory = (history: Message[]) => {
 export const sendMessageWithRAG = async function* (
   message: string, 
   history: Message[],
+  userTier: 'Free' | 'Premium',
+  queryCount: number,
   onSourcesFound?: (sources: RemedyDocument[]) => void
 ) {
   try {
@@ -74,17 +68,23 @@ export const sendMessageWithRAG = async function* (
         .filter((name): name is string => !!name)
     ));
 
+    // Fix: Use string concatenation to avoid backtick collisions in template literals
+    const dynamicSystemInstruction = SYSTEM_INSTRUCTION + 
+      "\n\nCURRENT SESSION CONTEXT:\nUser Tier: " + userTier + 
+      "\nCurrent Query Count: " + queryCount;
+
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: dynamicSystemInstruction,
         temperature: 0.7,
       },
       history: cleanHistory(history)
     });
 
+    const contextText = contextDocs.map(d => d.content).join('\n');
     const augmentedMessage = hasRAG 
-      ? `Context: ${contextDocs.map(d => d.content).join('\n')}\n\nUser: ${message}`
+      ? "Context for Wisdom Retrieval:\n" + contextText + "\n\nUser Consultation: " + message
       : message;
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
@@ -106,9 +106,9 @@ export const sendMessageWithRAG = async function* (
 
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
   const ai = getAiClient();
-  const prompt = `You are a yoga therapist. Recommend 3 specific yoga asanas AND 1 Pranayama (breathing exercise) for: "${ailmentId}". 
-  Return only a JSON list with the keys: 'pose_name', 'type' (either 'Asana' or 'Pranayama'), 'benefit', 'instructions' (detailed step-by-step), and 'contraindications'. 
-  Do not generate images. Provide deep therapeutic instructions.`;
+  const prompt = "You are a yoga therapist. Recommend 3 specific yoga asanas AND 1 Pranayama (breathing exercise) for: \"" + ailmentId + "\". " + 
+  "Return only a JSON list with the keys: 'pose_name', 'type' (either 'Asana' or 'Pranayama'), 'benefit', 'instructions' (detailed step-by-step), and 'contraindications'. " + 
+  "Do not generate images. Provide deep therapeutic instructions.";
   
   try {
     const response = await ai.models.generateContent({
@@ -142,7 +142,8 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
 
 export const generateDietPlan = async (ailmentId: string): Promise<any> => {
   const ai = getAiClient();
-  const prompt = `You are an expert nutritionist. Create a 3-day meal plan (Breakfast, Lunch, Dinner) for a user with ${ailmentId}. Return only a JSON object with a "meals" array. Each meal should have: "type", "dish_name" (Standard culinary name), "search_query" (high quality photo of [dish_name] food), "ingredients" (array), "benefit", and "preparation_instructions" (step-by-step cooking or prep instructions). Do not generate images.`;
+  const prompt = "You are an expert nutritionist. Create a 3-day meal plan (Breakfast, Lunch, Dinner) for a user with " + ailmentId + ". " + 
+  "Return only a JSON object with a \"meals\" array. Each meal should have: \"type\", \"dish_name\" (Standard culinary name), \"search_query\" (high quality photo of [dish_name] food), \"ingredients\" (array), \"benefit\", and \"preparation_instructions\" (step-by-step cooking or prep instructions). Do not generate images.";
 
   try {
     const response = await ai.models.generateContent({
