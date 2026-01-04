@@ -325,8 +325,6 @@ export const createStripePortalSession = async () => {
 
 const saveToLibrary = async (user: User, planData: any, title: string, type: 'YOGA' | 'DIET') => {
   if (!supabase) return null;
-  
-  // Use the ID from the passed user object consistently
   const uid = user.id;
 
   const { data, error } = await supabase.from('nani_saved_plans').insert({
@@ -353,7 +351,6 @@ export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: stri
 
 export const getUserLibrary = async (user: User) => {
   if (!supabase) return { diet: [], yoga: [] };
-  
   const uid = user.id;
 
   const { data, error } = await supabase

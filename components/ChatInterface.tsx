@@ -236,6 +236,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           'bg-sage-600 text-white hover:bg-sage-700'
                         }`}
                       >
+                        {!hasAccess && rec.type !== 'REMEDY' && <Lock size={14} />}
                         {rec.type === 'YOGA' ? '[Explore Yoga]' : rec.type === 'DIET' ? '[See Healing Diet]' : '[View Remedies]'}
                         <ChevronRight size={16} />
                       </button>
@@ -245,7 +246,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             )}
 
-            {/* Progressive Chat Suggestions - Always show if available */}
+            {/* Progressive Chat Suggestions */}
             {msg.suggestions && msg.suggestions.length > 0 && (
               <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-700">
                 <div className="w-full mb-1 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
