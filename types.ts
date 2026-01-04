@@ -29,7 +29,7 @@ export interface RecommendationMetadata {
   id: string;
   title: string;
   summary: string;
-  detail?: string; // The detailed text revealed on click
+  detail?: string; 
 }
 
 export interface Message {
@@ -39,6 +39,7 @@ export interface Message {
   timestamp: number;
   sources?: RemedyDocument[]; 
   recommendations?: RecommendationMetadata[]; 
+  suggestions?: string[]; // Progressive follow-up options
 }
 
 export enum AppView {

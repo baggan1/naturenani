@@ -56,18 +56,24 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
 
   const handleSave = async () => {
     const user = getCurrentUser();
-    if (!user || plan.length === 0) return;
+    if (!user) {
+      alert("Please sign in to save plans.");
+      return;
+    }
+    if (plan.length === 0) return;
+    
     setSaveLoading(true);
     try {
       const result = await saveMealPlan(user, plan, title);
       if (result) {
         setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+        setTimeout(() => setSaveSuccess(false), 5000);
       } else {
-        alert("Failed to save plan.");
+        alert("Failed to save plan. Please check your connection.");
       }
     } catch (e) {
       console.error("Save Error:", e);
+      alert("An unexpected error occurred while saving.");
     } finally {
       setSaveLoading(false);
     }
@@ -80,12 +86,14 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
         setPlan(context.cachedPlan);
         setTitle(context.title || "Saved Diet Plan");
         setLoading(false);
+        setSaveSuccess(true);
       } else if (activeContext.id) {
         loadPlan(activeContext.id, activeContext.title);
       }
     } else {
         setPlan([]);
         setTitle("Nutri Heal Plan");
+        setSaveSuccess(false);
     }
   }, [activeContext]);
 
@@ -111,14 +119,14 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
              <button 
               onClick={handleSave}
               disabled={saveLoading || saveSuccess}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${
                 saveSuccess 
                 ? 'bg-green-100 text-green-700 border border-green-200' 
                 : 'bg-orange-600 text-white hover:bg-orange-700 shadow-lg shadow-orange-100'
               }`}
             >
               {saveLoading ? <Loader2 size={16} className="animate-spin" /> : saveSuccess ? <Check size={16} /> : <Save size={16} />}
-              {saveSuccess ? "Saved to Library" : "Save Plan"}
+              {saveSuccess ? "Stored in Library" : "Save Plan"}
             </button>
           )}
         </div>

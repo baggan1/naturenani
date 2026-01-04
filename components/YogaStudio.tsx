@@ -60,9 +60,9 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
       const result = await saveYogaPlan(user, routine, title);
       if (result) {
         setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+        setTimeout(() => setSaveSuccess(false), 5000); // 5s feedback
       } else {
-        alert("Failed to save routine. Please check your connection.");
+        alert("Failed to save routine. Please check your network connection.");
       }
     } catch (e) {
       console.error("Save Error:", e);
@@ -79,12 +79,14 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
         setRoutine(context.cachedPoses);
         setTitle(context.title || "Saved Routine");
         setLoading(false);
+        setSaveSuccess(true); // Since it's from the library
       } else if (activeContext.id) {
         loadRoutine(activeContext.id, activeContext.title);
       }
     } else {
         setRoutine([]);
         setTitle("Yoga Aid Routine");
+        setSaveSuccess(false);
     }
   }, [activeContext]);
 
@@ -125,14 +127,14 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
             <button 
               onClick={handleSave}
               disabled={saveLoading || saveSuccess}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${
                 saveSuccess 
-                ? 'bg-green-100 text-green-700 border border-green-200' 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
                 : 'bg-sage-600 text-white hover:bg-sage-700 shadow-lg shadow-sage-100'
               }`}
             >
               {saveLoading ? <Loader2 size={16} className="animate-spin" /> : saveSuccess ? <Check size={16} /> : <Save size={16} />}
-              {saveSuccess ? "Saved to Library" : "Save Routine"}
+              {saveSuccess ? "Stored in Library" : "Save to Library"}
             </button>
           )}
         </div>

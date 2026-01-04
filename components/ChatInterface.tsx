@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2 } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
@@ -63,16 +63,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     sessionStorage.removeItem('nani_pending_message');
   }, [setMessages]);
 
-  const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[] } => {
+  const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[], suggestions: string[] } => {
     // Aggressively strip the JSON block as soon as it starts to avoid flickering raw code
     const jsonStartIdx = rawText.indexOf('```json');
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
+    let suggestions: string[] = [];
 
     if (jsonStartIdx !== -1) {
       visibleText = rawText.substring(0, jsonStartIdx).trim();
       
-      const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendations"[\s\S]*?\})\s*```/;
+      const jsonBlockRegex = /```json\s*(\{[\s\S]*?\})\s*```/;
       const match = rawText.match(jsonBlockRegex);
       if (match && match[1]) {
         try {
@@ -80,17 +81,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           if (data.recommendations && Array.isArray(data.recommendations)) {
             metadata = data.recommendations;
           }
+          if (data.suggestions && Array.isArray(data.suggestions)) {
+            suggestions = data.suggestions;
+          }
         } catch (e) {
-          // JSON still forming or invalid
+          // JSON still forming
         }
       }
     }
     
-    return { visibleText, metadata };
+    return { visibleText, metadata, suggestions };
   };
 
   const handleAutoSend = async (text: string, isResuming = false) => {
     if (isLoading || !text.trim()) return;
+
+    if (text === "New Consultation") {
+      handleResetChat();
+      return;
+    }
+
     if (isGuest) {
       sessionStorage.setItem('nani_pending_message', text);
       onShowAuth();
@@ -124,7 +134,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
         ...msg, 
         content: finalResult.visibleText, 
-        recommendations: finalResult.metadata 
+        recommendations: finalResult.metadata,
+        suggestions: finalResult.suggestions
       } : msg));
       
       if (onMessageSent) onMessageSent();
@@ -188,7 +199,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-40">
+      <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-40 scroll-smooth">
         {messages.map((msg) => (
           <div key={msg.id} className="flex flex-col gap-2">
             <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -233,6 +244,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </button>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
+
+            {/* Progressive Chat Suggestions */}
+            {msg.suggestions && msg.suggestions.length > 0 && (
+              <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-700">
+                <div className="w-full mb-1 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <HelpCircle size={12} /> Suggested Next Steps
+                </div>
+                {msg.suggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAutoSend(suggestion)}
+                    className="bg-white border border-sage-200 px-4 py-2.5 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white hover:border-sage-600 transition-all shadow-sm active:scale-95 flex items-center gap-2 group"
+                  >
+                    {suggestion}
+                    <ChevronRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
                 ))}
               </div>
             )}
