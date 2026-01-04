@@ -78,11 +78,14 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
       const context = activeContext as any;
       if (context.cachedPlan && context.cachedPlan.length > 0) {
         setPlan(context.cachedPlan);
-        setTitle(context.title);
+        setTitle(context.title || "Saved Diet Plan");
         setLoading(false);
       } else if (activeContext.id) {
         loadPlan(activeContext.id, activeContext.title);
       }
+    } else {
+        setPlan([]);
+        setTitle("Nutri Heal Plan");
     }
   }, [activeContext]);
 

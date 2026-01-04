@@ -77,13 +77,12 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
       const context = activeContext as any;
       if (context.cachedPoses && context.cachedPoses.length > 0) {
         setRoutine(context.cachedPoses);
-        setTitle(context.title);
+        setTitle(context.title || "Saved Routine");
         setLoading(false);
       } else if (activeContext.id) {
         loadRoutine(activeContext.id, activeContext.title);
       }
     } else {
-        // Reset state if context is cleared
         setRoutine([]);
         setTitle("Yoga Aid Routine");
     }

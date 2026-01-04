@@ -64,23 +64,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [setMessages]);
 
   const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[] } => {
-    const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendations"[\s\S]*?\})\s*```/;
-    const match = rawText.match(jsonBlockRegex);
-    
-    if (match && match[1]) {
-      const jsonString = match[1];
-      const visibleText = rawText.replace(match[0], '').trim();
-      try {
-        const data = JSON.parse(jsonString);
-        if (data.recommendations && Array.isArray(data.recommendations)) {
-          return { visibleText, metadata: data.recommendations };
+    // Aggressively strip the JSON block as soon as it starts to avoid flickering raw code
+    const jsonStartIdx = rawText.indexOf('```json');
+    let visibleText = rawText;
+    let metadata: RecommendationMetadata[] = [];
+
+    if (jsonStartIdx !== -1) {
+      visibleText = rawText.substring(0, jsonStartIdx).trim();
+      
+      const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendations"[\s\S]*?\})\s*```/;
+      const match = rawText.match(jsonBlockRegex);
+      if (match && match[1]) {
+        try {
+          const data = JSON.parse(match[1]);
+          if (data.recommendations && Array.isArray(data.recommendations)) {
+            metadata = data.recommendations;
+          }
+        } catch (e) {
+          // JSON still forming or invalid
         }
-      } catch (e) {
-        console.warn("Partial or malformed JSON during stream");
       }
     }
     
-    return { visibleText: rawText, metadata: [] };
+    return { visibleText, metadata };
   };
 
   const handleAutoSend = async (text: string, isResuming = false) => {
@@ -222,7 +228,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           'bg-sage-600 text-white hover:bg-sage-700'
                         }`}
                       >
-                        {rec.type === 'YOGA' ? '[Explore Yoga]' : rec.type === 'DIET' ? '[See Healing Diet]' : '[View Supplements]'}
+                        {rec.type === 'YOGA' ? '[Explore Yoga]' : rec.type === 'DIET' ? '[See Healing Diet]' : '[View Remedies]'}
                         <ChevronRight size={16} />
                       </button>
                     </div>
@@ -246,7 +252,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-white rounded-2xl text-sage-600 shadow-sm border border-sage-100"><Stethoscope size={24} /></div>
                 <div>
-                  <h2 className="text-2xl font-serif font-bold text-sage-900">{selectedDetail.title} Protocol</h2>
+                  <h2 className="text-2xl font-serif font-bold text-sage-900">{selectedDetail.title}</h2>
                   <p className="text-[10px] font-bold text-sage-400 uppercase tracking-widest mt-0.5">Clinical Remedy Detail</p>
                 </div>
               </div>
