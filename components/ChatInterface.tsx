@@ -64,7 +64,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [setMessages]);
 
   const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[], suggestions: string[] } => {
-    // Aggressively strip the JSON block as soon as it starts to avoid flickering raw code
     const jsonStartIdx = rawText.indexOf('```json');
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
@@ -72,8 +71,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     if (jsonStartIdx !== -1) {
       visibleText = rawText.substring(0, jsonStartIdx).trim();
-      
-      const jsonBlockRegex = /```json\s*(\{[\s\S]*?\})\s*```/;
+      const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendations"[\s\S]*?\})\s*```/;
       const match = rawText.match(jsonBlockRegex);
       if (match && match[1]) {
         try {
@@ -84,9 +82,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           if (data.suggestions && Array.isArray(data.suggestions)) {
             suggestions = data.suggestions;
           }
-        } catch (e) {
-          // JSON still forming
-        }
+        } catch (e) {}
       }
     }
     
@@ -211,6 +207,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             </div>
 
+            {/* Conditionally render Action Cards only if they are present in the recommendations array */}
             {msg.recommendations && msg.recommendations.length > 0 && (
               <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4 duration-500">
                 {msg.recommendations.map((rec, idx) => (
@@ -248,7 +245,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             )}
 
-            {/* Progressive Chat Suggestions */}
+            {/* Progressive Chat Suggestions - Always show if available */}
             {msg.suggestions && msg.suggestions.length > 0 && (
               <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-700">
                 <div className="w-full mb-1 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
