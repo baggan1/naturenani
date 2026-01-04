@@ -25,9 +25,11 @@ export interface RemedyDocument {
 export type SearchSource = 'RAG' | 'AI' | 'Search';
 
 export interface RecommendationMetadata {
-  type: 'YOGA' | 'DIET';
+  type: 'YOGA' | 'DIET' | 'REMEDY';
   id: string;
   title: string;
+  summary: string;
+  detail?: string; // The detailed text revealed on click
 }
 
 export interface Message {
