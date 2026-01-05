@@ -46,7 +46,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fix: Trigger search when initialMessage (Recent Wisdom/History) changes
+  // Trigger search when initialMessage (Recent Wisdom/History) changes
   useEffect(() => {
     if (initialMessage && initialMessage.trim() !== '') {
       handleAutoSend(initialMessage);
@@ -142,6 +142,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (onMessageSent) onMessageSent();
     } catch (error: any) {
       console.error("Chat Error:", error);
+      setIsLoading(false); // CRITICAL: Reset loading state on error to prevent UI hang
     } finally {
       setIsLoading(false);
     }
