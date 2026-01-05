@@ -46,6 +46,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Fix: Trigger search when initialMessage (Recent Wisdom/History) changes
+  useEffect(() => {
+    if (initialMessage && initialMessage.trim() !== '') {
+      handleAutoSend(initialMessage);
+    }
+  }, [initialMessage]);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -95,7 +102,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (text === "New Consultation") { handleResetChat(); return; }
     if (isGuest) { sessionStorage.setItem('nani_pending_message', text); onShowAuth(); return; }
     
-    // Safety check for usage
     if (!usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
       return;
@@ -136,7 +142,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (onMessageSent) onMessageSent();
     } catch (error: any) {
       console.error("Chat Error:", error);
-      setIsLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -150,12 +155,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleCardAction = (rec: RecommendationMetadata) => {
-    // Lock all cards for Free users
     if (!hasAccess) {
       setShowTrialPrompt(true);
       return;
     }
-    
     if (rec.type === 'REMEDY') {
       setSelectedDetail(rec);
     } else {
@@ -164,7 +167,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const renderMarkdown = (content: string) => {
-    // Robust cleaning to prevent code-like rendering in detail modal
     const cleaned = content
       .replace(/^```[a-z]*\n/i, '')
       .replace(/\n```$/i, '')
@@ -347,7 +349,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </button>
           </div>
           
-          {/* Query Usage & Character Counter */}
           <div className="flex items-center justify-between px-4 text-[10px] font-bold uppercase tracking-widest">
             <div className="flex items-center gap-2">
               {input.length > MAX_PROMPT_LENGTH * 0.8 && (

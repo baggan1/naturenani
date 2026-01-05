@@ -30,7 +30,7 @@ const cleanHistory = (history: Message[]) => {
       parts: [{ text: m.content.substring(0, MAX_PROMPT_LENGTH) }]
     }));
 
-  // 2. Enforce Alternating Roles (User must start, Model must end)
+  // 2. Enforce Alternating Roles
   const alternating: any[] = [];
   let lastRole = '';
 
@@ -45,7 +45,6 @@ const cleanHistory = (history: Message[]) => {
   }
 
   // 3. Final Validation: Gemini chat.sendMessage requires history to end with a MODEL turn.
-  // If the last message is USER, remove it from history (it will be sent as the new message instead).
   if (alternating.length > 0 && alternating[alternating.length - 1].role === 'user') {
     alternating.pop();
   }
@@ -66,6 +65,7 @@ export const sendMessageWithRAG = async function* (
     let contextDocs: RemedyDocument[] = [];
     let hasRAG = false;
 
+    // Latency optimization: embedding call is sequential
     const queryVector = await generateEmbedding(safeMessage);
     if (queryVector) {
       contextDocs = await searchVectorDatabase(safeMessage, queryVector);
@@ -84,7 +84,7 @@ export const sendMessageWithRAG = async function* (
 
     const contextText = contextDocs.map(d => d.content).join('\n');
     const augmentedMessage = hasRAG 
-      ? "Wisdom Context (Grounded Data):\n" + contextText + "\n\nUser Question:\n" + safeMessage
+      ? "Wisdom Context:\n" + contextText + "\n\nUser Question:\n" + safeMessage
       : safeMessage;
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
@@ -95,7 +95,7 @@ export const sendMessageWithRAG = async function* (
     
     logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Knowledge Base'));
   } catch (error: any) { 
-    console.error("[GeminiService] Stream stuck or failed:", error);
+    console.error("[GeminiService] Response failed:", error);
     yield "I apologize, but my connection to the ancient scrolls was interrupted. Please try a simpler follow-up or 'Reset Chat'.";
     throw error; 
   }

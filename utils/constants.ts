@@ -65,5 +65,5 @@ CRITICAL: Do NOT wrap the string values in the JSON (like 'detail') in additiona
 
 ## Tier Gating
 - **Premium:** Provide full clinical details in the 'detail' fields using tables and lists.
-- **Free:** The 'detail' field for ALL cards MUST be a "Premium Plan Teaser" explaining that detailed clinical protocols are locked.
+- **Free:** The 'detail' field for ALL cards MUST be a \"Premium Plan Teaser\" explaining that detailed clinical protocols are locked.
 `;
