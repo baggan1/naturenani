@@ -136,6 +136,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (onMessageSent) onMessageSent();
     } catch (error: any) {
       console.error("Chat Error:", error);
+      setIsLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -149,10 +150,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleCardAction = (rec: RecommendationMetadata) => {
+    // Lock all cards for Free users
     if (!hasAccess) {
       setShowTrialPrompt(true);
       return;
     }
+    
     if (rec.type === 'REMEDY') {
       setSelectedDetail(rec);
     } else {
@@ -161,7 +164,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const renderMarkdown = (content: string) => {
-    // Robust cleaning to prevent code-like rendering
+    // Robust cleaning to prevent code-like rendering in detail modal
     const cleaned = content
       .replace(/^```[a-z]*\n/i, '')
       .replace(/\n```$/i, '')
@@ -177,6 +180,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
             td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
+            ul: ({node, ...props}: any) => <ul className="list-disc ml-4 mb-4 space-y-2 text-sm text-gray-700" {...props} />,
           }}
         >
           {cleaned}
@@ -343,10 +347,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </button>
           </div>
           
+          {/* Query Usage & Character Counter */}
           <div className="flex items-center justify-between px-4 text-[10px] font-bold uppercase tracking-widest">
             <div className="flex items-center gap-2">
               {input.length > MAX_PROMPT_LENGTH * 0.8 && (
-                <span className={`${input.length >= MAX_PROMPT_LENGTH ? 'text-red-500' : 'text-amber-500'} flex items-center gap-1`}>
+                <span className={`${input.length >= MAX_PROMPT_LENGTH ? 'text-red-500 font-black' : 'text-amber-500'} flex items-center gap-1`}>
                   <AlertCircle size={10} /> {input.length}/{MAX_PROMPT_LENGTH}
                 </span>
               )}

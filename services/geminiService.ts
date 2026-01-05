@@ -22,13 +22,15 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
 };
 
 const cleanHistory = (history: Message[]) => {
-  const cleaned = history
+  // 1. Filter and Truncate
+  let cleaned = history
     .filter(m => m.content && m.content.trim() !== '' && m.id !== 'welcome')
     .map(m => ({
       role: m.role === 'model' ? 'model' : 'user',
       parts: [{ text: m.content.substring(0, MAX_PROMPT_LENGTH) }]
     }));
 
+  // 2. Enforce Alternating Roles (User must start, Model must end)
   const alternating: any[] = [];
   let lastRole = '';
 
@@ -37,9 +39,17 @@ const cleanHistory = (history: Message[]) => {
       alternating.push(msg);
       lastRole = msg.role;
     } else {
+      // Append content to existing part if same role (Gemini requirement)
       alternating[alternating.length - 1].parts[0].text += "\n" + msg.parts[0].text;
     }
   }
+
+  // 3. Final Validation: Gemini chat.sendMessage requires history to end with a MODEL turn.
+  // If the last message is USER, remove it from history (it will be sent as the new message instead).
+  if (alternating.length > 0 && alternating[alternating.length - 1].role === 'user') {
+    alternating.pop();
+  }
+
   return alternating;
 };
 
@@ -64,7 +74,7 @@ export const sendMessageWithRAG = async function* (
     }
 
     const dynamicSystemInstruction = SYSTEM_INSTRUCTION + 
-      "\n\nCONTEXT:\nTier: " + userTier + "\nUsage: " + queryCount;
+      "\n\nSESSION CONTEXT:\nTier: " + userTier + "\nConsultations Today: " + queryCount;
 
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
@@ -74,7 +84,7 @@ export const sendMessageWithRAG = async function* (
 
     const contextText = contextDocs.map(d => d.content).join('\n');
     const augmentedMessage = hasRAG 
-      ? "Wisdom Context:\n" + contextText + "\n\nUser: " + safeMessage
+      ? "Wisdom Context (Grounded Data):\n" + contextText + "\n\nUser Question:\n" + safeMessage
       : safeMessage;
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
@@ -83,10 +93,10 @@ export const sendMessageWithRAG = async function* (
       if (c.text) yield c.text;
     }
     
-    logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Archive'));
+    logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Knowledge Base'));
   } catch (error: any) { 
-    console.error("[Service] Stuck turn detected, yielding error.");
-    yield "I apologize, but I am having trouble connecting to the ancient archives right now. Please try again in a moment.";
+    console.error("[GeminiService] Stream stuck or failed:", error);
+    yield "I apologize, but my connection to the ancient scrolls was interrupted. Please try a simpler follow-up or 'Reset Chat'.";
     throw error; 
   }
 };

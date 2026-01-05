@@ -44,7 +44,7 @@ CRITICAL: Do NOT wrap the string values in the JSON (like 'detail') in additiona
       "type": "DIET",
       "id": "AILMENT_ID",
       "title": "🥗 Diet & Cooling Foods",
-      "summary": "Discover which foods to remove...",
+      "summary": "Discover which foods to remove and add...",
       "detail": "Detailed dietary plan..."
     },
     {
@@ -52,7 +52,7 @@ CRITICAL: Do NOT wrap the string values in the JSON (like 'detail') in additiona
       "id": "AILMENT_ID",
       "title": "🌿 Herbal Remedies",
       "summary": "Ayurvedic supplements and dosage tables.",
-      "detail": "Detailed herbal protocol with Dosha analysis and dosage tables..."
+      "detail": "### Therapeutic Protocol\n\n| Remedy | Dosage | Timing | Purpose |\n| :--- | :--- | :--- | :--- |\n| Ashwagandha | 500mg | Twice daily | Vata balancing |\n\n**Additional Notes:** Avoid cold water."
     }
   ],
   "suggestions": [
@@ -64,6 +64,6 @@ CRITICAL: Do NOT wrap the string values in the JSON (like 'detail') in additiona
 \`\`\`
 
 ## Tier Gating
-- **Premium:** Provide full clinical details in the 'detail' fields. For REMEDY, use markdown tables for [Remedy, Dosage, Timing, Purpose].
-- **Free:** The 'detail' field for ALL cards MUST be a professional "Premium Plan Teaser" explaining that detailed protocols are locked.
+- **Premium:** Provide full clinical details in the 'detail' fields using tables and lists.
+- **Free:** The 'detail' field for ALL cards MUST be a "Premium Plan Teaser" explaining that detailed clinical protocols are locked.
 `;
