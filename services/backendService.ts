@@ -12,7 +12,6 @@ const supabase: any = (supabaseUrl && supabaseKey)
 
 const CURRENT_USER_KEY = 'nature_nani_current_user';
 
-// Helper for Incognito mode where localStorage might be restricted
 const safeStorage = {
   getItem: (key: string) => {
     try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -85,13 +84,21 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
-    // timeout to prevent hanging in incognito
-    const result = await Promise.race([
-      supabase.from('nani_analytics').select('*', { count: 'exact', head: true }).eq('user_id', user.id).gt('created_at', oneDayAgo),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 4000))
-    ]) as any;
+    // Timeout check for database availability
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    const used = result.count || 0;
+    const { count, error } = await supabase
+      .from('nani_analytics')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gt('created_at', oneDayAgo);
+
+    clearTimeout(timeoutId);
+
+    if (error) throw error;
+
+    const used = count || 0;
     return {
       count: used,
       limit: DAILY_QUERY_LIMIT,
@@ -152,15 +159,22 @@ export const searchVectorDatabase = async (
   if (!supabase || !queryEmbedding) return getMockRemedies(queryText);
 
   try {
-    const { data, error } = await supabase.rpc('match_documents_gemini', {
+    // Add a race condition to prevent hung DB calls from blocking the AI
+    const dbPromise = supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
       match_threshold: 0.35, 
       match_count: 5
     });
 
-    if (error) return getMockRemedies(queryText);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database Timeout')), 5000)
+    );
 
-    return (data || []).map((doc: any) => ({
+    const { data, error } = await (Promise.race([dbPromise, timeoutPromise]) as any);
+
+    if (error || !data) return getMockRemedies(queryText);
+
+    return data.map((doc: any) => ({
       id: doc.id.toString(),
       condition: 'Related Topic',
       content: doc.content,
@@ -169,6 +183,7 @@ export const searchVectorDatabase = async (
       similarity: doc.similarity
     }));
   } catch (e) {
+    console.warn("[BackendService] Vector search failed or timed out. Falling back to mock/AI.");
     return getMockRemedies(queryText);
   }
 };

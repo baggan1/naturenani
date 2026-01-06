@@ -22,15 +22,15 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
 };
 
 /**
- * Ensures the conversation history is valid for the Gemini API:
- * 1. Alternates roles: user -> model -> user -> model
- * 2. Starts with a user turn (or merges turns until it does)
- * 3. Ends with a model turn (since the next turn will be the new user message)
+ * Ensures the conversation history is perfectly formatted for Gemini Chat:
+ * 1. Must start with 'user'.
+ * 2. Roles must strictly alternate: [user, model, user, model].
+ * 3. Ends with 'model' (because the new message being sent will be 'user').
  */
 const cleanHistory = (history: Message[]) => {
   if (!history || history.length === 0) return [];
 
-  // 1. Filter and Map to API format
+  // Map to API structure first
   let raw = history
     .filter(m => m.content && m.content.trim() !== '' && m.id !== 'welcome')
     .map(m => ({
@@ -40,29 +40,29 @@ const cleanHistory = (history: Message[]) => {
 
   if (raw.length === 0) return [];
 
-  // 2. Enforce strict alternating roles
   const alternating: any[] = [];
   
   for (const msg of raw) {
     if (alternating.length === 0) {
+      // Rule 1: History MUST start with user
       if (msg.role === 'user') {
         alternating.push(msg);
       }
-      // If first message is 'model', we skip it to ensure we start with 'user'
       continue;
     }
 
     const last = alternating[alternating.length - 1];
     if (msg.role === last.role) {
-      // Merge identical consecutive roles
+      // Rule 2: Merge same-role turns to preserve alternating sequence
       last.parts[0].text += "\n\n" + msg.parts[0].text;
     } else {
       alternating.push(msg);
     }
   }
 
-  // 3. Ensure the history ends with 'model' so that chat.sendMessageStream(userText) is valid
-  if (alternating.length > 0 && alternating[alternating.length - 1].role === 'user') {
+  // Rule 3: chat.sendMessage requires the last turn in history to be MODEL
+  // If it's USER, we remove it from history (it's effectively redundant context anyway)
+  while (alternating.length > 0 && alternating[alternating.length - 1].role === 'user') {
     alternating.pop();
   }
 
@@ -82,7 +82,7 @@ export const sendMessageWithRAG = async function* (
     let contextDocs: RemedyDocument[] = [];
     let hasRAG = false;
 
-    // RAG Optimization: Reduced match_count for faster embedding/retrieval
+    // Optimization: Sequential embedding + retrieval
     const queryVector = await generateEmbedding(safeMessage);
     if (queryVector) {
       contextDocs = await searchVectorDatabase(safeMessage, queryVector);
@@ -91,8 +91,9 @@ export const sendMessageWithRAG = async function* (
     }
 
     const dynamicSystemInstruction = SYSTEM_INSTRUCTION + 
-      "\n\nCURRENT SESSION CONTEXT:\nUser Tier: " + userTier + "\nConsultations Today: " + queryCount + "\nNote: If in 'Free' tier, strictly do not provide detailed dosages or protocols.";
+      "\n\nCURRENT CONTEXT:\nTier: " + userTier + "\nToday's Consultations: " + queryCount;
 
+    // Use a fresh chat session for every turn to ensure zero carry-over state issues
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
       config: { systemInstruction: dynamicSystemInstruction, temperature: 0.7 },
@@ -101,7 +102,7 @@ export const sendMessageWithRAG = async function* (
 
     const contextText = contextDocs.map(d => d.content).join('\n');
     const augmentedMessage = hasRAG 
-      ? "Wisdom Context (Verified Data):\n" + contextText + "\n\nUser Consultation Request:\n" + safeMessage
+      ? "Traditional Wisdom Context:\n" + contextText + "\n\nUser Consultation Request:\n" + safeMessage
       : safeMessage;
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
@@ -110,10 +111,10 @@ export const sendMessageWithRAG = async function* (
       if (c.text) yield c.text;
     }
     
-    logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Traditional Archive'));
+    logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Verified Source'));
   } catch (error: any) { 
     console.error("[GeminiService] Consultation failed:", error);
-    yield "Namaste. It seems the archives are momentarily inaccessible. Please try a simpler request or refresh the connection.";
+    yield "I apologize, but my connection to the ancient wisdom archives was interrupted. Please try clicking 'New Consultation' to refresh our session.";
     throw error; 
   }
 };

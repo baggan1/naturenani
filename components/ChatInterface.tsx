@@ -45,10 +45,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [lastAilment, setLastAilment] = useState('');
   const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<number | null>(null);
 
-  // Trigger search when initialMessage (Recent Wisdom/History) changes
+  // Consume initialMessage only once to trigger search
   useEffect(() => {
-    if (initialMessage && initialMessage.trim() !== '') {
+    if (initialMessage && initialMessage.trim() !== '' && !isLoading) {
       handleAutoSend(initialMessage);
     }
   }, [initialMessage]);
@@ -62,6 +63,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages, isLoading, scrollToBottom]); 
 
   const handleResetChat = useCallback(() => {
+    if (isLoading) return; // Prevent reset during active stream
     setMessages([{
       id: 'welcome',
       role: 'model',
@@ -69,7 +71,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: Date.now()
     }]);
     sessionStorage.removeItem('nani_pending_message');
-  }, [setMessages]);
+    // Force reset initialMessage if the parent provides a way (handled via onMessageSent reset in App.tsx)
+    if (onMessageSent) onMessageSent(); 
+  }, [setMessages, isLoading, onMessageSent]);
 
   const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[], suggestions: string[] } => {
     const jsonStartIdx = rawText.indexOf('```json');
@@ -107,6 +111,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
+    // Set a watchdog timeout (15s) to recover from silent hangs
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = window.setTimeout(() => {
+      if (isLoading) {
+        setIsLoading(false);
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const last = newMessages[newMessages.length - 1];
+          if (last && last.role === 'model' && !last.content) {
+            last.content = "Namaste. I am having trouble reaching the ancient scrolls right now. Please try clicking 'New Consultation' or checking your connection.";
+          }
+          return newMessages;
+        });
+      }
+    }, 15000);
+
     setLastAilment(text);
     const historyToPass = [...messages]; 
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() };
@@ -126,6 +146,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       );
 
       for await (const chunk of stream) {
+        // Clear timeout once we start getting data
+        if (timeoutRef.current) {
+          window.clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        
         fullRawContent += chunk;
         const { visibleText } = parseMessageContent(fullRawContent);
         setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, content: visibleText } : msg));
@@ -142,9 +168,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (onMessageSent) onMessageSent();
     } catch (error: any) {
       console.error("Chat Error:", error);
-      setIsLoading(false); // CRITICAL: Reset loading state on error to prevent UI hang
     } finally {
       setIsLoading(false);
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     }
   };
 
@@ -202,8 +231,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <Star size={12} className="fill-amber-400" /> Free Plan
             </div>
           )}
-          <button onClick={handleResetChat} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase transition-colors">
-            <RefreshCw size={14} /> Reset
+          <button 
+            onClick={handleResetChat} 
+            disabled={isLoading}
+            className="p-2 text-sage-400 hover:text-sage-600 disabled:opacity-30 flex items-center gap-2 text-xs font-bold uppercase transition-colors"
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Reset
           </button>
         </div>
       </div>
@@ -216,7 +249,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
               </div>
               <div className={`max-w-[90%] rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
-                {msg.content ? renderMarkdown(msg.content) : <div className="flex items-center gap-2 py-2"><div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div><span className="text-gray-400 text-sm italic font-medium">Consulting ancient archives...</span></div>}
+                {msg.content ? renderMarkdown(msg.content) : <div className="flex flex-col gap-1 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>
+                    <span className="text-gray-400 text-sm italic font-medium">Consulting ancient archives...</span>
+                  </div>
+                  <span className="text-[10px] text-gray-300 ml-6 uppercase tracking-widest font-bold">Verifying Traditional Texts</span>
+                </div>}
               </div>
             </div>
 
@@ -264,7 +303,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <button
                     key={idx}
                     onClick={() => handleAutoSend(suggestion)}
-                    className="bg-white border border-sage-200 px-4 py-2.5 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white hover:border-sage-600 transition-all shadow-sm active:scale-95 flex items-center gap-2 group"
+                    disabled={isLoading}
+                    className="bg-white border border-sage-200 px-4 py-2.5 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white hover:border-sage-600 transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-2 group"
                   >
                     {suggestion}
                     <ChevronRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
