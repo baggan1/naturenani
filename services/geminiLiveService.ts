@@ -83,15 +83,19 @@ export class NatureNaniVoiceSession {
             this.setupMicStream();
           },
           onmessage: async (message: LiveServerMessage) => {
+            const serverContent = message.serverContent;
+            if (!serverContent) return;
+
             // Handle Transcription
-            if (message.serverContent?.outputTranscription) {
-              this.onTranscript(message.serverContent.outputTranscription.text, true);
-            } else if (message.serverContent?.inputTranscription) {
-              this.onTranscript(message.serverContent.inputTranscription.text, false);
+            if (serverContent.outputTranscription?.text) {
+              this.onTranscript(serverContent.outputTranscription.text, true);
+            }
+            if (serverContent.inputTranscription?.text) {
+              this.onTranscript(serverContent.inputTranscription.text, false);
             }
 
             // Handle Audio Playback
-            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+            const base64Audio = serverContent.modelTurn?.parts?.[0]?.inlineData?.data;
             if (base64Audio && this.outputAudioContext) {
               this.onStateChange('speaking');
               this.nextStartTime = Math.max(this.nextStartTime, this.outputAudioContext.currentTime);
@@ -117,7 +121,7 @@ export class NatureNaniVoiceSession {
             }
 
             // Handle Interruption
-            if (message.serverContent?.interrupted) {
+            if (serverContent.interrupted) {
               this.activeSources.forEach(s => s.stop());
               this.activeSources.clear();
               this.nextStartTime = 0;
