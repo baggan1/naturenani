@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
@@ -21,6 +21,7 @@ interface ChatInterfaceProps {
   isGuest: boolean;
   onShowAuth: () => void;
   onNavigateToFeature: (view: AppView, contextId: string, contextTitle: string) => void;
+  onVoiceClick?: () => void;
   isMobileView?: boolean;
 }
 
@@ -37,6 +38,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isGuest,
   onShowAuth,
   onNavigateToFeature,
+  onVoiceClick,
   isMobileView = false
 }) => {
   const [input, setInput] = useState('');
@@ -47,7 +49,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<number | null>(null);
 
-  // Consume initialMessage only once to trigger search
   useEffect(() => {
     if (initialMessage && initialMessage.trim() !== '' && !isLoading) {
       handleAutoSend(initialMessage);
@@ -63,7 +64,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [messages, isLoading, scrollToBottom]); 
 
   const handleResetChat = useCallback(() => {
-    if (isLoading) return; // Prevent reset during active stream
+    if (isLoading) return; 
     setMessages([{
       id: 'welcome',
       role: 'model',
@@ -71,7 +72,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: Date.now()
     }]);
     sessionStorage.removeItem('nani_pending_message');
-    // Force reset initialMessage if the parent provides a way (handled via onMessageSent reset in App.tsx)
     if (onMessageSent) onMessageSent(); 
   }, [setMessages, isLoading, onMessageSent]);
 
@@ -111,7 +111,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    // Set a watchdog timeout (15s) to recover from silent hangs
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
     timeoutRef.current = window.setTimeout(() => {
       if (isLoading) {
@@ -146,7 +145,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       );
 
       for await (const chunk of stream) {
-        // Clear timeout once we start getting data
         if (timeoutRef.current) {
           window.clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
@@ -383,11 +381,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
               placeholder={usage.remaining > 0 || usage.isUnlimited ? "Share your symptoms with Nani..." : "Daily limit reached. Upgrade for more."}
               disabled={!usage.isUnlimited && usage.remaining <= 0}
-              className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4.5 pr-14 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:bg-white resize-none h-[72px] scrollbar-hide shadow-inner transition-all"
+              className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4.5 pr-28 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:bg-white resize-none h-[72px] scrollbar-hide shadow-inner transition-all"
             />
-            <button onClick={handleSend} disabled={isLoading || !input.trim() || (!usage.isUnlimited && usage.remaining <= 0)} className="absolute right-3.5 top-1/2 -translate-y-1/2 p-3 bg-sage-600 text-white rounded-2xl hover:bg-sage-700 disabled:opacity-50 shadow-lg shadow-sage-100 transition-all active:scale-95">
-              {isLoading ? <RefreshCw size={20} className="animate-spin" /> : <Send size={20} />}
-            </button>
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <button 
+                onClick={onVoiceClick}
+                className="p-3 text-sage-400 hover:text-sage-600 hover:bg-sage-100 rounded-2xl transition-all active:scale-90"
+                title="Voice Consultation"
+              >
+                <Mic size={22} />
+              </button>
+              <button 
+                onClick={handleSend} 
+                disabled={isLoading || !input.trim() || (!usage.isUnlimited && usage.remaining <= 0)} 
+                className="p-3 bg-sage-600 text-white rounded-2xl hover:bg-sage-700 disabled:opacity-50 shadow-lg shadow-sage-100 transition-all active:scale-95"
+              >
+                {isLoading ? <RefreshCw size={22} className="animate-spin" /> : <Send size={22} />}
+              </button>
+            </div>
           </div>
           
           <div className="flex items-center justify-between px-4 text-[10px] font-bold uppercase tracking-widest">

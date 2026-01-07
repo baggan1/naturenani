@@ -13,8 +13,9 @@ import { BrandingKit } from './components/BrandingKit';
 import { LegalNotice } from './components/LegalNotice';
 import { AboutView } from './components/AboutView';
 import { LegalConsentModal } from './components/LegalConsentModal';
+import { VoiceConsultation } from './components/VoiceConsultation';
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette, Terminal, ShieldAlert, Info, ShieldCheck, Star } from 'lucide-react';
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette, Terminal, ShieldAlert, Info, ShieldCheck, Star, Mic } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -45,7 +46,6 @@ const App: React.FC = () => {
   
   const [queryUsage, setQueryUsage] = useState<QueryUsage>({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
 
-  // Developer Backdoor
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'dev') {
@@ -55,7 +55,6 @@ const App: React.FC = () => {
 
   const refreshAppData = useCallback(async (u: User) => {
     try {
-      // Re-fetch user from database to sync manual updates (like Premium status)
       const freshUser = await fetchUserRecord(u.email);
       const activeUser = freshUser || u;
       
@@ -123,7 +122,7 @@ const App: React.FC = () => {
       setShowPaywall(true);
       return;
     }
-    if (!user && (view === AppView.ACCOUNT || view === AppView.LIBRARY)) {
+    if (!user && (view === AppView.ACCOUNT || view === AppView.LIBRARY || view === AppView.VOICE)) {
       setShowAuthModal(true);
       return;
     }
@@ -172,6 +171,16 @@ const App: React.FC = () => {
               className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               <MessageSquare size={18} /> Consultation
+            </button>
+
+            <button 
+              onClick={() => handleNav(AppView.VOICE, true)} 
+              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <div className="flex items-center gap-3">
+                <Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode
+              </div>
+              {!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}
             </button>
             
             <div className="pt-4 pb-2">
@@ -333,7 +342,8 @@ const App: React.FC = () => {
             onUpgradeClick={() => setShowPaywall(true)} 
             isGuest={!user} 
             onShowAuth={() => setShowAuthModal(true)} 
-            onNavigateToFeature={handleFeatureHandoff} 
+            onNavigateToFeature={handleFeatureHandoff}
+            onVoiceClick={() => handleNav(AppView.VOICE, true)}
           />
         </div>
         {currentView === AppView.ACCOUNT && user && (
@@ -350,6 +360,10 @@ const App: React.FC = () => {
         {currentView === AppView.BRANDING && <BrandingKit />}
         {currentView === AppView.LEGAL && <LegalNotice onBack={() => setCurrentView(AppView.CHAT)} />}
         {currentView === AppView.ABOUT && <AboutView onBack={() => setCurrentView(AppView.CHAT)} />}
+        
+        {currentView === AppView.VOICE && (
+          <VoiceConsultation onClose={() => setCurrentView(AppView.CHAT)} />
+        )}
       </div>
 
       {!hasLegalConsent && <LegalConsentModal onConsent={handleLegalConsent} />}

@@ -1,5 +1,7 @@
 {
   "name": "Nature Nani",
   "description": "A conversational AI assistant for Naturopathy and Ayurveda remedies, featuring user authentication, subscription trials, and RAG-capable architecture.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
