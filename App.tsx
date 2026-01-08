@@ -43,6 +43,7 @@ const App: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [triggerQuery, setTriggerQuery] = useState<string>('');
+  const [isVoiceTrigger, setIsVoiceTrigger] = useState(false);
   
   const [queryUsage, setQueryUsage] = useState<QueryUsage>({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
 
@@ -113,6 +114,7 @@ const App: React.FC = () => {
 
   const handleHistoryClick = (query: string) => {
     setTriggerQuery(query);
+    setIsVoiceTrigger(false);
     setCurrentView(AppView.CHAT);
     setIsMobileMenuOpen(false);
   };
@@ -148,6 +150,12 @@ const App: React.FC = () => {
   const handleLegalConsent = () => {
     localStorage.setItem('nature_nani_legal_consent', 'true');
     setHasLegalConsent(true);
+  };
+
+  const handleVoiceConsult = (query: string) => {
+    setTriggerQuery(query);
+    setIsVoiceTrigger(true); // Flag to trigger TTS in chat interface
+    setCurrentView(AppView.CHAT);
   };
 
   return (
@@ -337,6 +345,7 @@ const App: React.FC = () => {
             onMessageSent={() => {
               if (user) refreshAppData(user);
               setTriggerQuery(''); 
+              setIsVoiceTrigger(false);
             }} 
             usage={queryUsage} 
             onUpgradeClick={() => setShowPaywall(true)} 
@@ -344,6 +353,8 @@ const App: React.FC = () => {
             onShowAuth={() => setShowAuthModal(true)} 
             onNavigateToFeature={handleFeatureHandoff}
             onVoiceClick={() => handleNav(AppView.VOICE, true)}
+            // Pass the voice trigger state so ChatInterface knows to talk back
+            initialMessageIsVoice={isVoiceTrigger}
           />
         </div>
         {currentView === AppView.ACCOUNT && user && (
@@ -362,7 +373,10 @@ const App: React.FC = () => {
         {currentView === AppView.ABOUT && <AboutView onBack={() => setCurrentView(AppView.CHAT)} />}
         
         {currentView === AppView.VOICE && (
-          <VoiceConsultation onClose={() => setCurrentView(AppView.CHAT)} />
+          <VoiceConsultation 
+            onClose={() => setCurrentView(AppView.CHAT)} 
+            onSubmit={handleVoiceConsult}
+          />
         )}
       </div>
 

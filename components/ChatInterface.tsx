@@ -1,12 +1,14 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { GoogleGenAI, Modality } from "@google/genai";
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
 import { MAX_PROMPT_LENGTH } from '../utils/constants';
 import { Logo } from './Logo';
+import { playRawAudio } from '../utils/audio';
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -43,11 +45,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [showTrialPrompt, setShowTrialPrompt] = useState(false);
   const [lastAilment, setLastAilment] = useState('');
   const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (initialMessage && initialMessage.trim() !== '' && !isLoading) {
@@ -75,11 +79,42 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (onMessageSent) onMessageSent(); 
   }, [setMessages, isLoading, onMessageSent]);
 
-  const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[], suggestions: string[] } => {
+  const generateAndPlaySpeech = async (text: string) => {
+    if (isSpeaking) return;
+    setIsSpeaking(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text: `Explain this healing summary briefly in a warm, caring tone: ${text}` }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+          },
+        },
+      });
+
+      const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (audioData) {
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+        await playRawAudio(audioData, audioContextRef.current);
+      }
+    } catch (e) {
+      console.error("Speech Generation failed:", e);
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
+
+  const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[], suggestions: string[], summary: string } => {
     const jsonStartIdx = rawText.indexOf('```json');
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
+    let summary = '';
 
     if (jsonStartIdx !== -1) {
       visibleText = rawText.substring(0, jsonStartIdx).trim();
@@ -90,6 +125,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const data = JSON.parse(match[1]);
           if (data.recommendations && Array.isArray(data.recommendations)) {
             metadata = data.recommendations;
+            // Take first recommendation summary as audio base
+            summary = metadata[0]?.summary || '';
           }
           if (data.suggestions && Array.isArray(data.suggestions)) {
             suggestions = data.suggestions;
@@ -98,10 +135,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
     }
     
-    return { visibleText, metadata, suggestions };
+    return { visibleText, metadata, suggestions, summary };
   };
 
-  const handleAutoSend = async (text: string, isResuming = false) => {
+  const handleAutoSend = async (text: string, isResuming = false, isVoiceQuery = false) => {
     if (isLoading || !text.trim()) return;
     if (text === "New Consultation") { handleResetChat(); return; }
     if (isGuest) { sessionStorage.setItem('nani_pending_message', text); onShowAuth(); return; }
@@ -164,6 +201,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       } : msg));
       
       if (onMessageSent) onMessageSent();
+
+      // Trigger TTS if it was a voice query
+      if (isVoiceQuery && finalResult.summary) {
+        generateAndPlaySpeech(finalResult.summary);
+      }
     } catch (error: any) {
       console.error("Chat Error:", error);
     } finally {
@@ -224,6 +266,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between sticky top-0 z-20">
         <Logo className="h-8 w-8" textClassName="text-lg" showSlogan={false} />
         <div className="flex items-center gap-4">
+          {isSpeaking && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-sage-600 rounded-full text-[10px] font-bold text-white uppercase animate-pulse">
+              <Volume2 size={12} /> Audio Explainer
+            </div>
+          )}
           {!hasAccess && (
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100 text-[10px] font-bold text-amber-700 uppercase cursor-pointer hover:bg-amber-100 transition-colors" onClick={onUpgradeClick}>
               <Star size={12} className="fill-amber-400" /> Free Plan

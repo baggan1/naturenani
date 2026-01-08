@@ -1,124 +1,96 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Mic, MicOff, X, Wind, Sparkles, Leaf, Activity, MessageSquare, AlertCircle } from 'lucide-react';
+import { Mic, X, Sparkles, Leaf, Activity, MessageSquare, AlertCircle, ArrowRight, Zap } from 'lucide-react';
 import { NatureNaniVoiceSession } from '../services/geminiLiveService';
 
 interface VoiceConsultationProps {
   onClose: () => void;
+  onSubmit: (query: string) => void;
 }
 
-export const VoiceConsultation: React.FC<VoiceConsultationProps> = ({ onClose }) => {
-  const [sessionState, setSessionState] = useState<'idle' | 'listening' | 'speaking'>('idle');
-  const [transcripts, setTranscripts] = useState<{ text: string, isModel: boolean }[]>([]);
+export const VoiceConsultation: React.FC<VoiceConsultationProps> = ({ onClose, onSubmit }) => {
+  const [transcript, setTranscript] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sessionRef = useRef<NatureNaniVoiceSession | null>(null);
-  const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     sessionRef.current = new NatureNaniVoiceSession({
-      onTranscript: (text, isModel) => {
-        setTranscripts(prev => {
-          // Update last transcript if same role to simulate streaming feel
-          if (prev.length > 0 && prev[prev.length - 1].isModel === isModel) {
-            const last = prev[prev.length - 1];
-            return [...prev.slice(0, -1), { ...last, text: last.text + text }];
-          }
-          return [...prev, { text, isModel }];
-        });
+      onTranscript: (text) => {
+        setTranscript(prev => prev + text);
+      },
+      onTurnComplete: (fullText) => {
+        // We could auto-submit here, but let's let the user see it first
       },
       onError: (err) => {
-        console.error("Voice Session Error:", err);
-        setError("I lost my connection to the healing frequencies. Please try again.");
-      },
-      onStateChange: (state) => setSessionState(state)
+        console.error("Voice Error:", err);
+        setError("Connection interrupted. Please try speaking again.");
+      }
     });
 
     sessionRef.current.start();
-
-    return () => {
-      sessionRef.current?.stop();
-    };
+    return () => sessionRef.current?.stop();
   }, []);
 
-  useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [transcripts]);
+  const handleManualSubmit = () => {
+    if (!transcript.trim() || isProcessing) return;
+    setIsProcessing(true);
+    onSubmit(transcript);
+  };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-sage-900/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 md:p-12 animate-in fade-in duration-500">
+    <div className="fixed inset-0 z-[100] bg-sage-900/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
       <button 
         onClick={onClose}
-        className="absolute top-8 right-8 p-4 text-sage-200 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+        className="absolute top-8 right-8 p-4 text-sage-200 hover:text-white hover:bg-white/10 rounded-full transition-all"
       >
         <X size={32} />
       </button>
 
-      <div className="flex-1 w-full max-w-2xl flex flex-col items-center justify-center space-y-12">
-        {/* Nani's Presence / Visualizer */}
+      <div className="w-full max-w-2xl flex flex-col items-center gap-12 text-center">
         <div className="relative">
-          {/* Animated Rings */}
-          <div className={`absolute inset-0 rounded-full border-4 border-sage-400/30 transition-all duration-700 ${sessionState === 'speaking' ? 'scale-150 opacity-0 animate-ping' : 'scale-100 opacity-100'}`}></div>
-          <div className={`absolute inset-0 rounded-full border-2 border-sage-400/20 transition-all duration-1000 delay-150 ${sessionState === 'speaking' ? 'scale-[2] opacity-0 animate-ping' : 'scale-100 opacity-100'}`}></div>
-          
-          <div className={`w-48 h-48 rounded-full bg-sage-600 flex items-center justify-center shadow-2xl ring-8 ring-sage-500/20 relative z-10 transition-transform duration-500 ${sessionState === 'speaking' ? 'scale-110' : 'scale-100'}`}>
-            <Leaf size={64} className={`text-white transition-all duration-500 ${sessionState === 'speaking' ? 'rotate-12' : 'rotate-0'}`} />
-            {sessionState === 'listening' && (
-              <div className="absolute bottom-4 flex gap-1">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className={`w-1.5 h-1.5 bg-sage-200 rounded-full animate-bounce`} style={{ animationDelay: `${i * 0.1}s` }}></div>
-                ))}
-              </div>
-            )}
+          <div className="absolute inset-0 rounded-full bg-sage-500/20 animate-pulse-slow scale-150"></div>
+          <div className="w-40 h-40 rounded-full bg-sage-600 flex items-center justify-center shadow-2xl relative z-10">
+            <Activity size={48} className="text-white animate-pulse" />
           </div>
         </div>
 
-        <div className="text-center space-y-4">
-          <h2 className="text-3xl font-serif font-bold text-white">
-            {sessionState === 'speaking' ? "Nani is Speaking..." : sessionState === 'listening' ? "Nani is Listening..." : "Consulting Nature Nani"}
-          </h2>
-          <p className="text-sage-300 text-sm max-w-sm mx-auto font-medium">
-            Speak freely about your wellness needs. I am listening to the rhythm of your voice.
-          </p>
+        <div className="space-y-4">
+          <h2 className="text-4xl font-serif font-bold text-white">Nani is Listening...</h2>
+          <p className="text-sage-300 font-medium">Describe your health concerns in your own words.</p>
         </div>
 
-        {/* Live Transcripts */}
-        <div className="w-full bg-white/5 rounded-3xl border border-white/10 p-6 h-48 overflow-y-auto scrollbar-hide flex flex-col gap-4">
-          {error ? (
-            <div className="text-red-400 text-center flex items-center justify-center h-full gap-2">
-              <AlertCircle size={20} /> {error}
-            </div>
-          ) : transcripts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full opacity-30 text-sage-200 gap-2">
-              <MessageSquare size={32} />
-              <span className="text-xs font-bold uppercase tracking-widest">Awaiting Wisdom...</span>
-            </div>
+        <div className="w-full bg-white/5 rounded-[2.5rem] border border-white/10 p-8 min-h-[160px] flex flex-col items-center justify-center relative group">
+          {transcript ? (
+            <p className="text-xl text-sage-100 leading-relaxed italic animate-in fade-in slide-in-from-bottom-2">
+              "{transcript}"
+            </p>
           ) : (
-            transcripts.map((t, i) => (
-              <div key={i} className={`flex ${t.isModel ? 'justify-start' : 'justify-end'}`}>
-                <div className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm ${t.isModel ? 'bg-sage-600 text-white rounded-tl-none' : 'bg-white/10 text-sage-100 rounded-tr-none'}`}>
-                  {t.text}
-                </div>
-              </div>
-            ))
+            <div className="flex flex-col items-center gap-4 opacity-30 text-sage-200">
+              <Mic size={40} />
+              <span className="text-xs font-black uppercase tracking-[0.3em]">Speak Now</span>
+            </div>
           )}
-          <div ref={transcriptEndRef} />
         </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-6">
-          <div className="p-1 bg-white/10 rounded-full flex gap-1">
-            <button className={`p-4 rounded-full transition-all ${sessionState === 'listening' ? 'bg-earth-500 text-white shadow-lg' : 'text-sage-300'}`}>
-              <Mic size={24} />
-            </button>
-            <button className={`p-4 rounded-full transition-all ${sessionState === 'speaking' ? 'bg-sage-500 text-white shadow-lg' : 'text-sage-300'}`}>
-              <Activity size={24} />
-            </button>
+        {transcript && (
+          <button 
+            onClick={handleManualSubmit}
+            className="group bg-white text-sage-900 px-10 py-5 rounded-full font-bold text-lg flex items-center gap-3 shadow-2xl hover:bg-sage-50 hover:scale-105 active:scale-95 transition-all animate-in zoom-in duration-300"
+          >
+            Consult Nature Nani <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-2 text-red-400 font-bold bg-red-400/10 px-4 py-2 rounded-xl">
+            <AlertCircle size={18} /> {error}
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-3 text-sage-500 text-[10px] font-bold uppercase tracking-[0.2em]">
-        <Sparkles size={12} className="text-yellow-500" /> Grounded in Vedic Wisdom
+      <div className="absolute bottom-12 flex items-center gap-3 text-sage-500 text-[10px] font-bold uppercase tracking-widest">
+        <Sparkles size={12} className="text-yellow-500" /> Real-time Speech-to-Consultation
       </div>
     </div>
   );
