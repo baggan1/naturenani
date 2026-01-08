@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2 } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Headphones } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI, Modality } from "@google/genai";
@@ -28,6 +28,15 @@ interface ChatInterfaceProps {
   initialMessageIsVoice?: boolean;
 }
 
+const NANI_VOICE_PERSONA = `
+Speak as "Nature Nani," a wise, Global Grandmother. 
+Tone: Comforting, audible smile, professional elder.
+Pacing: Slow (160wpm), use periods for 1s pauses.
+Identity: Use clear neutral English. Pronounce Sanskrit (Pitta, Vata, etc.) then give English meaning.
+EQ: If the text describes pain, be extra soft and empathetic.
+Focus: Start with the ### Quick Action Summary and Snapshot first, then the protocols.
+`;
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   messages,
   setMessages,
@@ -48,6 +57,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [showTrialPrompt, setShowTrialPrompt] = useState(false);
   const [lastAilment, setLastAilment] = useState('');
   const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
@@ -81,14 +91,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (onMessageSent) onMessageSent(); 
   }, [setMessages, isLoading, onMessageSent]);
 
-  const generateAndPlaySpeech = async (text: string) => {
+  const generateAndPlaySpeech = async (msgId: string, text: string) => {
+    if (!hasAccess) {
+      onUpgradeClick();
+      return;
+    }
     if (isSpeaking) return;
+    
     setIsSpeaking(true);
+    setPlayingMessageId(msgId);
+    
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `Explain this healing summary briefly in a warm, caring tone: ${text}` }] }],
+        contents: [{ parts: [{ text: `${NANI_VOICE_PERSONA}\n\nProtocol to recite:\n${text}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -108,6 +125,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       console.error("Speech Generation failed:", e);
     } finally {
       setIsSpeaking(false);
+      setPlayingMessageId(null);
     }
   };
 
@@ -127,8 +145,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const data = JSON.parse(match[1]);
           if (data.recommendations && Array.isArray(data.recommendations)) {
             metadata = data.recommendations;
-            // Take first recommendation summary as audio base
-            summary = metadata[0]?.summary || '';
+            summary = metadata.map(m => `${m.title}: ${m.summary}`).join(". ");
           }
           if (data.suggestions && Array.isArray(data.suggestions)) {
             suggestions = data.suggestions;
@@ -195,6 +212,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
       
       const finalResult = parseMessageContent(fullRawContent);
+      const fullNarrationText = `${finalResult.visibleText}. Summary of protocols: ${finalResult.summary}`;
+      
       setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
         ...msg, 
         content: finalResult.visibleText, 
@@ -204,9 +223,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       if (onMessageSent) onMessageSent();
 
-      // Trigger TTS if it was a voice query
-      if (isVoiceQuery && finalResult.summary) {
-        generateAndPlaySpeech(finalResult.summary);
+      // For premium users who voice queried, auto-trigger the奶奶 (Nani) audio
+      if (isVoiceQuery && hasAccess && finalResult.visibleText) {
+        generateAndPlaySpeech(botMessageId, fullNarrationText);
       }
     } catch (error: any) {
       console.error("Chat Error:", error);
@@ -270,7 +289,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div className="flex items-center gap-4">
           {isSpeaking && (
             <div className="flex items-center gap-2 px-3 py-1 bg-sage-600 rounded-full text-[10px] font-bold text-white uppercase animate-pulse">
-              <Volume2 size={12} /> Audio Explainer
+              <Volume2 size={12} /> Nani is Speaking
             </div>
           )}
           {!hasAccess && (
@@ -295,7 +314,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}`}>
                 {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
               </div>
-              <div className={`max-w-[90%] rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
+              <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
+                
+                {/* Listen to Nani Button at top of Model Messages */}
+                {msg.role === 'model' && msg.content && (
+                  <div className="flex justify-between items-center mb-4 pb-2 border-b border-sage-50">
+                    <button 
+                      onClick={() => generateAndPlaySpeech(msg.id, `${msg.content} Protocol Summary: ${msg.recommendations?.map(r => r.summary).join(". ")}`)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                        playingMessageId === msg.id 
+                          ? 'bg-sage-600 text-white animate-pulse' 
+                          : 'bg-sage-50 text-sage-600 hover:bg-sage-100'
+                      }`}
+                    >
+                      {playingMessageId === msg.id ? <Volume2 size={12} /> : <Headphones size={12} />}
+                      {hasAccess ? "Listen to Nani's Guidance" : "Unlock Voice Guidance"}
+                      {!hasAccess && <Lock size={10} className="ml-1" />}
+                    </button>
+                  </div>
+                )}
+
                 {msg.content ? renderMarkdown(msg.content) : <div className="flex flex-col gap-1 py-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>
