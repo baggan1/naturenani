@@ -25,6 +25,7 @@ interface ChatInterfaceProps {
   onNavigateToFeature: (view: AppView, contextId: string, contextTitle: string) => void;
   onVoiceClick?: () => void;
   isMobileView?: boolean;
+  initialMessageIsVoice?: boolean;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -41,7 +42,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onShowAuth,
   onNavigateToFeature,
   onVoiceClick,
-  isMobileView = false
+  isMobileView = false,
+  initialMessageIsVoice = false
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -55,9 +57,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   useEffect(() => {
     if (initialMessage && initialMessage.trim() !== '' && !isLoading) {
-      handleAutoSend(initialMessage);
+      handleAutoSend(initialMessage, false, initialMessageIsVoice);
     }
-  }, [initialMessage]);
+  }, [initialMessage, initialMessageIsVoice]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
