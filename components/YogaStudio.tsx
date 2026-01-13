@@ -93,7 +93,7 @@ const YogaAid: React.FC<YogaAidProps> = ({ activeContext }) => {
   const handleCustomSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customQuery.trim()) return;
-    loadRoutine(customQuery, `Yoga Aid: ${customQuery}`);
+    loadRoutine(customQuery, `Yoga Aid for ${customQuery}`);
   };
 
   return (

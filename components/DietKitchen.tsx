@@ -106,7 +106,7 @@ const NutriHeal: React.FC<NutriHealProps> = ({ activeContext }) => {
            </h1>
            <p className="text-orange-700 mt-1 text-sm">Targeted nutrition for clinical recovery.</p>
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); loadPlan(customQuery, `Nutri Heal: ${customQuery}`); }} className="flex gap-2 w-full md:w-auto flex-1 max-w-md">
+        <form onSubmit={(e) => { e.preventDefault(); loadPlan(customQuery, `Nutri Heal for ${customQuery}`); }} className="flex gap-2 w-full md:w-auto flex-1 max-w-md">
             <input type="text" placeholder="Ailment (e.g. Indigestion)..." value={customQuery} onChange={(e) => setCustomQuery(e.target.value)} className="px-4 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-400 outline-none text-sm w-full" />
             <button type="submit" className="bg-orange-600 text-white p-2 rounded-lg hover:bg-orange-700 transition-colors"><Search size={20} /></button>
         </form>
