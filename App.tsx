@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { User, AppView, QueryUsage, FeatureContext, Message, SubscriptionStatus } from './types';
 import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit, setupAuthListener, fetchUserRecord } from './services/backendService';
@@ -154,7 +153,7 @@ const App: React.FC = () => {
 
   const handleVoiceConsult = (query: string) => {
     setTriggerQuery(query);
-    setIsVoiceTrigger(true); // Flag to trigger TTS in chat interface
+    setIsVoiceTrigger(true); // Flag to trigger TTS in chat interface if user is premium
     setCurrentView(AppView.CHAT);
   };
 
@@ -182,13 +181,12 @@ const App: React.FC = () => {
             </button>
 
             <button 
-              onClick={() => handleNav(AppView.VOICE, true)} 
+              onClick={() => handleNav(AppView.VOICE, false)} 
               className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               <div className="flex items-center gap-3">
                 <Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode
               </div>
-              {!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}
             </button>
             
             <div className="pt-4 pb-2">
@@ -352,8 +350,7 @@ const App: React.FC = () => {
             isGuest={!user} 
             onShowAuth={() => setShowAuthModal(true)} 
             onNavigateToFeature={handleFeatureHandoff}
-            onVoiceClick={() => handleNav(AppView.VOICE, true)}
-            // Pass the voice trigger state so ChatInterface knows to talk back
+            onVoiceClick={() => handleNav(AppView.VOICE, false)}
             initialMessageIsVoice={isVoiceTrigger}
           />
         </div>
