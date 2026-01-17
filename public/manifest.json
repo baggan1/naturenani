@@ -1,4 +1,3 @@
-
 {
   "short_name": "Nature Nani",
   "name": "Nature Nani - Ayurveda Assistant",
@@ -6,17 +5,14 @@
     {
       "src": "icon.svg",
       "type": "image/svg+xml",
-      "sizes": "any"
+      "sizes": "any",
+      "purpose": "any"
     },
     {
       "src": "icon.svg",
       "type": "image/svg+xml",
-      "sizes": "192x192"
-    },
-    {
-      "src": "icon.svg",
-      "type": "image/svg+xml",
-      "sizes": "512x512"
+      "sizes": "any",
+      "purpose": "maskable"
     }
   ],
   "start_url": ".",

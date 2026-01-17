@@ -28,13 +28,27 @@ interface ChatInterfaceProps {
   initialMessageIsVoice?: boolean;
 }
 
-const NANI_VOICE_PERSONA = `
-Speak as "Nature Nani," a wise, Global Grandmother. 
-Tone: Comforting, audible smile, professional elder.
-Pacing: Slow (160wpm), use periods for 1s pauses.
-Identity: Use clear neutral English. Pronounce Sanskrit (Pitta, Vata, etc.) then give English meaning.
-EQ: If the text describes pain, be extra soft and empathetic.
-Focus: Start with the ### Quick Action Summary and Snapshot first, then the protocols.
+const NANI_VOICE_IDENTITY = `
+## Voice & Audio Identity: "The Global Wise Grandmother"
+
+### 1. Tone & Texture
+- **Comforting but Professional:** Sound like a trusted elder who has spent a lifetime studying both ancient texts and modern physiology. 
+- **The "Nani" Warmth:** Your voice should carry an "audible smile." It must feel like a safe harbor for a user in pain or distress.
+- **Global Clarity:** Use a clear, neutral, and articulate speaking style. Avoid thick regional accents or obscure slang.
+
+### 2. Pacing & Rhythm
+- **The "Healing Pace":** Speak slightly slower than a standard AI assistant (approx. 150-160 words per minute). 
+- **Strategic Pauses:** Use pauses after delivering a "Quick Action" or a "Root Cause" insight.
+
+### 3. Emotional Intelligence (EQ)
+- **Pain Sensitivity:** If the user’s query indicates physical pain, lower your pitch slightly and increase the warmth in your tone. Speak with extra "softness."
+- **Encouragement:** Sound optimistic and encouraging about the body's ability to heal.
+
+### 4. Pronunciation Guidance
+- **Traditional Terms:** Pronounce Sanskrit terms (Ayurveda, Pitta, Vata, Kapha, Pranayama) with respect and clarity, immediately follow them with their English meaning.
+
+### 5. Interaction Style
+- **Character:** Stay in character as Nature Nani. Use phrases like "Let me look into the ancient scrolls..." or "The wisdom of the ages suggests..."
 `;
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -105,7 +119,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `${NANI_VOICE_PERSONA}\n\nProtocol to recite:\n${text}` }] }],
+        contents: [{ parts: [{ text: `${NANI_VOICE_IDENTITY}\n\nTask: Recite the healing guidance below. Focus on the Quick Actions and Snapshot summary first, then the protocols.\n\nGuidance:\n${text}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -212,8 +226,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
       
       const finalResult = parseMessageContent(fullRawContent);
-      const fullNarrationText = `${finalResult.visibleText}. Summary of protocols: ${finalResult.summary}`;
-      
       setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
         ...msg, 
         content: finalResult.visibleText, 
@@ -223,9 +235,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       if (onMessageSent) onMessageSent();
 
-      // For premium users who voice queried, auto-trigger the奶奶 (Nani) audio
+      // For premium users who voice queried, auto-trigger Nani's audio
       if (isVoiceQuery && hasAccess && finalResult.visibleText) {
-        generateAndPlaySpeech(botMessageId, fullNarrationText);
+        const fullNarration = `${finalResult.visibleText}. Protocol summaries: ${finalResult.summary}`;
+        generateAndPlaySpeech(botMessageId, fullNarration);
       }
     } catch (error: any) {
       console.error("Chat Error:", error);
@@ -316,20 +329,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
               <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
                 
-                {/* Listen to Nani Button at top of Model Messages */}
                 {msg.role === 'model' && msg.content && (
-                  <div className="flex justify-between items-center mb-4 pb-2 border-b border-sage-50">
+                  <div className="mb-4">
                     <button 
-                      onClick={() => generateAndPlaySpeech(msg.id, `${msg.content} Protocol Summary: ${msg.recommendations?.map(r => r.summary).join(". ")}`)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                      onClick={() => generateAndPlaySpeech(msg.id, `${msg.content}. Summary: ${msg.recommendations?.map(r => r.summary).join(". ")}`)}
+                      className={`w-full flex items-center justify-center gap-3 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 ${
                         playingMessageId === msg.id 
-                          ? 'bg-sage-600 text-white animate-pulse' 
-                          : 'bg-sage-50 text-sage-600 hover:bg-sage-100'
+                          ? 'bg-sage-600 text-white border-sage-600 animate-pulse' 
+                          : 'bg-white text-sage-600 border-sage-100 hover:border-sage-200 hover:bg-sage-50 shadow-sm'
                       }`}
                     >
-                      {playingMessageId === msg.id ? <Volume2 size={12} /> : <Headphones size={12} />}
-                      {hasAccess ? "Listen to Nani's Guidance" : "Unlock Voice Guidance"}
-                      {!hasAccess && <Lock size={10} className="ml-1" />}
+                      {playingMessageId === msg.id ? <Volume2 size={16} /> : <Headphones size={16} />}
+                      {hasAccess ? "🔊 Listen to Nani's Guidance" : "🔒 Unlock Voice Output"}
                     </button>
                   </div>
                 )}
