@@ -28,27 +28,32 @@ interface ChatInterfaceProps {
   initialMessageIsVoice?: boolean;
 }
 
-const NANI_VOICE_IDENTITY = `
+const NANI_VOICE_PROMPT = `
 ## Voice & Audio Identity: "The Global Wise Grandmother"
 
 ### 1. Tone & Texture
-- **Comforting but Professional:** Sound like a trusted elder who has spent a lifetime studying both ancient texts and modern physiology. 
-- **The "Nani" Warmth:** Your voice should carry an "audible smile." It must feel like a safe harbor for a user in pain or distress.
-- **Global Clarity:** Use a clear, neutral, and articulate speaking style. Avoid thick regional accents or obscure slang.
+- Comforting but Professional: Sound like a trusted elder who has spent a lifetime studying both ancient texts and modern physiology. 
+- The "Nani" Warmth: Your voice should carry an "audible smile." It must feel like a safe harbor for a user in pain or distress.
+- Global Clarity: Use a clear, neutral, and articulate speaking style. Avoid thick regional accents or obscure slang, ensuring that a user in New York, London, Delhi, or Sydney can understand you perfectly.
 
 ### 2. Pacing & Rhythm
-- **The "Healing Pace":** Speak slightly slower than a standard AI assistant (approx. 150-160 words per minute). 
-- **Strategic Pauses:** Use pauses after delivering a "Quick Action" or a "Root Cause" insight.
+- The "Healing Pace": Speak slightly slower than a standard AI assistant (approx. 150-160 words per minute). 
+- Strategic Pauses: Use pauses after delivering a "Quick Action" or a "Root Cause" insight to allow the user to absorb the information. 
+- Example: "Namaste. [Pause 0.5s] I sense the heat rising within you. [Pause 1s] Let us look at how we can cool this fire."
 
 ### 3. Emotional Intelligence (EQ)
-- **Pain Sensitivity:** If the user’s query indicates physical pain, lower your pitch slightly and increase the warmth in your tone. Speak with extra "softness."
-- **Encouragement:** Sound optimistic and encouraging about the body's ability to heal.
+- Pain Sensitivity: If the text indicates physical pain, lower your pitch slightly and increase the warmth in your tone. Speak with extra "softness."
+- Encouragement: When suggesting a remedy or yoga pose, sound optimistic and encouraging, as if you are certain of the body's ability to heal.
 
 ### 4. Pronunciation Guidance
-- **Traditional Terms:** Pronounce Sanskrit terms (Ayurveda, Pitta, Vata, Kapha, Pranayama) with respect and clarity, immediately follow them with their English meaning.
+- Traditional Terms: Pronounce Sanskrit terms (Ayurveda, Pitta, Vata, Kapha, Pranayama) with respect and clarity, but immediately follow them with their English meaning for global accessibility.
+- Scientific Terms: Pronounce biological terms (Hypochlorhydria, Esophagus, Mucosa) with professional authority to build medical trust.
 
 ### 5. Interaction Style
-- **Character:** Stay in character as Nature Nani. Use phrases like "Let me look into the ancient scrolls..." or "The wisdom of the ages suggests..."
+- Avoid "Assistant-Speak": Never say "As an AI..." or "I am processing your request." Instead, stay in character: "Let me look into the ancient scrolls for you..." or "The wisdom of the ages suggests..."
+
+### AUDIO CONTENT TASK
+Recite the healing protocol provided. Focus on the ### Quick Action Summary and Snapshot summary first before diving into the detailed healing journey.
 `;
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -105,11 +110,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (onMessageSent) onMessageSent(); 
   }, [setMessages, isLoading, onMessageSent]);
 
-  const generateAndPlaySpeech = async (msgId: string, text: string) => {
+  const generateAndPlaySpeech = async (msgId: string, fullText: string) => {
     if (!hasAccess) {
+      // Trigger paywall/upgrade for free users trying to listen
       onUpgradeClick();
       return;
     }
+
     if (isSpeaking) return;
     
     setIsSpeaking(true);
@@ -119,7 +126,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `${NANI_VOICE_IDENTITY}\n\nTask: Recite the healing guidance below. Focus on the Quick Actions and Snapshot summary first, then the protocols.\n\nGuidance:\n${text}` }] }],
+        contents: [{ parts: [{ text: `${NANI_VOICE_PROMPT}\n\nCONTENT TO RECITE:\n${fullText}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -235,10 +242,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       if (onMessageSent) onMessageSent();
 
-      // For premium users who voice queried, auto-trigger Nani's audio
+      // Trigger automatic TTS if user used voice query AND has premium
       if (isVoiceQuery && hasAccess && finalResult.visibleText) {
-        const fullNarration = `${finalResult.visibleText}. Protocol summaries: ${finalResult.summary}`;
-        generateAndPlaySpeech(botMessageId, fullNarration);
+        const ttsText = `${finalResult.visibleText}. Protocol snapshot: ${finalResult.summary}`;
+        generateAndPlaySpeech(botMessageId, ttsText);
       }
     } catch (error: any) {
       console.error("Chat Error:", error);
@@ -321,99 +328,103 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-40 scroll-smooth">
-        {messages.map((msg) => (
-          <div key={msg.id} className="flex flex-col gap-2">
-            <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}`}>
-                {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
-              </div>
-              <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
-                
-                {msg.role === 'model' && msg.content && (
-                  <div className="mb-4">
-                    <button 
-                      onClick={() => generateAndPlaySpeech(msg.id, `${msg.content}. Summary: ${msg.recommendations?.map(r => r.summary).join(". ")}`)}
-                      className={`w-full flex items-center justify-center gap-3 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 ${
-                        playingMessageId === msg.id 
-                          ? 'bg-sage-600 text-white border-sage-600 animate-pulse' 
-                          : 'bg-white text-sage-600 border-sage-100 hover:border-sage-200 hover:bg-sage-50 shadow-sm'
-                      }`}
-                    >
-                      {playingMessageId === msg.id ? <Volume2 size={16} /> : <Headphones size={16} />}
-                      {hasAccess ? "🔊 Listen to Nani's Guidance" : "🔒 Unlock Voice Output"}
-                    </button>
-                  </div>
-                )}
-
-                {msg.content ? renderMarkdown(msg.content) : <div className="flex flex-col gap-1 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>
-                    <span className="text-gray-400 text-sm italic font-medium">Consulting ancient archives...</span>
-                  </div>
-                  <span className="text-[10px] text-gray-300 ml-6 uppercase tracking-widest font-bold">Verifying Traditional Texts</span>
-                </div>}
-              </div>
-            </div>
-
-            {msg.recommendations && msg.recommendations.length > 0 && (
-              <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4 duration-500">
-                {msg.recommendations.map((rec, idx) => (
-                  <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
-                    <div className="p-6 flex-1">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className={`p-3 rounded-2xl ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-600' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-600' : 'bg-sage-50 text-sage-600'}`}>
-                          {rec.type === 'YOGA' ? <Flower2 size={24} /> : rec.type === 'DIET' ? <Utensils size={24} /> : <Stethoscope size={24} />}
-                        </div>
-                        <div>
-                          <h4 className="font-serif font-bold text-sage-900 text-lg leading-tight">{rec.title}</h4>
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{rec.type} MODULE</span>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600 leading-relaxed">{rec.summary}</p>
-                    </div>
-                    <div className="px-6 pb-6">
+        {messages.map((msg) => {
+          const { summary } = parseMessageContent(msg.content);
+          return (
+            <div key={msg.id} className="flex flex-col gap-2">
+              <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}`}>
+                  {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
+                </div>
+                <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
+                  
+                  {msg.role === 'model' && msg.content && (
+                    <div className="mb-4">
                       <button 
-                        onClick={() => handleCardAction(rec)}
-                        className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm ${
-                          rec.type === 'YOGA' ? 'bg-pink-500 text-white hover:bg-pink-600' : 
-                          rec.type === 'DIET' ? 'bg-orange-500 text-white hover:bg-orange-600' : 
-                          'bg-sage-600 text-white hover:bg-sage-700'
+                        onClick={() => generateAndPlaySpeech(msg.id, `${msg.content}. Protocol summary: ${summary}`)}
+                        className={`w-full flex items-center justify-center gap-3 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 ${
+                          playingMessageId === msg.id 
+                            ? 'bg-sage-600 text-white border-sage-600 animate-pulse' 
+                            : 'bg-white text-sage-600 border-sage-100 hover:border-sage-200 hover:bg-sage-50 shadow-sm'
                         }`}
                       >
-                        {!hasAccess && <Lock size={14} className="mr-1" />}
-                        {rec.type === 'YOGA' ? '[Explore Yoga]' : rec.type === 'DIET' ? '[See Healing Diet]' : '[View Remedies]'}
-                        <ChevronRight size={16} />
+                        {playingMessageId === msg.id ? <Volume2 size={16} /> : <Headphones size={16} />}
+                        {hasAccess ? "🔊 Listen to Nani's Guidance" : "🔒 Unlock Nani's Voice Guidance"}
+                        {!hasAccess && <Star size={12} className="text-amber-500 fill-amber-500 ml-1" />}
                       </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  )}
 
-            {msg.suggestions && msg.suggestions.length > 0 && (
-              <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-700">
-                <div className="w-full mb-1 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  <HelpCircle size={12} /> Suggested Next Steps
+                  {msg.content ? renderMarkdown(msg.content) : <div className="flex flex-col gap-1 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>
+                      <span className="text-gray-400 text-sm italic font-medium">Consulting ancient archives...</span>
+                    </div>
+                    <span className="text-[10px] text-gray-300 ml-6 uppercase tracking-widest font-bold">Verifying Traditional Texts</span>
+                  </div>}
                 </div>
-                {msg.suggestions.map((suggestion, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleAutoSend(suggestion)}
-                    disabled={isLoading}
-                    className="bg-white border border-sage-200 px-4 py-2.5 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white hover:border-sage-600 transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-2 group"
-                  >
-                    {suggestion}
-                    <ChevronRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
               </div>
-            )}
-            
-            {msg.sources && msg.sources.length > 0 && (
-              <SourceAccordion sources={msg.sources} />
-            )}
-          </div>
-        ))}
+
+              {msg.recommendations && msg.recommendations.length > 0 && (
+                <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4 duration-500">
+                  {msg.recommendations.map((rec, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
+                      <div className="p-6 flex-1">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className={`p-3 rounded-2xl ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-600' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-600' : 'bg-sage-50 text-sage-600'}`}>
+                            {rec.type === 'YOGA' ? <Flower2 size={24} /> : rec.type === 'DIET' ? <Utensils size={24} /> : <Stethoscope size={24} />}
+                          </div>
+                          <div>
+                            <h4 className="font-serif font-bold text-sage-900 text-lg leading-tight">{rec.title}</h4>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{rec.type} MODULE</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed">{rec.summary}</p>
+                      </div>
+                      <div className="px-6 pb-6">
+                        <button 
+                          onClick={() => handleCardAction(rec)}
+                          className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm ${
+                            rec.type === 'YOGA' ? 'bg-pink-500 text-white hover:bg-pink-600' : 
+                            rec.type === 'DIET' ? 'bg-orange-500 text-white hover:bg-orange-600' : 
+                            'bg-sage-600 text-white hover:bg-sage-700'
+                          }`}
+                        >
+                          {!hasAccess && <Lock size={14} className="mr-1" />}
+                          {rec.type === 'YOGA' ? '[Explore Yoga]' : rec.type === 'DIET' ? '[See Healing Diet]' : '[View Remedies]'}
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {msg.suggestions && msg.suggestions.length > 0 && (
+                <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-700">
+                  <div className="w-full mb-1 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    <HelpCircle size={12} /> Suggested Next Steps
+                  </div>
+                  {msg.suggestions.map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleAutoSend(suggestion)}
+                      disabled={isLoading}
+                      className="bg-white border border-sage-200 px-4 py-2.5 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white hover:border-sage-600 transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-2 group"
+                    >
+                      {suggestion}
+                      <ChevronRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {msg.sources && msg.sources.length > 0 && (
+                <SourceAccordion sources={msg.sources} />
+              )}
+            </div>
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
