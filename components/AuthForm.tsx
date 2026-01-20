@@ -1,20 +1,26 @@
 
 import React, { useState } from 'react';
-import { Leaf, ArrowRight, Loader2, Mail, Lock, ShieldCheck, AlertTriangle, CheckCircle2, Globe } from 'lucide-react';
-import { sendOtp, verifyOtp, signInWithGoogle } from '../services/backendService';
-import { User } from '../types';
+import { Leaf, ArrowLeft, ArrowRight, Loader2, Mail, Lock, ShieldCheck, AlertTriangle, CheckCircle2, Globe, User, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { sendOtp, verifyOtp, signInWithGoogle, signInWithPassword, signUpWithPassword } from '../services/backendService';
+import { User as AppUser } from '../types';
 import { Logo } from './Logo';
 
 interface AuthFormProps {
-  onAuthSuccess: (user: User) => void;
+  onAuthSuccess: (user: AppUser) => void;
   isOpen: boolean;
   onClose?: () => void;
 }
 
 const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) => {
-  const [method, setMethod] = useState<'menu' | 'email_input' | 'otp_input'>('menu');
+  const [method, setMethod] = useState<'menu' | 'email_input' | 'otp_input' | 'password'>('menu');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [hint, setHint] = useState('');
@@ -27,7 +33,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
     setHint('');
     try {
       await signInWithGoogle();
-      // OAuth redirects, so execution stops here usually.
     } catch (err: any) {
       console.error(err);
       setError('Google Sign-In failed.');
@@ -71,10 +76,34 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
     }
   };
 
+  const handlePasswordAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      let user;
+      if (isSignUp) {
+        if (!name.trim()) throw new Error("Name is required for registration.");
+        user = await signUpWithPassword(email, password, name);
+      } else {
+        user = await signInWithPassword(email, password);
+      }
+      onAuthSuccess(user);
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed.');
+      if (err.message?.includes('Invalid login credentials')) {
+        setHint('Double-check your password or try Sign Up if you are new.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const reset = () => {
     setMethod('menu');
     setError('');
     setHint('');
+    setIsSignUp(false);
   };
 
   return (
@@ -96,10 +125,10 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
             </div>
           </div>
           <h2 className="text-2xl font-serif font-bold text-sage-900 leading-tight">
-            Nature Nani Wellness Portal
+            Nature Nani Portal
           </h2>
           <p className="text-gray-500 text-sm mt-2 max-w-[280px] mx-auto">
-            Access your personalized Wellness history and consultation logs securely.
+            {method === 'password' ? (isSignUp ? 'Create your healing profile' : 'Welcome back to your records') : 'Secure access to your wellness history'}
           </p>
         </div>
 
@@ -112,7 +141,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
           )}
 
           {method === 'menu' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <button
                 onClick={handleGoogleLogin}
                 disabled={loading}
@@ -121,10 +150,18 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
                 <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
                 Continue with Google
               </button>
+
+              <button
+                onClick={() => setMethod('password')}
+                className="w-full bg-white text-gray-700 border border-gray-200 py-4 rounded-2xl font-bold hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]"
+              >
+                <KeyRound size={20} className="text-sage-600" />
+                Password Access
+              </button>
               
               <div className="relative flex py-4 items-center">
                 <div className="flex-grow border-t border-gray-100"></div>
-                <span className="flex-shrink-0 mx-4 text-gray-300 text-[10px] font-bold uppercase tracking-widest">Or Use Email</span>
+                <span className="flex-shrink-0 mx-4 text-gray-300 text-[10px] font-bold uppercase tracking-widest">Or Fast Login</span>
                 <div className="flex-grow border-t border-gray-100"></div>
               </div>
 
@@ -132,20 +169,98 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
                 onClick={() => setMethod('email_input')}
                 className="w-full bg-sage-600 text-white py-4 rounded-2xl font-bold hover:bg-sage-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-sage-200/50 active:scale-[0.98]"
               >
-                <Mail size={18} /> Continue with Email
+                <Mail size={18} /> Send Magic Link
               </button>
-              
-              <div className="pt-4 flex items-center justify-center gap-4 opacity-40 grayscale">
-                 <div className="flex items-center gap-1 text-[10px] font-bold"><CheckCircle2 size={12} /> HIPAA COMPLIANT</div>
-                 <div className="flex items-center gap-1 text-[10px] font-bold"><Globe size={12} /> SSL ENCRYPTED</div>
-              </div>
             </div>
+          )}
+
+          {method === 'password' && (
+            <form onSubmit={handlePasswordAuth} className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+              {isSignUp && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Your Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800"
+                      placeholder="e.g. Jane Doe"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800"
+                    placeholder="name@email.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Secure Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-12 pr-12 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800"
+                    placeholder="••••••••"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-sage-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-sage-600 text-white py-4 rounded-2xl font-bold hover:bg-sage-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-sage-200/50"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <>{isSignUp ? 'Create Account' : 'Sign In'} <ArrowRight size={18} /></>}
+              </button>
+
+              <div className="flex flex-col gap-2 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-center text-xs text-sage-600 hover:text-sage-700 font-bold"
+                >
+                  {isSignUp ? 'Already have an account? Sign In' : 'New to Nature Nani? Create an Account'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={reset}
+                  className="text-center text-xs text-gray-400 hover:text-gray-600 font-medium py-2"
+                >
+                  Back to all options
+                </button>
+              </div>
+            </form>
           )}
 
           {method === 'email_input' && (
             <form onSubmit={handleSendOtp} className="space-y-5 animate-in slide-in-from-right-4 duration-300">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Work or Personal Email</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Magic Link Email</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
@@ -220,8 +335,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">System Status: Optimal</span>
            </div>
            <p className="text-[10px] text-gray-400 leading-relaxed px-4">
-            Secured by Google Identity and Supabase Encrypted Storage. 
-            The authentication redirect uses our secure infrastructure.
+            Secured by Supabase Auth (bcrypt hashing). 
+            Compatible with Antigravity AI agent protocols.
            </p>
         </div>
 

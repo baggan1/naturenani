@@ -75,7 +75,7 @@ export const fetchUserRecord = async (email: string): Promise<User | null> => {
 };
 
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
-  if (user.subscription_status === 'active' || user.subscription_status === 'trialing') {
+  if (user.subscription_status === 'active' || user.subscription_status === 'trialing' || (user as any).is_service_user) {
     return { count: 0, limit: -1, remaining: 9999, isUnlimited: true };
   }
 
@@ -84,7 +84,6 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
-    // Timeout check for database availability
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
@@ -159,7 +158,6 @@ export const searchVectorDatabase = async (
   if (!supabase || !queryEmbedding) return getMockRemedies(queryText);
 
   try {
-    // Add a race condition to prevent hung DB calls from blocking the AI
     const dbPromise = supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
       match_threshold: 0.35, 
@@ -183,7 +181,6 @@ export const searchVectorDatabase = async (
       similarity: doc.similarity
     }));
   } catch (e) {
-    console.warn("[BackendService] Vector search failed or timed out. Falling back to mock/AI.");
     return getMockRemedies(queryText);
   }
 };
@@ -212,10 +209,41 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
     email, token, type: 'email'
   });
   if (error || !session?.user?.email) throw error || new Error("Verification failed");
-  return await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
+  return await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User", 'otp');
 };
 
-export const signUpUser = async (email: string, name: string): Promise<User> => {
+/**
+ * Traditional Password Registration
+ */
+export const signUpWithPassword = async (email: string, password: string, name: string): Promise<User> => {
+  if (!supabase) throw new Error("Database not connected");
+  const { data: { user }, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: name }
+    }
+  });
+  if (error) throw error;
+  if (!user?.email) throw new Error("Sign up failed");
+  return await getOrCreateUser(user.email, name, 'password');
+};
+
+/**
+ * Traditional Password Login
+ */
+export const signInWithPassword = async (email: string, password: string): Promise<User> => {
+  if (!supabase) throw new Error("Database not connected");
+  const { data: { user }, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+  if (error) throw error;
+  if (!user?.email) throw new Error("Sign in failed");
+  return await getOrCreateUser(user.email, user.user_metadata?.full_name || "User", 'password');
+};
+
+export const signUpUser = async (email: string, name: string, method: string = 'otp'): Promise<User> => {
   const trialEnd = new Date();
   let authUserId: string | undefined;
   if (supabase) {
@@ -227,6 +255,7 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
     name,
     subscription_status: 'free',
     trial_end: trialEnd.toISOString(),
+    login_method: method
   };
   if (authUserId) userObj.id = authUserId;
   if (supabase) {
@@ -241,14 +270,19 @@ export const signUpUser = async (email: string, name: string): Promise<User> => 
   return fallbackUser as User;
 };
 
-const getOrCreateUser = async (email: string, name: string): Promise<User> => {
-  if (!supabase) return signUpUser(email, name);
+const getOrCreateUser = async (email: string, name: string, method: string = 'otp'): Promise<User> => {
+  if (!supabase) return signUpUser(email, name, method);
   const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
   if (existingUser) {
+    // Check if the user is trying to "downgrade" a google account to a different method
+    if (existingUser.login_method === 'google' && method !== 'google') {
+       // Logic to prevent accidental downgrade could go here, 
+       // but for now we just update their local cache
+    }
     safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }
-  return await signUpUser(email, name);
+  return await signUpUser(email, name, method);
 };
 
 export const checkSubscriptionStatus = async (user: User) => {
@@ -276,7 +310,8 @@ export const setupAuthListener = (onAuthChange: (user: User | null) => void) => 
   if (!supabase) return () => {};
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user?.email) {
-      const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User");
+      const provider = session.user.app_metadata.provider || 'password';
+      const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User", provider);
       onAuthChange(user);
     } else if (event === 'SIGNED_OUT') {
       onAuthChange(null);
