@@ -13,6 +13,15 @@ const supabase: any = (supabaseUrl && supabaseKey)
 
 const CURRENT_USER_KEY = 'nature_nani_current_user';
 
+// Health check on boot
+if (supabase) {
+  supabase.from('app_users').select('id', { count: 'exact', head: true })
+    .then(({ error }: any) => {
+      if (error) console.error("[Supabase Health Check Failed]", error.message);
+      else console.log("[Supabase Connection] Status: Optimal");
+    });
+}
+
 const safeStorage = {
   getItem: (key: string) => {
     try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -76,7 +85,10 @@ export const fetchUserRecord = async (email: string): Promise<User | null> => {
 };
 
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
-  if (user.subscription_status === 'active' || user.subscription_status === 'trialing' || (user as any).is_service_user) {
+  // Check is_service_user flag explicitly for unlimited access
+  const isServiceUser = (user as any).is_service_user === true;
+  
+  if (user.subscription_status === 'active' || user.subscription_status === 'trialing' || isServiceUser) {
     return { count: 0, limit: -1, remaining: 9999, isUnlimited: true };
   }
 
@@ -85,16 +97,11 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
     const { count, error } = await supabase
       .from('nani_analytics')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gt('created_at', oneDayAgo);
-
-    clearTimeout(timeoutId);
 
     if (error) throw error;
 
@@ -159,17 +166,11 @@ export const searchVectorDatabase = async (
   if (!supabase || !queryEmbedding) return getMockRemedies(queryText);
 
   try {
-    const dbPromise = supabase.rpc('match_documents_gemini', {
+    const { data, error } = await supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
       match_threshold: 0.35, 
       match_count: 5
     });
-
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database Timeout')), 5000)
-    );
-
-    const { data, error } = await (Promise.race([dbPromise, timeoutPromise]) as any);
 
     if (error || !data) return getMockRemedies(queryText);
 
@@ -213,19 +214,10 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
   return await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User", 'otp', session.user.id);
 };
 
-/**
- * Traditional Password Registration
- */
 export const signUpWithPassword = async (email: string, password: string, name: string): Promise<User> => {
   if (!supabase) throw new Error("Database not connected");
   if (password.length < 12) throw new Error("Security Policy: Password must be at least 12 characters.");
   
-  // Service User Check: ensure agent isn't trying to register with a weak password
-  const isAgent = email.toLowerCase().includes('agent');
-  if (isAgent && AGENT_PASSWORD && password !== AGENT_PASSWORD) {
-    // Note: In a real scenario, we might want to prevent manual registration of agent accounts
-  }
-
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -235,30 +227,24 @@ export const signUpWithPassword = async (email: string, password: string, name: 
   });
 
   if (error) {
-    console.error("[Supabase Auth Error]", error);
+    console.error("[Auth Failure]", error);
     if (error.status === 500) {
-      throw new Error("Trigger Configuration Error: Ensure you have run the SQL script for 'auth.users' trigger as defined in README.md.");
+      throw new Error("Trigger Configuration Error: The background sync failed. This is usually due to missing columns or search_path in the SQL trigger. Please run the SQL Rescue script in README.md.");
     }
     throw error;
   }
 
   const user = data?.user;
-  if (!user?.email) throw new Error("Registration incomplete.");
+  if (!user?.email) throw new Error("Registration failed: No user returned.");
   
-  // Wait for the background trigger to create the public record
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
+  await new Promise(resolve => setTimeout(resolve, 1000));
   return await getOrCreateUser(user.email, name, 'password', user.id);
 };
 
-/**
- * Traditional Password Login
- */
 export const signInWithPassword = async (email: string, password: string): Promise<User> => {
   if (!supabase) throw new Error("Database not connected");
   if (password.length < 12) throw new Error("Security Policy: Password must be at least 12 characters.");
 
-  // Environment Variable Check for Agent/Service User
   const isAgent = email.toLowerCase().includes('agent');
   if (isAgent && AGENT_PASSWORD && password !== AGENT_PASSWORD) {
     throw new Error("Invalid credentials for Service User.");
@@ -303,7 +289,6 @@ export const signUpUser = async (email: string, name: string, method: string = '
         safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
         return data as User;
       }
-      if (error) console.warn("[Backend sync failed]", error.message);
     } catch (e) {
       console.warn("[Table sync error]", e);
     }
@@ -337,6 +322,12 @@ const getOrCreateUser = async (email: string, name: string, method: string = 'ot
 
 export const checkSubscriptionStatus = async (user: User) => {
   const now = new Date();
+  
+  // Service users are always active
+  if ((user as any).is_service_user === true) {
+    return { hasAccess: true, status: 'active', daysRemaining: 999, isTrialExpired: false, nextBillingDate: null };
+  }
+
   const trialEnd = user.trial_end ? new Date(user.trial_end) : now;
   const billingEnd = user.current_period_end ? new Date(user.current_period_end) : null;
   let status = user.subscription_status;
