@@ -209,32 +209,41 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
     email, token, type: 'email'
   });
   if (error || !session?.user?.email) throw error || new Error("Verification failed");
-  return await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User", 'otp');
+  return await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User", 'otp', session.user.id);
 };
 
 /**
  * Traditional Password Registration
- * Enforces 12-character minimum password length
  */
 export const signUpWithPassword = async (email: string, password: string, name: string): Promise<User> => {
   if (!supabase) throw new Error("Database not connected");
   if (password.length < 12) throw new Error("Security Policy: Password must be at least 12 characters.");
   
-  const { data: { user }, error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { full_name: name }
     }
   });
-  if (error) throw error;
-  if (!user?.email) throw new Error("Sign up failed");
-  return await getOrCreateUser(user.email, name, 'password');
+
+  // Handle 500 error specifically with helpful context
+  if (error) {
+    if (error.status === 500) {
+      console.error("Supabase 500 Error: Check your database triggers and SMTP settings.");
+      throw new Error("System configuration error. Please ensure database triggers are valid.");
+    }
+    throw error;
+  }
+
+  const user = data?.user;
+  if (!user?.email) throw new Error("Registration failed to return user data.");
+  
+  return await getOrCreateUser(user.email, name, 'password', user.id);
 };
 
 /**
  * Traditional Password Login
- * Enforces 12-character minimum password length
  */
 export const signInWithPassword = async (email: string, password: string): Promise<User> => {
   if (!supabase) throw new Error("Database not connected");
@@ -246,16 +255,18 @@ export const signInWithPassword = async (email: string, password: string): Promi
   });
   if (error) throw error;
   if (!user?.email) throw new Error("Sign in failed");
-  return await getOrCreateUser(user.email, user.user_metadata?.full_name || "User", 'password');
+  return await getOrCreateUser(user.email, user.user_metadata?.full_name || "User", 'password', user.id);
 };
 
-export const signUpUser = async (email: string, name: string, method: string = 'otp'): Promise<User> => {
+export const signUpUser = async (email: string, name: string, method: string = 'otp', explicitId?: string): Promise<User> => {
   const trialEnd = new Date();
-  let authUserId: string | undefined;
-  if (supabase) {
+  let authUserId = explicitId;
+  
+  if (!authUserId && supabase) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     authUserId = authUser?.id;
   }
+  
   const userObj: any = {
     email, 
     name,
@@ -263,27 +274,47 @@ export const signUpUser = async (email: string, name: string, method: string = '
     trial_end: trialEnd.toISOString(),
     login_method: method
   };
+  
   if (authUserId) userObj.id = authUserId;
-  if (supabase) {
-    const { data, error } = await supabase.from('app_users').upsert(userObj).select().single();
-    if (!error && data) {
-      safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
-      return data as User;
+
+  if (supabase && authUserId) {
+    try {
+      const { data, error } = await supabase.from('app_users').upsert(userObj).select().single();
+      if (!error && data) {
+        safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+        return data as User;
+      }
+      if (error) console.warn("Syncing to public schema failed:", error.message);
+    } catch (e) {
+      console.warn("Table sync error:", e);
     }
   }
-  const fallbackUser = { ...userObj, id: authUserId || crypto.randomUUID(), created_at: new Date().toISOString() };
+
+  const fallbackUser = { 
+    ...userObj, 
+    id: authUserId || crypto.randomUUID(), 
+    created_at: new Date().toISOString() 
+  };
   safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(fallbackUser));
   return fallbackUser as User;
 };
 
-const getOrCreateUser = async (email: string, name: string, method: string = 'otp'): Promise<User> => {
-  if (!supabase) return signUpUser(email, name, method);
-  const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
+const getOrCreateUser = async (email: string, name: string, method: string = 'otp', explicitId?: string): Promise<User> => {
+  if (!supabase) return signUpUser(email, name, method, explicitId);
+  
+  // Try fetching existing
+  const { data: existingUser } = await supabase
+    .from('app_users')
+    .select('*')
+    .eq('email', email)
+    .maybeSingle();
+
   if (existingUser) {
     safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }
-  return await signUpUser(email, name, method);
+  
+  return await signUpUser(email, name, method, explicitId);
 };
 
 export const checkSubscriptionStatus = async (user: User) => {
@@ -312,7 +343,7 @@ export const setupAuthListener = (onAuthChange: (user: User | null) => void) => 
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user?.email) {
       const provider = session.user.app_metadata.provider || 'password';
-      const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User", provider);
+      const user = await getOrCreateUser(session.user.email, session.user.user_metadata?.full_name || "User", provider, session.user.id);
       onAuthChange(user);
     } else if (event === 'SIGNED_OUT') {
       onAuthChange(null);
