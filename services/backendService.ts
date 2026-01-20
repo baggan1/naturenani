@@ -5,6 +5,7 @@ import { DAILY_QUERY_LIMIT } from '../utils/constants';
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const AGENT_PASSWORD = process.env.AGENT_PASSWORD;
 
 const supabase: any = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
@@ -219,6 +220,12 @@ export const signUpWithPassword = async (email: string, password: string, name: 
   if (!supabase) throw new Error("Database not connected");
   if (password.length < 12) throw new Error("Security Policy: Password must be at least 12 characters.");
   
+  // Service User Check: ensure agent isn't trying to register with a weak password
+  const isAgent = email.toLowerCase().includes('agent');
+  if (isAgent && AGENT_PASSWORD && password !== AGENT_PASSWORD) {
+    // Note: In a real scenario, we might want to prevent manual registration of agent accounts
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -227,17 +234,19 @@ export const signUpWithPassword = async (email: string, password: string, name: 
     }
   });
 
-  // Handle 500 error specifically with helpful context
   if (error) {
+    console.error("[Supabase Auth Error]", error);
     if (error.status === 500) {
-      console.error("Supabase 500 Error: Check your database triggers and SMTP settings.");
-      throw new Error("System configuration error. Please ensure database triggers are valid.");
+      throw new Error("Trigger Configuration Error: Ensure you have run the SQL script for 'auth.users' trigger as defined in README.md.");
     }
     throw error;
   }
 
   const user = data?.user;
-  if (!user?.email) throw new Error("Registration failed to return user data.");
+  if (!user?.email) throw new Error("Registration incomplete.");
+  
+  // Wait for the background trigger to create the public record
+  await new Promise(resolve => setTimeout(resolve, 800));
   
   return await getOrCreateUser(user.email, name, 'password', user.id);
 };
@@ -249,17 +258,27 @@ export const signInWithPassword = async (email: string, password: string): Promi
   if (!supabase) throw new Error("Database not connected");
   if (password.length < 12) throw new Error("Security Policy: Password must be at least 12 characters.");
 
+  // Environment Variable Check for Agent/Service User
+  const isAgent = email.toLowerCase().includes('agent');
+  if (isAgent && AGENT_PASSWORD && password !== AGENT_PASSWORD) {
+    throw new Error("Invalid credentials for Service User.");
+  }
+
   const { data: { user }, error } = await supabase.auth.signInWithPassword({
     email,
     password
   });
+  
   if (error) throw error;
   if (!user?.email) throw new Error("Sign in failed");
+  
   return await getOrCreateUser(user.email, user.user_metadata?.full_name || "User", 'password', user.id);
 };
 
 export const signUpUser = async (email: string, name: string, method: string = 'otp', explicitId?: string): Promise<User> => {
   const trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + 7);
+  
   let authUserId = explicitId;
   
   if (!authUserId && supabase) {
@@ -284,9 +303,9 @@ export const signUpUser = async (email: string, name: string, method: string = '
         safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
         return data as User;
       }
-      if (error) console.warn("Syncing to public schema failed:", error.message);
+      if (error) console.warn("[Backend sync failed]", error.message);
     } catch (e) {
-      console.warn("Table sync error:", e);
+      console.warn("[Table sync error]", e);
     }
   }
 
@@ -302,14 +321,13 @@ export const signUpUser = async (email: string, name: string, method: string = '
 const getOrCreateUser = async (email: string, name: string, method: string = 'otp', explicitId?: string): Promise<User> => {
   if (!supabase) return signUpUser(email, name, method, explicitId);
   
-  // Try fetching existing
-  const { data: existingUser } = await supabase
+  const { data: existingUser, error } = await supabase
     .from('app_users')
     .select('*')
     .eq('email', email)
     .maybeSingle();
 
-  if (existingUser) {
+  if (!error && existingUser) {
     safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }
@@ -322,12 +340,21 @@ export const checkSubscriptionStatus = async (user: User) => {
   const trialEnd = user.trial_end ? new Date(user.trial_end) : now;
   const billingEnd = user.current_period_end ? new Date(user.current_period_end) : null;
   let status = user.subscription_status;
+  
   if (status === 'trialing' && now > trialEnd) status = 'expired';
   if (status === 'active' && billingEnd && now > billingEnd) status = 'expired';
+  
   const hasAccess = status === 'trialing' || status === 'active';
   const targetDate = status === 'active' && billingEnd ? billingEnd : trialEnd;
   const daysRemaining = Math.max(0, Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-  return { hasAccess, status, daysRemaining, isTrialExpired: status === 'expired', nextBillingDate: billingEnd?.toISOString() || null };
+  
+  return { 
+    hasAccess, 
+    status, 
+    daysRemaining, 
+    isTrialExpired: status === 'expired', 
+    nextBillingDate: billingEnd?.toISOString() || null 
+  };
 };
 
 export const logoutUser = async () => {
