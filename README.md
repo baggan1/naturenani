@@ -21,6 +21,19 @@ SET is_service_user = true, login_method = 'password'
 WHERE email = 'agent@antigravity.ai';
 ```
 
+## 🔒 Security Configuration
+
+### Password Policy
+To protect your account and the "Service User" from brute-force attacks, the application strictly enforces a **12-character minimum password length**.
+
+### Environment Variables
+Store sensitive credentials in your `.env` file. **Never hardcode passwords.**
+
+```env
+# Required for AI Agent / Antigravity access
+AGENT_PASSWORD=your_secure_12_plus_char_password
+```
+
 ### 2. Analytics & Saved Plans (If not already created)
 ```sql
 CREATE TABLE IF NOT EXISTS public.nani_analytics (

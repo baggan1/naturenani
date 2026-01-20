@@ -214,9 +214,12 @@ export const verifyOtp = async (email: string, token: string): Promise<User> => 
 
 /**
  * Traditional Password Registration
+ * Enforces 12-character minimum password length
  */
 export const signUpWithPassword = async (email: string, password: string, name: string): Promise<User> => {
   if (!supabase) throw new Error("Database not connected");
+  if (password.length < 12) throw new Error("Security Policy: Password must be at least 12 characters.");
+  
   const { data: { user }, error } = await supabase.auth.signUp({
     email,
     password,
@@ -231,9 +234,12 @@ export const signUpWithPassword = async (email: string, password: string, name: 
 
 /**
  * Traditional Password Login
+ * Enforces 12-character minimum password length
  */
 export const signInWithPassword = async (email: string, password: string): Promise<User> => {
   if (!supabase) throw new Error("Database not connected");
+  if (password.length < 12) throw new Error("Security Policy: Password must be at least 12 characters.");
+
   const { data: { user }, error } = await supabase.auth.signInWithPassword({
     email,
     password
@@ -274,11 +280,6 @@ const getOrCreateUser = async (email: string, name: string, method: string = 'ot
   if (!supabase) return signUpUser(email, name, method);
   const { data: existingUser } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
   if (existingUser) {
-    // Check if the user is trying to "downgrade" a google account to a different method
-    if (existingUser.login_method === 'google' && method !== 'google') {
-       // Logic to prevent accidental downgrade could go here, 
-       // but for now we just update their local cache
-    }
     safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(existingUser));
     return existingUser as User;
   }

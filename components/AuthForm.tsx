@@ -80,6 +80,15 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
     e.preventDefault();
     setLoading(true);
     setError('');
+    setHint('');
+
+    if (password.length < 12) {
+      setError("Password too weak.");
+      setHint("For your security, passwords must be at least 12 characters long.");
+      setLoading(false);
+      return;
+    }
+
     try {
       let user;
       if (isSignUp) {
@@ -209,7 +218,12 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Secure Password</label>
+                <div className="flex justify-between items-center mb-2 ml-1">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Secure Password</label>
+                  <span className={`text-[10px] font-bold uppercase ${password.length >= 12 ? 'text-sage-500' : 'text-amber-500'}`}>
+                    {password.length < 12 ? 'Min. 12 chars' : 'Secure length ✓'}
+                  </span>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
@@ -335,7 +349,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">System Status: Optimal</span>
            </div>
            <p className="text-[10px] text-gray-400 leading-relaxed px-4">
-            Secured by Supabase Auth (bcrypt hashing). 
+            Secured by Supabase Auth. 12-char password enforcement active.
             Compatible with Antigravity AI agent protocols.
            </p>
         </div>
