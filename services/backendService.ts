@@ -227,9 +227,10 @@ export const signUpWithPassword = async (email: string, password: string, name: 
   });
 
   if (error) {
-    console.error("[Auth Failure]", error);
+    console.error("[Supabase Auth Error]", error);
     if (error.status === 500) {
-      throw new Error("Trigger Configuration Error: The background sync failed. This is usually due to missing columns or search_path in the SQL trigger. Please run the SQL Rescue script in README.md.");
+      // This is usually triggered by a database trigger failure
+      throw new Error(`Trigger Configuration Error: The background sync failed. Error Detail: ${error.message}. Please check Supabase Logs or run the SQL script in README.md.`);
     }
     throw error;
   }

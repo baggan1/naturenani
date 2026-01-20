@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Headphones } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -337,23 +338,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </div>
                 <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
                   
-                  {msg.role === 'model' && msg.content && (
-                    <div className="mb-4">
-                      <button 
-                        onClick={() => generateAndPlaySpeech(msg.id, `${msg.content}. Protocol summary: ${summary}`)}
-                        className={`w-full flex items-center justify-center gap-3 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 ${
-                          playingMessageId === msg.id 
-                            ? 'bg-sage-600 text-white border-sage-600 animate-pulse' 
-                            : 'bg-white text-sage-600 border-sage-100 hover:border-sage-200 hover:bg-sage-50 shadow-sm'
-                        }`}
-                      >
-                        {playingMessageId === msg.id ? <Volume2 size={16} /> : <Headphones size={16} />}
-                        {hasAccess ? "🔊 Listen to Nani's Guidance" : "🔒 Unlock Nani's Voice Guidance"}
-                        {!hasAccess && <Star size={12} className="text-amber-500 fill-amber-500 ml-1" />}
-                      </button>
-                    </div>
-                  )}
-
                   {msg.content ? renderMarkdown(msg.content) : <div className="flex flex-col gap-1 py-2">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>
@@ -361,6 +345,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     </div>
                     <span className="text-[10px] text-gray-300 ml-6 uppercase tracking-widest font-bold">Verifying Traditional Texts</span>
                   </div>}
+
+                  {msg.role === 'model' && msg.content && (
+                    <div className="absolute -bottom-3 -right-3 flex items-center gap-1 z-10">
+                      <button 
+                        onClick={() => generateAndPlaySpeech(msg.id, `${msg.content}. Protocol snapshot: ${summary}`)}
+                        className={`group flex items-center gap-2 px-3.5 py-2 rounded-full shadow-lg border transition-all active:scale-95 ${
+                          playingMessageId === msg.id 
+                            ? 'bg-sage-700 border-sage-700 text-white animate-pulse' 
+                            : 'bg-white border-sage-200 text-sage-600 hover:border-sage-300 hover:bg-sage-50'
+                        }`}
+                        title={hasAccess ? "Listen to guidance" : "Upgrade to unlock Nani's voice"}
+                      >
+                        {playingMessageId === msg.id ? <Volume2 size={14} className="animate-bounce" /> : (hasAccess ? <Volume2 size={14} /> : <Lock size={12} className="text-amber-500" />)}
+                        <span className="text-[10px] font-black uppercase tracking-tighter">
+                          {playingMessageId === msg.id ? "Nani is Speaking" : (hasAccess ? "Listen" : "Unlock Voice")}
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

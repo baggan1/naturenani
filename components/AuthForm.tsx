@@ -115,6 +115,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
     setIsSignUp(false);
   };
 
+  const inputClasses = "w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200 bg-white focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800 placeholder:text-gray-400";
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-sage-900/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
       <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col relative border border-white/20">
@@ -195,7 +197,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800"
+                      className={inputClasses}
                       placeholder="e.g. Jane Doe"
                     />
                   </div>
@@ -211,7 +213,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800"
+                    className={inputClasses}
                     placeholder="name@email.com"
                   />
                 </div>
@@ -231,7 +233,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-12 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800"
+                    className={`${inputClasses} pr-12`}
                     placeholder="••••••••"
                   />
                   <button 
@@ -283,7 +285,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose }) =
                     autoFocus
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800"
+                    className={inputClasses}
                     placeholder="name@email.com"
                   />
                 </div>
