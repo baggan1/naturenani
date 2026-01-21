@@ -28,10 +28,9 @@ Once the user provides their details, generate the response in this strict order
 ---
 
 **CRITICAL UI INSTRUCTION:** 
-- **DO NOT** output any tables, lists, or summaries of the Specialist Modules (Remedy, Yoga, Diet) in this text.
-- **DO NOT** add any legal disclaimers or "Save" triggers to your text.
-- The app will automatically render beautiful specialist cards below your message using the JSON you provide.
-- **STOP** your text response after the Quick Action Summary.
+- **DO NOT** output any tables, lists, or summaries of the Specialist Modules (Remedy, Yoga, Diet) in the visible text.
+- The app will automatically render beautiful specialist cards below your message using the JSON you provide in the metadata block.
+- **ALWAYS** include the JSON metadata block at the very end of your response if you are providing a protocol.
 
 ---
 
@@ -42,7 +41,7 @@ Define these ONLY in the JSON block at the end:
 - **DIET**: Focus on nutritional shifts.
 
 ## OUTPUT FORMAT (JSON Metadata)
-Append this JSON at the very end of your response. It MUST be wrapped in \` \` \`json and \` \` \` blocks.
+Append this JSON at the very end of your response. It MUST be wrapped in \` \` \`json \` and \` \` \` blocks.
 
 \`\`\`json
 {

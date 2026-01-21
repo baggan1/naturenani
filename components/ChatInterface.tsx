@@ -143,33 +143,52 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
 
-    // Identify and strip JSON metadata robustly
-    const jsonMarker = '```json';
-    const jsonStartIdx = visibleText.indexOf(jsonMarker);
-    const rawJsonStartIdx = visibleText.lastIndexOf('{');
+    // Robust JSON extraction
+    // Look for the last occurrence of ```json ... ``` or the last { ... }
+    const jsonFencedRegex = /```json\s*([\s\S]*?)\s*```/g;
+    const matches = [...rawText.matchAll(jsonFencedRegex)];
+    
+    let jsonString = '';
+    let foundIndex = -1;
 
-    let effectiveStart = -1;
-    if (jsonStartIdx !== -1) {
-        effectiveStart = jsonStartIdx;
-    } else if (rawJsonStartIdx !== -1 && visibleText.includes('"recommendations"', rawJsonStartIdx)) {
-        effectiveStart = rawJsonStartIdx;
-    }
-
-    if (effectiveStart !== -1) {
-      const metadataPart = visibleText.substring(effectiveStart);
-      visibleText = visibleText.substring(0, effectiveStart).trim();
-      
-      const jsonBlockRegex = /(\{[\s\S]*?\})/;
-      const match = metadataPart.match(jsonBlockRegex);
-      if (match && match[1]) {
-        try {
-          const data = JSON.parse(match[1]);
-          if (data.recommendations) metadata = data.recommendations;
-          if (data.suggestions) suggestions = data.suggestions;
-        } catch (e) {}
+    if (matches.length > 0) {
+      const lastMatch = matches[matches.length - 1];
+      jsonString = lastMatch[1];
+      foundIndex = lastMatch.index!;
+    } else {
+      // Fallback: Look for the last { and try to parse from there
+      const lastBraceIdx = rawText.lastIndexOf('{');
+      if (lastBraceIdx !== -1 && rawText.includes('"recommendations"', lastBraceIdx)) {
+        jsonString = rawText.substring(lastBraceIdx);
+        foundIndex = lastBraceIdx;
       }
     }
 
+    if (jsonString && foundIndex !== -1) {
+      try {
+        // Find the last closing brace in the extracted string to ensure valid JSON start/end
+        const lastClosingBrace = jsonString.lastIndexOf('}');
+        if (lastClosingBrace !== -1) {
+          const validJsonPart = jsonString.substring(0, lastClosingBrace + 1);
+          const data = JSON.parse(validJsonPart);
+          if (data.recommendations) metadata = data.recommendations;
+          if (data.suggestions) suggestions = data.suggestions;
+          
+          // Only strip from visible text if we found valid metadata
+          visibleText = rawText.substring(0, foundIndex).trim();
+        }
+      } catch (e) {
+        // If it fails (e.g., during streaming), we keep the full text visible or hide the partial JSON block
+        const markerIdx = rawText.indexOf('```json', foundIndex - 10);
+        if (markerIdx !== -1) {
+           visibleText = rawText.substring(0, markerIdx).trim();
+        } else if (foundIndex !== -1) {
+           visibleText = rawText.substring(0, foundIndex).trim();
+        }
+      }
+    }
+
+    // Clean up visibility triggers and artifacts
     visibleText = visibleText.replace(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?)\]/g, '').trim();
     visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
     
@@ -204,10 +223,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       for await (const chunk of stream) {
         fullRawContent += chunk;
-        const { visibleText } = parseMessageContent(fullRawContent);
-        setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, content: visibleText } : msg));
+        const { visibleText, metadata, suggestions } = parseMessageContent(fullRawContent);
+        setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
+          ...msg, 
+          content: visibleText,
+          recommendations: metadata.length > 0 ? metadata : msg.recommendations,
+          suggestions: suggestions.length > 0 ? suggestions : msg.suggestions
+        } : msg));
       }
       
+      // Final parse to ensure everything is captured
       const finalResult = parseMessageContent(fullRawContent);
       setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
         ...msg, 
