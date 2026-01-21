@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles } from 'lucide-react';
+import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText } from 'lucide-react';
 import { SavedMealPlan, SavedYogaPlan, User, AppView } from '../types';
 import { getUserLibrary } from '../services/backendService';
 
@@ -10,7 +10,7 @@ interface LibraryProps {
 }
 
 const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
-  const [library, setLibrary] = useState<{ diet: SavedMealPlan[], yoga: SavedYogaPlan[] }>({ diet: [], yoga: [] });
+  const [library, setLibrary] = useState<{ diet: SavedMealPlan[], yoga: SavedYogaPlan[], remedy: any[] }>({ diet: [], yoga: [], remedy: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
     );
   }
 
-  const isEmpty = library.diet.length === 0 && library.yoga.length === 0;
+  const isEmpty = library.diet.length === 0 && library.yoga.length === 0 && library.remedy.length === 0;
 
   return (
     <div className="h-full flex flex-col bg-sage-50 overflow-y-auto">
@@ -53,10 +53,42 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
           </div>
         ) : (
           <>
+            {/* Remedies */}
+            {library.remedy.length > 0 && (
+              <section>
+                <h2 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <Stethoscope size={14} className="text-blue-500" /> Saved Remedies
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {library.remedy.map((plan) => (
+                    <div 
+                      key={plan.id}
+                      onClick={() => onNavigate('REMEDY', { type: 'REMEDY', title: plan.title, detail: plan.detail })}
+                      className="bg-white p-6 rounded-2xl border border-blue-50 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                          <FileText size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
+                          <Calendar size={10} /> {formatDate(plan.created_at)}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-sage-900 mb-2 truncate group-hover:text-blue-600 transition-colors">{plan.title}</h3>
+                      <p className="text-xs text-gray-500 mb-4">Clinical Protocol</p>
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-blue-500 uppercase">
+                        View Remedy <ChevronRight size={14} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Yoga Routines */}
             {library.yoga.length > 0 && (
               <section>
-                <h2 className="text-xs font-black text-sage-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <h2 className="text-xs font-black text-pink-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                   <Flower2 size={14} className="text-pink-500" /> Saved Yoga Routines
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -64,7 +96,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                     <div 
                       key={plan.id}
                       onClick={() => onNavigate('YOGA', { id: plan.title, title: plan.title, cachedPoses: plan.poses })}
-                      className="bg-white p-6 rounded-2xl border border-sage-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                      className="bg-white p-6 rounded-2xl border border-pink-50 shadow-sm hover:shadow-md transition-all cursor-pointer group"
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600">
@@ -74,9 +106,9 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                           <Calendar size={10} /> {formatDate(plan.created_at)}
                         </span>
                       </div>
-                      <h3 className="font-bold text-sage-900 mb-2 truncate group-hover:text-sage-600 transition-colors">{plan.title}</h3>
+                      <h3 className="font-bold text-sage-900 mb-2 truncate group-hover:text-pink-600 transition-colors">{plan.title}</h3>
                       <p className="text-xs text-gray-500 mb-4">{plan.poses.length} Therapeutic Practices</p>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-sage-500 uppercase">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-pink-500 uppercase">
                         View Routine <ChevronRight size={14} />
                       </div>
                     </div>
@@ -89,14 +121,14 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
             {library.diet.length > 0 && (
               <section>
                 <h2 className="text-xs font-black text-orange-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                  <Utensils size={14} /> Saved Diet Protocols
+                  <Utensils size={14} className="text-orange-500" /> Saved Diet Protocols
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {library.diet.map((plan) => (
                     <div 
                       key={plan.id}
                       onClick={() => onNavigate('DIET', { id: plan.title, title: plan.title, cachedPlan: plan.plan_data })}
-                      className="bg-white p-6 rounded-2xl border border-orange-100 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                      className="bg-white p-6 rounded-2xl border border-orange-50 shadow-sm hover:shadow-md transition-all cursor-pointer group"
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">

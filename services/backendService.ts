@@ -85,7 +85,6 @@ export const fetchUserRecord = async (email: string): Promise<User | null> => {
 };
 
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
-  // Check is_service_user flag explicitly for unlimited access
   const isServiceUser = (user as any).is_service_user === true;
   
   if (user.subscription_status === 'active' || user.subscription_status === 'trialing' || isServiceUser) {
@@ -229,7 +228,6 @@ export const signUpWithPassword = async (email: string, password: string, name: 
   if (error) {
     console.error("[Supabase Auth Error]", error);
     if (error.status === 500) {
-      // This is usually triggered by a database trigger failure
       throw new Error(`Trigger Configuration Error: The background sync failed. Error Detail: ${error.message}. Please check Supabase Logs or run the SQL script in README.md.`);
     }
     throw error;
@@ -324,7 +322,6 @@ const getOrCreateUser = async (email: string, name: string, method: string = 'ot
 export const checkSubscriptionStatus = async (user: User) => {
   const now = new Date();
   
-  // Service users are always active
   if ((user as any).is_service_user === true) {
     return { hasAccess: true, status: 'active', daysRemaining: 999, isTrialExpired: false, nextBillingDate: null };
   }
@@ -395,12 +392,18 @@ export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: stri
   return await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data, type: 'DIET' }).select().single();
 };
 
+export const saveRemedy = async (user: User, detail: string, title: string) => {
+  if (!supabase) return null;
+  return await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: { detail }, type: 'REMEDY' }).select().single();
+};
+
 export const getUserLibrary = async (user: User) => {
-  if (!supabase) return { diet: [], yoga: [] };
+  if (!supabase) return { diet: [], yoga: [], remedy: [] };
   const { data } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-  if (!data) return { diet: [], yoga: [] };
+  if (!data) return { diet: [], yoga: [], remedy: [] };
   return {
     diet: data.filter((item: any) => item.type === 'DIET'),
-    yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({ ...item, poses: item.plan_data }))
+    yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({ ...item, poses: item.plan_data })),
+    remedy: data.filter((item: any) => item.type === 'REMEDY').map((item: any) => ({ ...item, detail: item.plan_data?.detail }))
   };
 };

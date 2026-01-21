@@ -1,11 +1,12 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Bookmark, BookmarkPlus } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Bookmark, BookmarkPlus, Save, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
+import { saveRemedy, getCurrentUser } from '../services/backendService';
 import { MAX_PROMPT_LENGTH } from '../utils/constants';
 import { Logo } from './Logo';
 import { playRawAudio } from '../utils/audio';
@@ -57,6 +58,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [showTrialPrompt, setShowTrialPrompt] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -121,6 +124,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  const handleSaveRemedy = async () => {
+    const user = getCurrentUser();
+    if (!user || !selectedDetail) return;
+    setSaveLoading(true);
+    try {
+      await saveRemedy(user, selectedDetail.detail || '', selectedDetail.title);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (e) {
+      console.error("Failed to save remedy:", e);
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
   const parseMessageContent = (rawText: string) => {
     const jsonStartIdx = rawText.indexOf('```json');
     let visibleText = rawText;
@@ -128,7 +146,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let suggestions: string[] = [];
     let saveAction: { title: string } | null = null;
 
-    // Look for Save Action tag: [ACTION: SAVE_TO_LIBRARY | TITLE: {Ailment Name}]
     const saveRegex = /\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?)\]/;
     const saveMatch = visibleText.match(saveRegex);
     if (saveMatch) {
@@ -269,7 +286,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
                       <div className="p-6 flex-1">
                         <div className="flex items-center gap-2 mb-4">
-                           <div className="p-2 bg-sage-50 text-sage-600 rounded-lg">
+                           <div className={`p-2 rounded-lg ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-500' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
                               {rec.type === 'YOGA' ? <Flower2 size={18} /> : rec.type === 'DIET' ? <Utensils size={18} /> : <Stethoscope size={18} />}
                            </div>
                            <h4 className="font-serif font-bold text-sage-900 leading-tight">{rec.title}</h4>
@@ -322,6 +339,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
             <div className="flex-1 overflow-y-auto p-8">
               {renderMarkdown(selectedDetail.detail || '')}
+              {hasAccess && selectedDetail.type === 'REMEDY' && (
+                <div className="mt-8 flex justify-end">
+                   <button 
+                    onClick={handleSaveRemedy} 
+                    disabled={saveLoading || saveSuccess}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg ${saveSuccess ? 'bg-green-100 text-green-700' : 'bg-sage-600 text-white hover:bg-sage-700'}`}
+                   >
+                     {saveLoading ? <RefreshCw className="animate-spin" size={16} /> : saveSuccess ? <Check size={16} /> : <Save size={16} />}
+                     {saveSuccess ? "Stored in Library" : "Save Remedy Details"}
+                   </button>
+                </div>
+              )}
               {!hasAccess && (
                 <div className="mt-8 p-8 bg-amber-50 rounded-[2rem] border border-amber-100 text-center">
                    <Lock className="mx-auto text-amber-500 mb-3" size={32} />
