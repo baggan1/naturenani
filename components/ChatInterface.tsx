@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Headphones } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Bookmark, BookmarkPlus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI, Modality } from "@google/genai";
@@ -29,31 +29,10 @@ interface ChatInterfaceProps {
 }
 
 const NANI_VOICE_PROMPT = `
-## Voice & Audio Identity: "The Global Wise Grandmother"
-
-### 1. Tone & Texture
-- Comforting but Professional: Sound like a trusted elder who has spent a lifetime studying both ancient texts and modern physiology. 
-- The "Nani" Warmth: Your voice should carry an "audible smile." It must feel like a safe harbor for a user in pain or distress.
-- Global Clarity: Use a clear, neutral, and articulate speaking style. Avoid thick regional accents or obscure slang, ensuring that a user in New York, London, Delhi, or Sydney can understand you perfectly.
-
-### 2. Pacing & Rhythm
-- The "Healing Pace": Speak slightly slower than a standard AI assistant (approx. 150-160 words per minute). 
-- Strategic Pauses: Use pauses after delivering a "Quick Action" or a "Root Cause" insight to allow the user to absorb the information. 
-- Example: "Namaste. [Pause 0.5s] I sense the heat rising within you. [Pause 1s] Let us look at how we can cool this fire."
-
-### 3. Emotional Intelligence (EQ)
-- Pain Sensitivity: If the text indicates physical pain, lower your pitch slightly and increase the warmth in your tone. Speak with extra "softness."
-- Encouragement: When suggesting a remedy or yoga pose, sound optimistic and encouraging, as if you are certain of the body's ability to heal.
-
-### 4. Pronunciation Guidance
-- Traditional Terms: Pronounce Sanskrit terms (Ayurveda, Pitta, Vata, Kapha, Pranayama) with respect and clarity, but immediately follow them with their English meaning for global accessibility.
-- Scientific Terms: Pronounce biological terms (Hypochlorhydria, Esophagus, Mucosa) with professional authority to build medical trust.
-
-### 5. Interaction Style
-- Avoid "Assistant-Speak": Never say "As an AI..." or "I am processing your request." Instead, stay in character: "Let me look into the ancient scrolls for you..." or "The wisdom of the ages suggests..."
-
-### AUDIO CONTENT TASK
-Recite the healing protocol provided. Focus on the ### Quick Action Summary and Snapshot summary first before diving into the detailed healing journey.
+## Voice Identity: The Global Wellness Guide
+Tone: Warm, rhythmic, slightly slower than average.
+Identity: Wise grandmotherly presence with professional clarity.
+Task: Recite the healing protocol provided with audible smiles and comforting pauses.
 `;
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -70,7 +49,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onShowAuth,
   onNavigateToFeature,
   onVoiceClick,
-  isMobileView = false,
   initialMessageIsVoice = false
 }) => {
   const [input, setInput] = useState('');
@@ -78,10 +56,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [showTrialPrompt, setShowTrialPrompt] = useState(false);
-  const [lastAilment, setLastAilment] = useState('');
   const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
@@ -106,19 +82,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.',
       timestamp: Date.now()
     }]);
-    sessionStorage.removeItem('nani_pending_message');
     if (onMessageSent) onMessageSent(); 
   }, [setMessages, isLoading, onMessageSent]);
 
   const generateAndPlaySpeech = async (msgId: string, fullText: string) => {
     if (!hasAccess) {
-      // Trigger paywall/upgrade for free users trying to listen
       onUpgradeClick();
       return;
     }
-
     if (isSpeaking) return;
-    
     setIsSpeaking(true);
     setPlayingMessageId(msgId);
     
@@ -126,7 +98,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `${NANI_VOICE_PROMPT}\n\nCONTENT TO RECITE:\n${fullText}` }] }],
+        contents: [{ parts: [{ text: `${NANI_VOICE_PROMPT}\n\nCONTENT:\n${fullText}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -134,7 +106,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           },
         },
       });
-
       const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       if (audioData) {
         if (!audioContextRef.current) {
@@ -150,32 +121,35 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  const parseMessageContent = (rawText: string): { visibleText: string, metadata: RecommendationMetadata[], suggestions: string[], summary: string } => {
+  const parseMessageContent = (rawText: string) => {
     const jsonStartIdx = rawText.indexOf('```json');
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
-    let summary = '';
+    let saveAction: { title: string } | null = null;
+
+    // Look for Save Action tag: [ACTION: SAVE_TO_LIBRARY | TITLE: {Ailment Name}]
+    const saveRegex = /\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?)\]/;
+    const saveMatch = visibleText.match(saveRegex);
+    if (saveMatch) {
+      saveAction = { title: saveMatch[1].trim() };
+      visibleText = visibleText.replace(saveRegex, '').trim();
+    }
 
     if (jsonStartIdx !== -1) {
-      visibleText = rawText.substring(0, jsonStartIdx).trim();
-      const jsonBlockRegex = /```json\s*(\{[\s\S]*?"recommendations"[\s\S]*?\})\s*```/;
+      visibleText = visibleText.substring(0, jsonStartIdx).trim();
+      const jsonBlockRegex = /```json\s*(\{[\s\S]*?\})\s*```/;
       const match = rawText.match(jsonBlockRegex);
       if (match && match[1]) {
         try {
           const data = JSON.parse(match[1]);
-          if (data.recommendations && Array.isArray(data.recommendations)) {
-            metadata = data.recommendations;
-            summary = metadata.map(m => `${m.title}: ${m.summary}`).join(". ");
-          }
-          if (data.suggestions && Array.isArray(data.suggestions)) {
-            suggestions = data.suggestions;
-          }
+          if (data.recommendations) metadata = data.recommendations;
+          if (data.suggestions) suggestions = data.suggestions;
         } catch (e) {}
       }
     }
     
-    return { visibleText, metadata, suggestions, summary };
+    return { visibleText, metadata, suggestions, saveAction };
   };
 
   const handleAutoSend = async (text: string, isResuming = false, isVoiceQuery = false) => {
@@ -188,23 +162,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
 
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => {
-      if (isLoading) {
-        setIsLoading(false);
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const last = newMessages[newMessages.length - 1];
-          if (last && last.role === 'model' && !last.content) {
-            last.content = "Namaste. I am having trouble reaching the ancient scrolls right now. Please try clicking 'New Consultation' or checking your connection.";
-          }
-          return newMessages;
-        });
-      }
-    }, 15000);
-
-    setLastAilment(text);
-    const historyToPass = [...messages]; 
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() };
     if (!isResuming) setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
@@ -215,18 +172,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => [...prev, { id: botMessageId, role: 'model', content: '', timestamp: Date.now() }]);
 
       const stream = sendMessageWithRAG(
-        text, historyToPass, hasAccess ? 'Premium' : 'Free', usage.count,
+        text, messages, hasAccess ? 'Premium' : 'Free', usage.count,
         (foundSources) => {
           setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, sources: foundSources } : msg));
         }
       );
 
       for await (const chunk of stream) {
-        if (timeoutRef.current) {
-          window.clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-        
         fullRawContent += chunk;
         const { visibleText } = parseMessageContent(fullRawContent);
         setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, content: visibleText } : msg));
@@ -242,47 +194,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       if (onMessageSent) onMessageSent();
 
-      // Trigger automatic TTS if user used voice query AND has premium
       if (isVoiceQuery && hasAccess && finalResult.visibleText) {
-        const ttsText = `${finalResult.visibleText}. Protocol snapshot: ${finalResult.summary}`;
-        generateAndPlaySpeech(botMessageId, ttsText);
+        generateAndPlaySpeech(botMessageId, finalResult.visibleText);
       }
     } catch (error: any) {
       console.error("Chat Error:", error);
     } finally {
       setIsLoading(false);
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!input.trim() || isLoading) return;
     const text = input;
     setInput('');
-    await handleAutoSend(text);
-  };
-
-  const handleCardAction = (rec: RecommendationMetadata) => {
-    if (!hasAccess) {
-      setShowTrialPrompt(true);
-      return;
-    }
-    if (rec.type === 'REMEDY') {
-      setSelectedDetail(rec);
-    } else {
-      onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title);
-    }
+    handleAutoSend(text);
   };
 
   const renderMarkdown = (content: string) => {
-    const cleaned = content
-      .replace(/^```[a-z]*\n/i, '')
-      .replace(/\n```$/i, '')
-      .replace(/\\n/g, '\n');
-    
     return (
       <div className="markdown-content prose prose-slate max-w-none">
         <ReactMarkdown 
@@ -290,13 +219,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           components={{
             h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-50 pb-2" {...props} />,
             p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700" {...props} />,
-            table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full divide-y divide-sage-200" {...props} /></div>,
+            table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full" {...props} /></div>,
             th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
             td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
-            ul: ({node, ...props}: any) => <ul className="list-disc ml-4 mb-4 space-y-2 text-sm text-gray-700" {...props} />,
           }}
         >
-          {cleaned}
+          {content}
         </ReactMarkdown>
       </div>
     );
@@ -307,21 +235,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between sticky top-0 z-20">
         <Logo className="h-8 w-8" textClassName="text-lg" showSlogan={false} />
         <div className="flex items-center gap-4">
-          {isSpeaking && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-sage-600 rounded-full text-[10px] font-bold text-white uppercase animate-pulse">
-              <Volume2 size={12} /> Nani is Speaking
-            </div>
-          )}
-          {!hasAccess && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100 text-[10px] font-bold text-amber-700 uppercase cursor-pointer hover:bg-amber-100 transition-colors" onClick={onUpgradeClick}>
-              <Star size={12} className="fill-amber-400" /> Free Plan
-            </div>
-          )}
-          <button 
-            onClick={handleResetChat} 
-            disabled={isLoading}
-            className="p-2 text-sage-400 hover:text-sage-600 disabled:opacity-30 flex items-center gap-2 text-xs font-bold uppercase transition-colors"
-          >
+          <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase transition-colors">
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Reset
           </button>
         </div>
@@ -329,7 +243,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-40 scroll-smooth">
         {messages.map((msg) => {
-          const { summary } = parseMessageContent(msg.content);
+          const { saveAction } = parseMessageContent(msg.content);
           return (
             <div key={msg.id} className="flex flex-col gap-2">
               <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -337,30 +251,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
                 </div>
                 <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
-                  
-                  {msg.content ? renderMarkdown(msg.content) : <div className="flex flex-col gap-1 py-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>
-                      <span className="text-gray-400 text-sm italic font-medium">Consulting ancient archives...</span>
-                    </div>
-                    <span className="text-[10px] text-gray-300 ml-6 uppercase tracking-widest font-bold">Verifying Traditional Texts</span>
-                  </div>}
-
+                  {msg.content ? renderMarkdown(msg.content) : <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>}
                   {msg.role === 'model' && msg.content && (
                     <div className="absolute -bottom-3 -right-3 flex items-center gap-1 z-10">
-                      <button 
-                        onClick={() => generateAndPlaySpeech(msg.id, `${msg.content}. Protocol snapshot: ${summary}`)}
-                        className={`group flex items-center gap-2 px-3.5 py-2 rounded-full shadow-lg border transition-all active:scale-95 ${
-                          playingMessageId === msg.id 
-                            ? 'bg-sage-700 border-sage-700 text-white animate-pulse' 
-                            : 'bg-white border-sage-200 text-sage-600 hover:border-sage-300 hover:bg-sage-50'
-                        }`}
-                        title={hasAccess ? "Listen to guidance" : "Upgrade to unlock Nani's voice"}
-                      >
-                        {playingMessageId === msg.id ? <Volume2 size={14} className="animate-bounce" /> : (hasAccess ? <Volume2 size={14} /> : <Lock size={12} className="text-amber-500" />)}
-                        <span className="text-[10px] font-black uppercase tracking-tighter">
-                          {playingMessageId === msg.id ? "Nani is Speaking" : (hasAccess ? "Listen" : "Unlock Voice")}
-                        </span>
+                      <button onClick={() => generateAndPlaySpeech(msg.id, msg.content)} className={`group flex items-center gap-2 px-3.5 py-2 rounded-full shadow-lg border transition-all ${playingMessageId === msg.id ? 'bg-sage-700 text-white animate-pulse' : 'bg-white text-sage-600'}`}>
+                        {playingMessageId === msg.id ? <Volume2 size={14} /> : (hasAccess ? <Volume2 size={14} /> : <Lock size={12} className="text-amber-500" />)}
+                        <span className="text-[10px] font-black uppercase tracking-tighter">{hasAccess ? "Listen" : "Unlock Voice"}</span>
                       </button>
                     </div>
                   )}
@@ -368,33 +264,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
 
               {msg.recommendations && msg.recommendations.length > 0 && (
-                <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4 duration-500">
+                <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4">
                   {msg.recommendations.map((rec, idx) => (
                     <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
                       <div className="p-6 flex-1">
                         <div className="flex items-center gap-2 mb-4">
-                          <div className={`p-3 rounded-2xl ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-600' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-600' : 'bg-sage-50 text-sage-600'}`}>
-                            {rec.type === 'YOGA' ? <Flower2 size={24} /> : rec.type === 'DIET' ? <Utensils size={24} /> : <Stethoscope size={24} />}
-                          </div>
-                          <div>
-                            <h4 className="font-serif font-bold text-sage-900 text-lg leading-tight">{rec.title}</h4>
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{rec.type} MODULE</span>
-                          </div>
+                           <div className="p-2 bg-sage-50 text-sage-600 rounded-lg">
+                              {rec.type === 'YOGA' ? <Flower2 size={18} /> : rec.type === 'DIET' ? <Utensils size={18} /> : <Stethoscope size={18} />}
+                           </div>
+                           <h4 className="font-serif font-bold text-sage-900 leading-tight">{rec.title}</h4>
                         </div>
-                        <p className="text-sm text-gray-600 leading-relaxed">{rec.summary}</p>
-                      </div>
-                      <div className="px-6 pb-6">
-                        <button 
-                          onClick={() => handleCardAction(rec)}
-                          className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-sm ${
-                            rec.type === 'YOGA' ? 'bg-pink-500 text-white hover:bg-pink-600' : 
-                            rec.type === 'DIET' ? 'bg-orange-500 text-white hover:bg-orange-600' : 
-                            'bg-sage-600 text-white hover:bg-sage-700'
-                          }`}
-                        >
-                          {!hasAccess && <Lock size={14} className="mr-1" />}
-                          {rec.type === 'YOGA' ? '[Explore Yoga]' : rec.type === 'DIET' ? '[See Healing Diet]' : '[View Remedies]'}
-                          <ChevronRight size={16} />
+                        <p className="text-sm text-gray-600 leading-relaxed mb-4">{rec.summary}</p>
+                        <button onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title)) : setShowTrialPrompt(true)} className="w-full py-2.5 rounded-xl font-bold text-xs bg-sage-600 text-white hover:bg-sage-700 flex items-center justify-center gap-2 transition-all">
+                           {!hasAccess && <Lock size={12} />} View Protocol <ChevronRight size={14} />
                         </button>
                       </div>
                     </div>
@@ -402,27 +284,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </div>
               )}
 
+              {saveAction && (
+                <div className="ml-11 mt-4">
+                  <button onClick={() => hasAccess ? onNavigateToFeature(AppView.LIBRARY, 'save', saveAction!.title) : setShowTrialPrompt(true)} className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border-2 border-sage-200 text-sage-700 font-bold text-xs uppercase tracking-widest hover:border-sage-400 transition-all shadow-sm">
+                    <BookmarkPlus size={16} className="text-sage-600" /> Save Healing Journey
+                  </button>
+                </div>
+              )}
+
               {msg.suggestions && msg.suggestions.length > 0 && (
-                <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-700">
-                  <div className="w-full mb-1 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    <HelpCircle size={12} /> Suggested Next Steps
-                  </div>
-                  {msg.suggestions.map((suggestion, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleAutoSend(suggestion)}
-                      disabled={isLoading}
-                      className="bg-white border border-sage-200 px-4 py-2.5 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white hover:border-sage-600 transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-2 group"
-                    >
-                      {suggestion}
-                      <ChevronRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl">
+                  {msg.suggestions.map((s, idx) => (
+                    <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm">
+                      {s}
                     </button>
                   ))}
                 </div>
               )}
-              
-              {msg.sources && msg.sources.length > 0 && (
-                <SourceAccordion sources={msg.sources} />
+
+              {msg.role === 'model' && (
+                <div className="ml-11 mt-4 text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 font-sans">
+                  VIEW OUR <button onClick={() => onNavigateToFeature(AppView.LEGAL, '', '')} className="text-[#3B6EB1] hover:underline font-black">DISCLAIMER AND PRIVACY POLICY</button> FOR MORE DETAILS.
+                </div>
               )}
             </div>
           );
@@ -434,31 +317,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-sage-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300" onClick={() => setSelectedDetail(null)}>
           <div className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl relative border border-white/20" onClick={e => e.stopPropagation()}>
             <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white rounded-2xl text-sage-600 shadow-sm border border-sage-100"><Stethoscope size={24} /></div>
-                <div>
-                  <h2 className="text-2xl font-serif font-bold text-sage-900">{selectedDetail.title}</h2>
-                  <p className="text-[10px] font-bold text-sage-400 uppercase tracking-widest mt-0.5">Step-By-Step Guide</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedDetail(null)} className="p-2.5 text-gray-400 hover:text-sage-600 hover:bg-white rounded-full transition-all"><X size={20} /></button>
+              <h2 className="text-2xl font-serif font-bold text-sage-900">{selectedDetail.title}</h2>
+              <button onClick={() => setSelectedDetail(null)} className="p-2 text-gray-400 hover:text-sage-600"><X size={20} /></button>
             </div>
-            
-            <div className="flex-1 overflow-y-auto p-8 md:p-10">
-              <div className="bg-sage-50/50 p-6 rounded-2xl border border-sage-100 mb-8 italic">
-                 <p className="text-[10px] font-bold text-sage-700 mb-2 uppercase tracking-widest flex items-center gap-2"><Sparkles size={12} className="text-yellow-500" /> Snapshot Summary</p>
-                 <p className="text-gray-600 text-sm leading-relaxed">"{selectedDetail.summary}"</p>
-              </div>
-              <div className="pb-8">
-                {renderMarkdown(selectedDetail.detail || '')}
-              </div>
+            <div className="flex-1 overflow-y-auto p-8">
+              {renderMarkdown(selectedDetail.detail || '')}
               {!hasAccess && (
-                <div className="mt-8 p-8 bg-amber-50 rounded-[2rem] border border-amber-100 text-center shadow-inner">
+                <div className="mt-8 p-8 bg-amber-50 rounded-[2rem] border border-amber-100 text-center">
                    <Lock className="mx-auto text-amber-500 mb-3" size={32} />
                    <h4 className="text-lg font-bold text-amber-900 mb-2">Protocol Gated</h4>
-                   <p className="text-sm text-amber-700/80 mb-6 max-w-xs mx-auto">Detailed dosage tables and clinical protocols are available in the Healer Plan.</p>
-                   <button onClick={() => { setSelectedDetail(null); onUpgradeClick(); }} className="bg-sage-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm hover:bg-sage-700 transition-all shadow-lg shadow-sage-200 flex items-center justify-center gap-2 mx-auto">
-                     <Zap size={16} /> Start 7-Day Free Trial
+                   <p className="text-sm text-amber-700/80 mb-6">Detailed dosage tables and clinical protocols are available in the Healer Plan.</p>
+                   <button onClick={() => { setSelectedDetail(null); onUpgradeClick(); }} className="bg-sage-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-sage-200">
+                     Start 7-Day Free Trial
                    </button>
                 </div>
               )}
@@ -467,94 +337,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         </div>
       )}
 
-      <div className="p-4 bg-white border-t border-sage-200 relative z-10 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+      <div className="p-4 bg-white border-t border-sage-200 relative z-10">
         {showTrialPrompt && (
           <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 w-[90%] max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
-             <div className="bg-white rounded-[2rem] shadow-2xl border border-sage-100 p-8 relative ring-8 ring-sage-50/50">
-                <button onClick={() => setShowTrialPrompt(false)} className="absolute top-4 right-4 text-gray-400 p-1 hover:text-sage-600"><X size={18} /></button>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-sage-100 p-2.5 rounded-xl text-sage-600"><Sparkles size={20} /></div>
-                  <h4 className="font-serif font-bold text-sage-900">Unlock Healing Aid</h4>
-                </div>
-                <p className="text-xs text-gray-600 leading-relaxed mb-6">Access targeted Nutri Heal plans and therapeutic Yoga sequences for your health.</p>
-                <button onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }} className="w-full bg-sage-600 text-white py-4 rounded-2xl font-bold text-sm shadow-lg shadow-sage-200 hover:bg-sage-700 transition-all flex items-center justify-center gap-2">
-                  Upgrade to Healer Plan <Zap size={14} />
+             <div className="bg-white rounded-[2rem] shadow-2xl border border-sage-100 p-8 relative">
+                <button onClick={() => setShowTrialPrompt(false)} className="absolute top-4 right-4 text-gray-400"><X size={18} /></button>
+                <h4 className="font-serif font-bold text-sage-900 mb-2 flex items-center gap-2"><Sparkles size={16} className="text-yellow-500" /> Unlock Healer Plan</h4>
+                <p className="text-xs text-gray-600 mb-6">Access clinical dosages, visual yoga guides, and full meal plans.</p>
+                <button onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }} className="w-full bg-sage-600 text-white py-4 rounded-2xl font-bold text-sm shadow-lg">
+                  Upgrade to Healer Plan <Zap size={14} className="ml-1" />
                 </button>
              </div>
           </div>
         )}
-
-        <div className="max-w-4xl mx-auto">
-          <div className="relative flex items-center gap-2 mb-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value.substring(0, MAX_PROMPT_LENGTH))}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-              placeholder={usage.remaining > 0 || usage.isUnlimited ? "Share your symptoms with Nani..." : "Daily limit reached. Upgrade for more."}
-              disabled={!usage.isUnlimited && usage.remaining <= 0}
-              className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4.5 pr-28 text-sage-900 placeholder:text-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:bg-white resize-none h-[72px] scrollbar-hide shadow-inner transition-all"
-            />
-            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <button 
-                onClick={onVoiceClick}
-                className="p-3 text-sage-400 hover:text-sage-600 hover:bg-sage-100 rounded-2xl transition-all active:scale-90"
-                title="Voice Consultation"
-              >
-                <Mic size={22} />
-              </button>
-              <button 
-                onClick={handleSend} 
-                disabled={isLoading || !input.trim() || (!usage.isUnlimited && usage.remaining <= 0)} 
-                className="p-3 bg-sage-600 text-white rounded-2xl hover:bg-sage-700 disabled:opacity-50 shadow-lg shadow-sage-100 transition-all active:scale-95"
-              >
-                {isLoading ? <RefreshCw size={22} className="animate-spin" /> : <Send size={22} />}
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between px-4 text-[10px] font-bold uppercase tracking-widest">
-            <div className="flex items-center gap-2">
-              {input.length > MAX_PROMPT_LENGTH * 0.8 && (
-                <span className={`${input.length >= MAX_PROMPT_LENGTH ? 'text-red-500 font-black' : 'text-amber-500'} flex items-center gap-1`}>
-                  <AlertCircle size={10} /> {input.length}/{MAX_PROMPT_LENGTH}
-                </span>
-              )}
-            </div>
-            {!usage.isUnlimited && (
-              <div className={`flex items-center gap-1.5 ${usage.remaining === 0 ? 'text-red-500 font-black' : 'text-sage-400'}`}>
-                {usage.remaining === 0 ? <Lock size={10} /> : <Zap size={10} />}
-                Consultations: {usage.count}/{usage.limit}
-              </div>
-            )}
-          </div>
+        <div className="max-w-4xl mx-auto flex items-center gap-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value.substring(0, MAX_PROMPT_LENGTH))}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
+            placeholder="Share your symptoms with Nani..."
+            className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[64px]"
+          />
+          <button onClick={onVoiceClick} className="p-3 text-sage-400 hover:text-sage-600 rounded-2xl transition-all"><Mic size={24} /></button>
+          <button onClick={handleSend} disabled={isLoading || !input.trim()} className="p-3 bg-sage-600 text-white rounded-2xl shadow-lg transition-all active:scale-95">
+            {isLoading ? <RefreshCw size={24} className="animate-spin" /> : <Send size={24} />}
+          </button>
         </div>
-      </div>
-    </div>
-  );
-};
-
-const SourceAccordion: React.FC<{ sources: RemedyDocument[] }> = ({ sources }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <div className="ml-11 max-w-[85%] mt-2">
-      <div className="border border-sage-100 rounded-2xl bg-sage-50/30 overflow-hidden transition-all">
-        <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between p-3.5 text-xs font-bold text-sage-500 hover:bg-sage-50 hover:text-sage-700 transition-colors">
-          <div className="flex items-center gap-2.5"><BookOpen size={14} /> Knowledge Sources ({sources.length})</div>
-          {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
-        {isOpen && (
-          <div className="p-4 bg-white border-t border-sage-50 space-y-3 text-[10px] text-gray-500">
-            {sources.map((doc, idx) => (
-              <div key={idx} className="pb-2 border-b border-gray-50 last:border-0 flex items-start gap-3">
-                <div className="mt-0.5"><ShieldCheck size={12} className="text-sage-400" /></div>
-                <div>
-                   <span className="font-bold text-sage-700">{doc.source} Archive</span>
-                   <p className="italic mt-0.5">{doc.book_name || 'Traditional Holistic Literature'}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

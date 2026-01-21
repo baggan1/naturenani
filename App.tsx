@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { User, AppView, QueryUsage, FeatureContext, Message, SubscriptionStatus } from './types';
 import { checkSubscriptionStatus, getCurrentUser, logoutUser, warmupDatabase, getUserSearchHistory, checkDailyQueryLimit, setupAuthListener, fetchUserRecord } from './services/backendService';
@@ -11,20 +12,17 @@ import NutriHeal from './components/DietKitchen';
 import { BrandingKit } from './components/BrandingKit';
 import { LegalNotice } from './components/LegalNotice';
 import { AboutView } from './components/AboutView';
-import { LegalConsentModal } from './components/LegalConsentModal';
+import { FAQView } from './components/FAQView';
 import { VoiceConsultation } from './components/VoiceConsultation';
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, Leaf, Sprout, TreePine, Palette, Terminal, ShieldAlert, Info, ShieldCheck, Star, Mic } from 'lucide-react';
+// Fixed missing icons from lucide-react: TreePine, Sprout
+import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, ShieldAlert, Info, ShieldCheck, Star, Mic, TreePine, Sprout, HelpCircle } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(getCurrentUser());
   const [currentView, setCurrentView] = useState<AppView>(AppView.CHAT);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDevMode, setIsDevMode] = useState(false);
-  const [hasLegalConsent, setHasLegalConsent] = useState<boolean>(() => {
-    return localStorage.getItem('nature_nani_legal_consent') === 'true';
-  });
   const authInitialized = useRef(false);
   
   const [chatMessages, setChatMessages] = useState<Message[]>([
@@ -46,21 +44,11 @@ const App: React.FC = () => {
   
   const [queryUsage, setQueryUsage] = useState<QueryUsage>({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('mode') === 'dev') {
-      setIsDevMode(true);
-    }
-  }, []);
-
   const refreshAppData = useCallback(async (u: User) => {
     try {
       const freshUser = await fetchUserRecord(u.email);
       const activeUser = freshUser || u;
-      
-      if (freshUser) {
-        setUser(freshUser);
-      }
+      if (freshUser) setUser(freshUser);
 
       const [usage, history, subStatus] = await Promise.all([
         checkDailyQueryLimit(activeUser),
@@ -130,15 +118,25 @@ const App: React.FC = () => {
     setCurrentView(view);
     setFeatureContext(null);
     setIsMobileMenuOpen(false);
+    setShowAuthModal(false); 
   };
 
   const handleFeatureHandoff = (view: AppView, id: string, title: string) => {
-    if (!subscriptionState.hasAccess) {
+    if (id === 'save') {
+        handleNav(AppView.LIBRARY, true);
+        return;
+    }
+    
+    // Check if the target view is a premium feature
+    const isPremiumView = [AppView.YOGA, AppView.DIET, AppView.LIBRARY].includes(view);
+    if (isPremiumView && !subscriptionState.hasAccess) {
       setShowPaywall(true);
       return;
     }
+    
     setFeatureContext({ id, title });
     setCurrentView(view);
+    setIsMobileMenuOpen(false);
   };
 
   const handleLibraryNavigate = (view: string, context: any) => {
@@ -146,14 +144,9 @@ const App: React.FC = () => {
     setCurrentView(view === 'YOGA' ? AppView.YOGA : AppView.DIET);
   };
 
-  const handleLegalConsent = () => {
-    localStorage.setItem('nature_nani_legal_consent', 'true');
-    setHasLegalConsent(true);
-  };
-
   const handleVoiceConsult = (query: string) => {
     setTriggerQuery(query);
-    setIsVoiceTrigger(true); // Flag to trigger TTS in chat interface if user is premium
+    setIsVoiceTrigger(true); 
     setCurrentView(AppView.CHAT);
   };
 
@@ -173,160 +166,46 @@ const App: React.FC = () => {
           </div>
           
           <div className="space-y-2">
-            <button 
-              onClick={() => handleNav(AppView.CHAT)} 
-              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <MessageSquare size={18} /> Consultation
-            </button>
-
-            <button 
-              onClick={() => handleNav(AppView.VOICE, false)} 
-              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <div className="flex items-center gap-3">
-                <Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode
-              </div>
-            </button>
-            
+            <button onClick={() => handleNav(AppView.CHAT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><MessageSquare size={18} /> Consultation</button>
+            <button onClick={() => handleNav(AppView.VOICE, false)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode</div></button>
             <div className="pt-4 pb-2">
-              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                Healing Aids {subscriptionState.hasAccess && <Sparkles size={10} className="text-yellow-500" />}
-              </p>
-              <button 
-                onClick={() => handleNav(AppView.YOGA, true)} 
-                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Flower2 size={18} className="text-pink-500" /> Yoga Aid
-                </div>
-                {!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}
-              </button>
-              <button 
-                onClick={() => handleNav(AppView.DIET, true)} 
-                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Utensils size={18} className="text-orange-500" /> Nutri Heal
-                </div>
-                {!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}
-              </button>
+              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">Healing Aids {subscriptionState.hasAccess && <Sparkles size={10} className="text-yellow-500" />}</p>
+              <button onClick={() => handleNav(AppView.YOGA, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Flower2 size={18} className="text-pink-500" /> Yoga Aid</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
+              <button onClick={() => handleNav(AppView.DIET, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Utensils size={18} className="text-orange-500" /> Nutri Heal</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
             </div>
-
-            <button 
-              onClick={() => handleNav(AppView.LIBRARY, true)} 
-              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.LIBRARY ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <div className="flex items-center gap-3">
-                <BookMarked size={18} className="text-blue-500" /> Saved Library
-              </div>
-              {!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}
-            </button>
-
-            {searchHistory.length > 0 && (
-              <div className="pt-4 pb-2 animate-in fade-in slide-in-from-left-4 duration-500">
-                <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <History size={12} /> Recent Wisdom
-                </p>
-                <div className="space-y-1">
-                  {searchHistory.map((query, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleHistoryClick(query)}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-sage-50 rounded-lg flex items-center justify-between group transition-colors"
-                    >
-                      <span className="truncate pr-2">{query}</span>
-                      <ChevronRight size={14} className="text-gray-300 group-hover:text-sage-400 transition-colors flex-shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button 
-              onClick={() => handleNav(AppView.ACCOUNT)} 
-              className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ACCOUNT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <UserCircle size={18} /> Account
-            </button>
-            
+            <button onClick={() => handleNav(AppView.LIBRARY, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.LIBRARY ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><BookMarked size={18} className="text-blue-500" /> Saved Library</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
+            <button onClick={() => handleNav(AppView.ACCOUNT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ACCOUNT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><UserCircle size={18} /> Account</button>
             <div className="pt-4 pb-2">
-              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
-                Information
-              </p>
-              <button 
-                onClick={() => handleNav(AppView.ABOUT)} 
-                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ABOUT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <Info size={18} /> About NatureNani
-              </button>
-              <button 
-                onClick={() => handleNav(AppView.LEGAL)} 
-                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.LEGAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <ShieldAlert size={18} /> Medical Disclaimer
-              </button>
-              <button 
-                onClick={() => handleNav(AppView.LEGAL)} 
-                className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.LEGAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}
-              >
-                <ShieldCheck size={18} /> Privacy Policy
-              </button>
+              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Information</p>
+              <button onClick={() => handleNav(AppView.ABOUT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ABOUT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><Info size={18} /> About NatureNani</button>
+              <button onClick={() => handleNav(AppView.FAQ)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.FAQ ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><HelpCircle size={18} /> FAQ</button>
+              <button onClick={() => handleNav(AppView.LEGAL)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.LEGAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><ShieldAlert size={18} /> Medical Disclaimer</button>
+              <button onClick={() => handleNav(AppView.LEGAL)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.LEGAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><ShieldCheck size={18} /> Privacy Policy</button>
             </div>
-
-            {isDevMode && (
-              <div className="pt-4 mt-4 border-t border-red-50">
-                <p className="px-4 text-[10px] font-black text-red-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <Terminal size={12} /> Dev Tools
-                </p>
-                <button 
-                  onClick={() => handleNav(AppView.BRANDING)} 
-                  className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.BRANDING ? 'bg-red-50 text-red-800' : 'text-gray-400 hover:bg-red-50'}`}
-                >
-                  <Palette size={18} /> Brand Assets
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
         <div className="pt-4 border-t border-sage-100">
           {user ? (
             <div className="px-2">
-              <div className="flex items-center gap-3 p-2 mb-2 bg-sage-50/50 rounded-xl">
-                <div className="w-8 h-8 rounded-full bg-sage-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+              <button onClick={() => handleNav(AppView.ACCOUNT)} className="w-full flex items-center gap-3 p-2 mb-2 bg-sage-50/50 rounded-xl hover:bg-sage-100 transition-all text-left group">
+                <div className="w-8 h-8 rounded-full bg-sage-600 flex items-center justify-center text-white font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
                   {user.name?.[0] || user.email[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-sage-900 truncate">{user.name || 'User'}</p>
+                  <p className="text-xs font-bold text-sage-900 truncate group-hover:text-sage-700">{user.name || 'User'}</p>
                   <div className="flex items-center gap-1">
-                    {subscriptionState.status === 'active' ? (
-                      <TreePine size={10} className="text-sage-600" />
-                    ) : subscriptionState.status === 'trialing' ? (
-                      <Star size={10} className="text-amber-500" />
-                    ) : (
-                      <Sprout size={10} className="text-sage-400" />
-                    )}
+                    {subscriptionState.status === 'active' ? <TreePine size={10} className="text-sage-600" /> : subscriptionState.status === 'trialing' ? <Star size={10} className="text-amber-500" /> : <Sprout size={10} className="text-sage-400" />}
                     <p className="text-[10px] text-gray-400 truncate uppercase tracking-tighter">
                       {subscriptionState.status === 'active' ? 'Healer Plan' : subscriptionState.status === 'trialing' ? 'Trial Access' : 'Free Plan'}
                     </p>
                   </div>
                 </div>
-              </div>
-              <button 
-                onClick={handleLogout} 
-                className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"
-              >
-                <LogOut size={14} /> Sign Out
               </button>
+              <button onClick={handleLogout} className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"><LogOut size={14} /> Sign Out</button>
             </div>
           ) : (
-            <button 
-              onClick={() => setShowAuthModal(true)}
-              className="w-full bg-sage-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-sage-700 transition-colors shadow-lg shadow-sage-200"
-            >
-              Sign In
-            </button>
+            <button onClick={() => setShowAuthModal(true)} className="w-full bg-sage-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-sage-700 transition-colors shadow-lg">Sign In</button>
           )}
         </div>
       </div>
@@ -355,12 +234,7 @@ const App: React.FC = () => {
           />
         </div>
         {currentView === AppView.ACCOUNT && user && (
-          <AccountSettings 
-            user={user} 
-            onUpgrade={() => setShowPaywall(true)} 
-            onLogout={handleLogout} 
-            onRefresh={() => refreshAppData(user)}
-          />
+          <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={handleLogout} onRefresh={() => refreshAppData(user)} />
         )}
         {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={handleLibraryNavigate} />}
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
@@ -368,25 +242,12 @@ const App: React.FC = () => {
         {currentView === AppView.BRANDING && <BrandingKit />}
         {currentView === AppView.LEGAL && <LegalNotice onBack={() => setCurrentView(AppView.CHAT)} />}
         {currentView === AppView.ABOUT && <AboutView onBack={() => setCurrentView(AppView.CHAT)} />}
-        
-        {currentView === AppView.VOICE && (
-          <VoiceConsultation 
-            onClose={() => setCurrentView(AppView.CHAT)} 
-            onSubmit={handleVoiceConsult}
-          />
-        )}
+        {currentView === AppView.FAQ && <FAQView onBack={() => setCurrentView(AppView.CHAT)} />}
+        {currentView === AppView.VOICE && <VoiceConsultation onClose={() => setCurrentView(AppView.CHAT)} onSubmit={handleVoiceConsult} />}
       </div>
 
-      {!hasLegalConsent && <LegalConsentModal onConsent={handleLegalConsent} />}
-      <AuthForm isOpen={showAuthModal} onAuthSuccess={(u) => handleAuthChange(u)} onClose={() => setShowAuthModal(false)} />
-      <SubscriptionModal 
-        isOpen={showPaywall} 
-        onClose={() => setShowPaywall(false)} 
-        isTrialExpired={subscriptionState.isTrialExpired} 
-        daysRemaining={subscriptionState.daysRemaining} 
-        subscriptionStatus={subscriptionState.status}
-        onRefreshUser={() => user && refreshAppData(user)}
-      />
+      <AuthForm isOpen={showAuthModal} onAuthSuccess={(u) => handleAuthChange(u)} onClose={() => setShowAuthModal(false)} onNavigate={(view) => handleNav(view)} />
+      <SubscriptionModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} isTrialExpired={subscriptionState.isTrialExpired} daysRemaining={subscriptionState.daysRemaining} subscriptionStatus={subscriptionState.status} onRefreshUser={() => user && refreshAppData(user)} />
     </div>
   );
 };

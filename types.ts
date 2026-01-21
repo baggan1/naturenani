@@ -54,7 +54,8 @@ export enum AppView {
   BRANDING = 'BRANDING',
   LEGAL = 'LEGAL',
   ABOUT = 'ABOUT',
-  VOICE = 'VOICE'
+  VOICE = 'VOICE',
+  FAQ = 'FAQ'
 }
 
 export interface QueryUsage {
