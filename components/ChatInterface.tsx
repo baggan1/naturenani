@@ -140,31 +140,51 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const parseMessageContent = (rawText: string) => {
-    const jsonStartIdx = rawText.indexOf('```json');
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
     let saveAction: { title: string } | null = null;
 
+    // 1. Identify and strip JSON metadata (robust check)
+    // We look for the LAST occurrence of backticks or just a raw { at the end of the text
+    const jsonMarker = '```json';
+    const jsonStartIdx = visibleText.lastIndexOf(jsonMarker);
+    const rawJsonStartIdx = visibleText.lastIndexOf('{');
+
+    let effectiveStart = -1;
+    if (jsonStartIdx !== -1) {
+        effectiveStart = jsonStartIdx;
+    } else if (rawJsonStartIdx !== -1 && visibleText.includes('"recommendations"', rawJsonStartIdx)) {
+        effectiveStart = rawJsonStartIdx;
+    }
+
+    if (effectiveStart !== -1) {
+      const metadataPart = visibleText.substring(effectiveStart);
+      visibleText = visibleText.substring(0, effectiveStart).trim();
+      
+      const jsonBlockRegex = /(\{[\s\S]*?\})/;
+      const match = metadataPart.match(jsonBlockRegex);
+      if (match && match[1]) {
+        try {
+          const data = JSON.parse(match[1]);
+          if (data.recommendations) metadata = data.recommendations;
+          if (data.suggestions) suggestions = data.suggestions;
+        } catch (e) {
+          // If we can't parse yet, it might be streaming.
+        }
+      }
+    }
+
+    // 2. Identify and strip Save Action trigger
     const saveRegex = /\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?)\]/;
     const saveMatch = visibleText.match(saveRegex);
     if (saveMatch) {
       saveAction = { title: saveMatch[1].trim() };
       visibleText = visibleText.replace(saveRegex, '').trim();
     }
-
-    if (jsonStartIdx !== -1) {
-      visibleText = visibleText.substring(0, jsonStartIdx).trim();
-      const jsonBlockRegex = /```json\s*(\{[\s\S]*?\})\s*```/;
-      const match = rawText.match(jsonBlockRegex);
-      if (match && match[1]) {
-        try {
-          const data = JSON.parse(match[1]);
-          if (data.recommendations) metadata = data.recommendations;
-          if (data.suggestions) suggestions = data.suggestions;
-        } catch (e) {}
-      }
-    }
+    
+    // 3. Clean trailing repetitive markers and whitespace
+    visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
     
     return { visibleText, metadata, suggestions, saveAction };
   };
@@ -286,13 +306,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
                       <div className="p-6 flex-1">
                         <div className="flex items-center gap-2 mb-4">
+                           {/* Updated Colors to match sidebar exactly */}
                            <div className={`p-2 rounded-lg ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-500' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
                               {rec.type === 'YOGA' ? <Flower2 size={18} /> : rec.type === 'DIET' ? <Utensils size={18} /> : <Stethoscope size={18} />}
                            </div>
                            <h4 className="font-serif font-bold text-sage-900 leading-tight">{rec.title}</h4>
                         </div>
                         <p className="text-sm text-gray-600 leading-relaxed mb-4">{rec.summary}</p>
-                        <button onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title)) : setShowTrialPrompt(true)} className="w-full py-2.5 rounded-xl font-bold text-xs bg-sage-600 text-white hover:bg-sage-700 flex items-center justify-center gap-2 transition-all">
+                        <button 
+                          onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title)) : setShowTrialPrompt(true)} 
+                          className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+                        >
                            {!hasAccess && <Lock size={12} />} View Protocol <ChevronRight size={14} />
                         </button>
                       </div>
@@ -339,18 +363,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
             <div className="flex-1 overflow-y-auto p-8">
               {renderMarkdown(selectedDetail.detail || '')}
+              
+              {/* Added Save Remedy functionality directly in modal */}
               {hasAccess && selectedDetail.type === 'REMEDY' && (
                 <div className="mt-8 flex justify-end">
                    <button 
                     onClick={handleSaveRemedy} 
                     disabled={saveLoading || saveSuccess}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg ${saveSuccess ? 'bg-green-100 text-green-700' : 'bg-sage-600 text-white hover:bg-sage-700'}`}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg ${saveSuccess ? 'bg-green-100 text-green-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                    >
                      {saveLoading ? <RefreshCw className="animate-spin" size={16} /> : saveSuccess ? <Check size={16} /> : <Save size={16} />}
                      {saveSuccess ? "Stored in Library" : "Save Remedy Details"}
                    </button>
                 </div>
               )}
+
               {!hasAccess && (
                 <div className="mt-8 p-8 bg-amber-50 rounded-[2rem] border border-amber-100 text-center">
                    <Lock className="mx-auto text-amber-500 mb-3" size={32} />
