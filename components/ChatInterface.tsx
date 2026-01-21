@@ -312,7 +312,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title)) : setShowTrialPrompt(true)} 
                         className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}
                       >
-                         {!hasAccess && <Lock size={12} />} View Protocol <ChevronRight size={14} />
+                         {!hasAccess && <Lock size={12} />} 
+                         {rec.type === 'REMEDY' ? 'Remedy Details' : rec.type === 'YOGA' ? 'Yoga Aid' : 'Nutri Heal Plan'} 
+                         <ChevronRight size={14} />
                       </button>
                     </div>
                   </div>
