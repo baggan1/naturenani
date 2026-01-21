@@ -8,6 +8,7 @@ const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
+// Fix: Changed 'content' to 'contents' to resolve the EmbedContentParameters error
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../utils/constants";
 import { encode } from "../utils/audio";
@@ -6,7 +5,6 @@ import { encode } from "../utils/audio";
 const INPUT_SAMPLE_RATE = 16000;
 
 export class NatureNaniVoiceSession {
-  private ai: GoogleGenAI;
   private sessionPromise: Promise<any> | null = null;
   private inputAudioContext: AudioContext | null = null;
   private micStream: MediaStream | null = null;
@@ -22,18 +20,19 @@ export class NatureNaniVoiceSession {
       onError: (err: any) => void;
     }
   ) {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     this.onTranscript = callbacks.onTranscript;
     this.onTurnComplete = callbacks.onTurnComplete;
     this.onError = callbacks.onError;
   }
 
+  // Always initialize GoogleGenAI right before making a call to ensure fresh configuration
   async start() {
     try {
       this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: INPUT_SAMPLE_RATE });
       
-      this.sessionPromise = this.ai.live.connect({
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      this.sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         callbacks: {
           onopen: () => {
@@ -82,6 +81,7 @@ export class NatureNaniVoiceSession {
       }
       
       const pcmBase64 = encode(new Uint8Array(int16.buffer));
+      // Use the promise chain to avoid race conditions with session initialization
       this.sessionPromise?.then(session => {
         session.sendRealtimeInput({
           media: {

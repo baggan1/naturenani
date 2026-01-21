@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Bookmark, BookmarkPlus, Save, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -143,12 +142,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
-    let saveAction: { title: string } | null = null;
 
-    // 1. Identify and strip JSON metadata (robust check)
-    // We look for the LAST occurrence of backticks or just a raw { at the end of the text
+    // Identify and strip JSON metadata robustly
     const jsonMarker = '```json';
-    const jsonStartIdx = visibleText.lastIndexOf(jsonMarker);
+    const jsonStartIdx = visibleText.indexOf(jsonMarker);
     const rawJsonStartIdx = visibleText.lastIndexOf('{');
 
     let effectiveStart = -1;
@@ -169,24 +166,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const data = JSON.parse(match[1]);
           if (data.recommendations) metadata = data.recommendations;
           if (data.suggestions) suggestions = data.suggestions;
-        } catch (e) {
-          // If we can't parse yet, it might be streaming.
-        }
+        } catch (e) {}
       }
     }
 
-    // 2. Identify and strip Save Action trigger
-    const saveRegex = /\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?)\]/;
-    const saveMatch = visibleText.match(saveRegex);
-    if (saveMatch) {
-      saveAction = { title: saveMatch[1].trim() };
-      visibleText = visibleText.replace(saveRegex, '').trim();
-    }
-    
-    // 3. Clean trailing repetitive markers and whitespace
+    visibleText = visibleText.replace(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?)\]/g, '').trim();
     visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
     
-    return { visibleText, metadata, suggestions, saveAction };
+    return { visibleText, metadata, suggestions };
   };
 
   const handleAutoSend = async (text: string, isResuming = false, isVoiceQuery = false) => {
@@ -279,78 +266,66 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-40 scroll-smooth">
-        {messages.map((msg) => {
-          const { saveAction } = parseMessageContent(msg.content);
-          return (
-            <div key={msg.id} className="flex flex-col gap-2">
-              <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}`}>
-                  {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
-                </div>
-                <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
-                  {msg.content ? renderMarkdown(msg.content) : <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>}
-                  {msg.role === 'model' && msg.content && (
-                    <div className="absolute -bottom-3 -right-3 flex items-center gap-1 z-10">
-                      <button onClick={() => generateAndPlaySpeech(msg.id, msg.content)} className={`group flex items-center gap-2 px-3.5 py-2 rounded-full shadow-lg border transition-all ${playingMessageId === msg.id ? 'bg-sage-700 text-white animate-pulse' : 'bg-white text-sage-600'}`}>
-                        {playingMessageId === msg.id ? <Volume2 size={14} /> : (hasAccess ? <Volume2 size={14} /> : <Lock size={12} className="text-amber-500" />)}
-                        <span className="text-[10px] font-black uppercase tracking-tighter">{hasAccess ? "Listen" : "Unlock Voice"}</span>
+        {messages.map((msg) => (
+          <div key={msg.id} className="flex flex-col gap-2">
+            <div className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'user' ? 'bg-earth-500' : 'bg-sage-600'}`}>
+                {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
+              </div>
+              <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
+                {msg.content ? renderMarkdown(msg.content) : <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>}
+                {msg.role === 'model' && msg.content && (
+                  <div className="absolute -bottom-3 -right-3 flex items-center gap-1 z-10">
+                    <button onClick={() => generateAndPlaySpeech(msg.id, msg.content)} className={`group flex items-center gap-2 px-3.5 py-2 rounded-full shadow-lg border transition-all ${playingMessageId === msg.id ? 'bg-sage-700 text-white animate-pulse' : 'bg-white text-sage-600'}`}>
+                      {playingMessageId === msg.id ? <Volume2 size={14} /> : (hasAccess ? <Volume2 size={14} /> : <Lock size={12} className="text-amber-500" />)}
+                      <span className="text-[10px] font-black uppercase tracking-tighter">{hasAccess ? "Listen" : "Unlock Voice"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {msg.recommendations && msg.recommendations.length > 0 && (
+              <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4">
+                {msg.recommendations.map((rec, idx) => (
+                  <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
+                    <div className="p-6 flex-1">
+                      <div className="flex items-center gap-2 mb-4">
+                         <div className={`p-2 rounded-lg ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-500' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
+                            {rec.type === 'YOGA' ? <Flower2 size={18} /> : rec.type === 'DIET' ? <Utensils size={18} /> : <Stethoscope size={18} />}
+                         </div>
+                         <h4 className="font-serif font-bold text-sage-900 leading-tight">{rec.title}</h4>
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed mb-4">{rec.summary}</p>
+                      <button 
+                        onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title)) : setShowTrialPrompt(true)} 
+                        className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+                      >
+                         {!hasAccess && <Lock size={12} />} View Protocol <ChevronRight size={14} />
                       </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ))}
               </div>
+            )}
 
-              {msg.recommendations && msg.recommendations.length > 0 && (
-                <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4">
-                  {msg.recommendations.map((rec, idx) => (
-                    <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
-                      <div className="p-6 flex-1">
-                        <div className="flex items-center gap-2 mb-4">
-                           {/* Updated Colors to match sidebar exactly */}
-                           <div className={`p-2 rounded-lg ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-500' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
-                              {rec.type === 'YOGA' ? <Flower2 size={18} /> : rec.type === 'DIET' ? <Utensils size={18} /> : <Stethoscope size={18} />}
-                           </div>
-                           <h4 className="font-serif font-bold text-sage-900 leading-tight">{rec.title}</h4>
-                        </div>
-                        <p className="text-sm text-gray-600 leading-relaxed mb-4">{rec.summary}</p>
-                        <button 
-                          onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title)) : setShowTrialPrompt(true)} 
-                          className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}
-                        >
-                           {!hasAccess && <Lock size={12} />} View Protocol <ChevronRight size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {saveAction && (
-                <div className="ml-11 mt-4">
-                  <button onClick={() => hasAccess ? onNavigateToFeature(AppView.LIBRARY, 'save', saveAction!.title) : setShowTrialPrompt(true)} className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border-2 border-sage-200 text-sage-700 font-bold text-xs uppercase tracking-widest hover:border-sage-400 transition-all shadow-sm">
-                    <BookmarkPlus size={16} className="text-sage-600" /> Save Healing Journey
+            {msg.suggestions && msg.suggestions.length > 0 && (
+              <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl">
+                {msg.suggestions.map((s, idx) => (
+                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm">
+                    {s}
                   </button>
-                </div>
-              )}
+                ))}
+              </div>
+            )}
 
-              {msg.suggestions && msg.suggestions.length > 0 && (
-                <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl">
-                  {msg.suggestions.map((s, idx) => (
-                    <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm">
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {msg.role === 'model' && (
-                <div className="ml-11 mt-4 text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 font-sans">
-                  VIEW OUR <button onClick={() => onNavigateToFeature(AppView.LEGAL, '', '')} className="text-[#3B6EB1] hover:underline font-black">DISCLAIMER AND PRIVACY POLICY</button> FOR MORE DETAILS.
-                </div>
-              )}
-            </div>
-          );
-        })}
+            {msg.role === 'model' && (
+              <div className="ml-11 mt-4 text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 font-sans">
+                VIEW OUR <button onClick={() => onNavigateToFeature(AppView.LEGAL, '', '')} className="text-[#3B6EB1] hover:underline font-black">DISCLAIMER AND PRIVACY POLICY</button> FOR MORE DETAILS.
+              </div>
+            )}
+          </div>
+        ))}
         <div ref={messagesEndRef} />
       </div>
 
@@ -363,8 +338,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
             <div className="flex-1 overflow-y-auto p-8">
               {renderMarkdown(selectedDetail.detail || '')}
-              
-              {/* Added Save Remedy functionality directly in modal */}
               {hasAccess && selectedDetail.type === 'REMEDY' && (
                 <div className="mt-8 flex justify-end">
                    <button 
@@ -377,7 +350,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                    </button>
                 </div>
               )}
-
               {!hasAccess && (
                 <div className="mt-8 p-8 bg-amber-50 rounded-[2rem] border border-amber-100 text-center">
                    <Lock className="mx-auto text-amber-500 mb-3" size={32} />
