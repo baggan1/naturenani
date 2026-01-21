@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_INSTRUCTION, MAX_PROMPT_LENGTH } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
@@ -7,13 +8,13 @@ const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
-// Fix: Corrected 'contents' back to 'content' for embedContent as per SDK standards
+// Fix: Changed 'content' to 'contents' to match EmbedContentParameters type as suggested by the error message
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
     const response = await ai.models.embedContent({
       model: 'text-embedding-004',
-      content: { parts: [{ text }] }
+      contents: { parts: [{ text }] }
     });
     return response.embeddings?.[0]?.values || null;
   } catch (e) { 

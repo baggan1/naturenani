@@ -143,53 +143,40 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
 
-    // Robust JSON extraction
-    // Look for the last occurrence of ```json ... ``` or the last { ... }
-    const jsonFencedRegex = /```json\s*([\s\S]*?)\s*```/g;
-    const matches = [...rawText.matchAll(jsonFencedRegex)];
-    
-    let jsonString = '';
-    let foundIndex = -1;
+    // Split at the explicit metadata marker
+    const marker = "[METADATA_START]";
+    const markerIndex = rawText.indexOf(marker);
 
-    if (matches.length > 0) {
-      const lastMatch = matches[matches.length - 1];
-      jsonString = lastMatch[1];
-      foundIndex = lastMatch.index!;
-    } else {
-      // Fallback: Look for the last { and try to parse from there
-      const lastBraceIdx = rawText.lastIndexOf('{');
-      if (lastBraceIdx !== -1 && rawText.includes('"recommendations"', lastBraceIdx)) {
-        jsonString = rawText.substring(lastBraceIdx);
-        foundIndex = lastBraceIdx;
-      }
-    }
-
-    if (jsonString && foundIndex !== -1) {
-      try {
-        // Find the last closing brace in the extracted string to ensure valid JSON start/end
-        const lastClosingBrace = jsonString.lastIndexOf('}');
-        if (lastClosingBrace !== -1) {
-          const validJsonPart = jsonString.substring(0, lastClosingBrace + 1);
-          const data = JSON.parse(validJsonPart);
+    if (markerIndex !== -1) {
+      visibleText = rawText.substring(0, markerIndex).trim();
+      const metadataPart = rawText.substring(markerIndex + marker.length);
+      
+      // Try to find the JSON block inside markdown if present
+      const jsonMatch = metadataPart.match(/```json\s*([\s\S]*?)\s*```/) || metadataPart.match(/(\{[\s\S]*?\})/);
+      
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          const data = JSON.parse(jsonMatch[1].trim());
           if (data.recommendations) metadata = data.recommendations;
           if (data.suggestions) suggestions = data.suggestions;
-          
-          // Only strip from visible text if we found valid metadata
-          visibleText = rawText.substring(0, foundIndex).trim();
-        }
-      } catch (e) {
-        // If it fails (e.g., during streaming), we keep the full text visible or hide the partial JSON block
-        const markerIdx = rawText.indexOf('```json', foundIndex - 10);
-        if (markerIdx !== -1) {
-           visibleText = rawText.substring(0, markerIdx).trim();
-        } else if (foundIndex !== -1) {
-           visibleText = rawText.substring(0, foundIndex).trim();
+        } catch (e) {
+          // JSON might be partial while streaming
         }
       }
+    } else {
+        // Fallback for older formats or missing marker: look for fenced JSON
+        const fallbackMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
+        if (fallbackMatch && fallbackMatch.index !== undefined) {
+            visibleText = rawText.substring(0, fallbackMatch.index).trim();
+            try {
+                const data = JSON.parse(fallbackMatch[1].trim());
+                if (data.recommendations) metadata = data.recommendations;
+                if (data.suggestions) suggestions = data.suggestions;
+            } catch (e) {}
+        }
     }
 
-    // Clean up visibility triggers and artifacts
-    visibleText = visibleText.replace(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?)\]/g, '').trim();
+    // Clean up trailing dashes or artifacts
     visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
     
     return { visibleText, metadata, suggestions };
@@ -232,7 +219,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         } : msg));
       }
       
-      // Final parse to ensure everything is captured
       const finalResult = parseMessageContent(fullRawContent);
       setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
         ...msg, 

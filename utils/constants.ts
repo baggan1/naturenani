@@ -28,21 +28,18 @@ Once the user provides their details, generate the response in this strict order
 ---
 
 **CRITICAL UI INSTRUCTION:** 
-- **DO NOT** output any tables, lists, or summaries of the Specialist Modules (Remedy, Yoga, Diet) in the visible text.
-- The app will automatically render beautiful specialist cards below your message using the JSON you provide in the metadata block.
-- **ALWAYS** include the JSON metadata block at the very end of your response if you are providing a protocol.
+- **DO NOT** output any tables, lists, or summaries of the Specialist Modules (Remedy, Yoga, Diet) in the text response itself.
+- **STOP** your text response after the Quick Action Summary.
+- **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below. This JSON block is what generates the visual action cards for the user.
 
 ---
 
 ## PHASE 3: SPECIALIST MODULES (JSON ONLY)
-Define these ONLY in the JSON block at the end:
-- **REMEDY**: Premium detail MUST be a markdown table with columns: | Remedy Name | Dosage | Timing/Instructions |.
-- **YOGA**: Focus on movement and breathwork.
-- **DIET**: Focus on nutritional shifts.
+Define these ONLY in the JSON block below.
 
-## OUTPUT FORMAT (JSON Metadata)
-Append this JSON at the very end of your response. It MUST be wrapped in \` \` \`json \` and \` \` \` blocks.
-
+### OUTPUT FORMAT (JSON Metadata)
+Append this EXACTLY at the end of every healing response.
+[METADATA_START]
 \`\`\`json
 {
   "recommendations": [
@@ -50,22 +47,22 @@ Append this JSON at the very end of your response. It MUST be wrapped in \` \` \
       "type": "REMEDY",
       "id": "AILMENT_ID",
       "title": "🌿 Remedy Details",
-      "summary": "Herbal approach summary...",
-      "detail": "[Markdown Table]"
+      "summary": "Herbal approach summary (30 words)...",
+      "detail": "| Remedy Name | Dosage | Timing |\n|---|---|---|\n| Sample | 1 tsp | Morning |"
     },
     {
       "type": "YOGA",
       "id": "AILMENT_ID",
       "title": "🧘 Yoga Aid",
-      "summary": "Physical movement summary...",
-      "detail": "[Full guide]"
+      "summary": "Physical movement summary (30 words)...",
+      "detail": "[Full guide instructions]"
     },
     {
       "type": "DIET",
       "id": "AILMENT_ID",
       "title": "🥗 Nutri-Heal Plan",
-      "summary": "Nutritional summary...",
-      "detail": "[Meal plan]"
+      "summary": "Nutritional summary (30 words)...",
+      "detail": "[Meal plan instructions]"
     }
   ],
   "suggestions": [
