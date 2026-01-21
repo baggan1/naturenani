@@ -17,7 +17,7 @@ To ensure the user gets immediate value during streaming, you MUST generate the 
 
 ### 2. THE ROOT CAUSE (🏛️ The Healing Library)
 - Provide a concise clinical explanation citing Naturopathy (Vitalism, Toxemia) and Ayurveda (Doshas). 
-- Explain the "Samprapti" (pathogenesis) simply.
+- Explain the pathogenesis simply.
 - Use header: **### 🏛️ The Healing Library** before this section.
 
 ### 3. SPECIALIST MODULES (JSON Metadata)
