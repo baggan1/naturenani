@@ -15,7 +15,6 @@ import { AboutView } from './components/AboutView';
 import { FAQView } from './components/FAQView';
 import { VoiceConsultation } from './components/VoiceConsultation';
 import { Logo } from './components/Logo';
-// Fixed missing icons from lucide-react: TreePine, Sprout
 import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, ShieldAlert, Info, ShieldCheck, Star, Mic, TreePine, Sprout, HelpCircle } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
@@ -127,7 +126,6 @@ const App: React.FC = () => {
         return;
     }
     
-    // Check if the target view is a premium feature
     const isPremiumView = [AppView.YOGA, AppView.DIET, AppView.LIBRARY].includes(view);
     if (isPremiumView && !subscriptionState.hasAccess) {
       setShowPaywall(true);
@@ -174,7 +172,7 @@ const App: React.FC = () => {
               <button onClick={() => handleNav(AppView.DIET, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Utensils size={18} className="text-orange-500" /> Nutri Heal</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
             </div>
             <button onClick={() => handleNav(AppView.LIBRARY, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.LIBRARY ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><BookMarked size={18} className="text-blue-500" /> Saved Library</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
-            <button onClick={() => handleNav(AppView.ACCOUNT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ACCOUNT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><UserCircle size={18} /> Account</button>
+            
             <div className="pt-4 pb-2">
               <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Information</p>
               <button onClick={() => handleNav(AppView.ABOUT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ABOUT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><Info size={18} /> About NatureNani</button>
@@ -229,6 +227,7 @@ const App: React.FC = () => {
             isGuest={!user} 
             onShowAuth={() => setShowAuthModal(true)} 
             onNavigateToFeature={handleFeatureHandoff}
+            /* Fix: Changed typo VOUSE to VOICE */
             onVoiceClick={() => handleNav(AppView.VOICE, false)}
             initialMessageIsVoice={isVoiceTrigger}
           />

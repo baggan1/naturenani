@@ -17,20 +17,14 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
     });
     return response.embeddings?.[0]?.values || null;
   } catch (e) { 
+    console.warn("[GeminiService] Embedding failed:", e);
     return null; 
   }
 };
 
-/**
- * Ensures the conversation history is perfectly formatted for Gemini Chat:
- * 1. Must start with 'user'.
- * 2. Roles must strictly alternate: [user, model, user, model].
- * 3. Ends with 'model' (because the new message being sent will be 'user').
- */
 const cleanHistory = (history: Message[]) => {
   if (!history || history.length === 0) return [];
 
-  // Map to API structure first
   let raw = history
     .filter(m => m.content && m.content.trim() !== '' && m.id !== 'welcome')
     .map(m => ({
@@ -44,7 +38,6 @@ const cleanHistory = (history: Message[]) => {
   
   for (const msg of raw) {
     if (alternating.length === 0) {
-      // Rule 1: History MUST start with user
       if (msg.role === 'user') {
         alternating.push(msg);
       }
@@ -53,15 +46,12 @@ const cleanHistory = (history: Message[]) => {
 
     const last = alternating[alternating.length - 1];
     if (msg.role === last.role) {
-      // Rule 2: Merge same-role turns to preserve alternating sequence
       last.parts[0].text += "\n\n" + msg.parts[0].text;
     } else {
       alternating.push(msg);
     }
   }
 
-  // Rule 3: chat.sendMessage requires the last turn in history to be MODEL
-  // If it's USER, we remove it from history (it's effectively redundant context anyway)
   while (alternating.length > 0 && alternating[alternating.length - 1].role === 'user') {
     alternating.pop();
   }
@@ -82,20 +72,30 @@ export const sendMessageWithRAG = async function* (
     let contextDocs: RemedyDocument[] = [];
     let hasRAG = false;
 
-    // Optimization: Sequential embedding + retrieval
-    const queryVector = await generateEmbedding(safeMessage);
-    if (queryVector) {
-      contextDocs = await searchVectorDatabase(safeMessage, queryVector);
-      if (onSourcesFound) onSourcesFound(contextDocs);
-      hasRAG = contextDocs.length > 0;
+    // PERFORMANCE OPTIMIZATION: 
+    // If it's the very first message from the user (history is empty or just welcome), 
+    // skip RAG to speed up the Intake Question phase (Age/Sex clarification).
+    const isFirstTurn = history.length <= 1;
+
+    if (!isFirstTurn) {
+      try {
+        const queryVector = await generateEmbedding(safeMessage);
+        if (queryVector) {
+          contextDocs = await searchVectorDatabase(safeMessage, queryVector);
+          if (onSourcesFound) onSourcesFound(contextDocs);
+          hasRAG = contextDocs.length > 0;
+        }
+      } catch (ragErr) {
+        console.warn("[GeminiService] RAG retrieval failed, falling back to pure AI:", ragErr);
+      }
     }
 
     const dynamicSystemInstruction = SYSTEM_INSTRUCTION + 
       "\n\nCURRENT CONTEXT:\nTier: " + userTier + "\nToday's Consultations: " + queryCount;
 
-    // Use a fresh chat session for every turn to ensure zero carry-over state issues
+    // Use 'gemini-3-flash-preview' for maximum speed and reliable streaming
     const chat = ai.chats.create({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       config: { systemInstruction: dynamicSystemInstruction, temperature: 0.7 },
       history: cleanHistory(history)
     });
@@ -111,10 +111,15 @@ export const sendMessageWithRAG = async function* (
       if (c.text) yield c.text;
     }
     
-    logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Verified Source'));
+    if (hasRAG) {
+      logAnalyticsEvent(safeMessage, 'RAG', contextDocs.map(d => d.book_name || 'Verified Source'));
+    } else {
+      logAnalyticsEvent(safeMessage, 'AI', ['Gemini Knowledge Base']);
+    }
   } catch (error: any) { 
     console.error("[GeminiService] Consultation failed:", error);
-    yield "I apologize, but my connection to the ancient wisdom archives was interrupted. Please try clicking 'New Consultation' to refresh our session.";
+    // Graceful error message for the user in case of 500 or timeout
+    yield "My dear, I am having trouble connecting with our ancient wisdom archives right now. Please check your internet connection or try again in a moment.";
     throw error; 
   }
 };
@@ -124,7 +129,7 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
   const prompt = `Recommend 3 specific asanas and 1 pranayama for: ${ailmentId}. Return JSON list.`;
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: { parts: [{ text: prompt }] },
       config: { 
         responseMimeType: 'application/json',
@@ -153,7 +158,7 @@ export const generateDietPlan = async (ailmentId: string): Promise<any> => {
   const prompt = `3-day meal plan for: ${ailmentId}. JSON only.`;
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: { parts: [{ text: prompt }] },
       config: { 
         responseMimeType: 'application/json',
