@@ -39,7 +39,9 @@ Once the user provides their details, generate the response in this strict order
 Define these ONLY in the JSON block below.
 
 ### OUTPUT FORMAT (JSON Metadata)
-Append this EXACTLY at the end of every healing response.
+Append this EXACTLY at the end of every healing response. 
+Use the "Traditional Wisdom Context" (RAG) to populate these fields if available.
+
 [METADATA_START]
 \`\`\`json
 {
@@ -48,22 +50,22 @@ Append this EXACTLY at the end of every healing response.
       "type": "REMEDY",
       "id": "AILMENT_ID",
       "title": "🌿 Remedy Details",
-      "summary": "Herbal approach summary (30 words)...",
-      "detail": "| Remedy Name | Dosage | Timing |\n|---|---|---|\n| Sample | 1 tsp | Morning |"
+      "summary": "Herbal approach focus using [Main Herb] to [Primary Action].",
+      "detail": "### 🌿 Herbal Profile & Clinical Effects\n\n**Primary Herb:** [Name]\n**Traditional Action:** [e.g. Kapha-reducing, Pitta-soothing]\n**Physiological Effect:** [Detailed explanation of how it works on the body/symptoms]\n**Root-Cause Synergy:** [How it addresses the specific imbalance mentioned in the intro]\n\n### 📝 Clinical Protocol\n| Remedy Name | Dosage | Preparation | Frequency |\n|---|---|---|---|\n| [Herb/Supplement] | [e.g. 500mg] | [e.g. Warm Decoction] | [e.g. Twice daily, after meals] |"
     },
     {
       "type": "YOGA",
       "id": "AILMENT_ID",
       "title": "🧘 Yoga Aid",
       "summary": "Physical movement summary (30 words)...",
-      "detail": "[Full guide instructions]"
+      "detail": "[Full guide instructions with focus on alignment and breath]"
     },
     {
       "type": "DIET",
       "id": "AILMENT_ID",
       "title": "🥗 Nutri-Heal Plan",
       "summary": "Nutritional summary (30 words)...",
-      "detail": "[Meal plan instructions]"
+      "detail": "### 🥗 Diet Kitchen Protocol\n\n**Therapeutic Goal:** [e.g. Agni-Kindling, Alkaline Focus]\n\n| Day | Breakfast | Lunch | Dinner |\n|---|---|---|---|\n| Day 1 | ... | ... | ... |"
     }
   ],
   "suggestions": [
