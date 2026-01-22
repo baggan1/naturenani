@@ -1,17 +1,27 @@
-
-import React, { useState, useEffect } from 'react';
-import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText, X } from 'lucide-react';
 import { SavedMealPlan, SavedYogaPlan, User, AppView } from '../types';
 import { getUserLibrary } from '../services/backendService';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface LibraryProps {
   user: User;
   onNavigate: (view: any, context?: any) => void;
 }
 
+interface GroupedAilment {
+  title: string;
+  remedy?: any;
+  yoga?: any;
+  diet?: any;
+  lastUpdated: string;
+}
+
 const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
   const [library, setLibrary] = useState<{ diet: SavedMealPlan[], yoga: SavedYogaPlan[], remedy: any[] }>({ diet: [], yoga: [], remedy: [] });
   const [loading, setLoading] = useState(true);
+  const [viewingRemedy, setViewingRemedy] = useState<any>(null);
 
   useEffect(() => {
     const fetchLibrary = async () => {
@@ -22,135 +32,169 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
     fetchLibrary();
   }, [user]);
 
-  const formatDate = (date: string) => new Date(date).toLocaleDateString();
+  const groupedAilments = useMemo(() => {
+    const groups: Record<string, GroupedAilment> = {};
+    
+    // Group Remedies
+    library.remedy.forEach(r => {
+      const key = r.title.toLowerCase();
+      if (!groups[key]) groups[key] = { title: r.title, lastUpdated: r.created_at };
+      groups[key].remedy = r;
+      if (new Date(r.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = r.created_at;
+    });
+
+    // Group Yoga
+    library.yoga.forEach(y => {
+      const key = y.title.toLowerCase();
+      if (!groups[key]) groups[key] = { title: y.title, lastUpdated: y.created_at };
+      groups[key].yoga = y;
+      if (new Date(y.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = y.created_at;
+    });
+
+    // Group Diet
+    library.diet.forEach(d => {
+      const key = d.title.toLowerCase();
+      if (!groups[key]) groups[key] = { title: d.title, lastUpdated: d.created_at };
+      groups[key].diet = d;
+      if (new Date(d.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = d.created_at;
+    });
+
+    return Object.values(groups).sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+  }, [library]);
+
+  const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   if (loading) {
     return (
       <div className="h-full flex flex-col items-center justify-center bg-sage-50">
         <Loader2 className="animate-spin text-sage-600 w-12 h-12 mb-4" />
-        <p className="text-sage-700 font-bold">Opening your healing library...</p>
+        <p className="text-sage-700 font-bold uppercase text-[10px] tracking-widest">Opening your healing library...</p>
       </div>
     );
   }
 
-  const isEmpty = library.diet.length === 0 && library.yoga.length === 0 && library.remedy.length === 0;
+  const isEmpty = groupedAilments.length === 0;
 
   return (
-    <div className="h-full flex flex-col bg-sage-50 overflow-y-auto">
-      <div className="bg-white border-b border-sage-200 p-6 shadow-sm">
-        <h1 className="font-serif text-2xl font-bold text-sage-900 flex items-center gap-2">
-          <BookMarked className="text-sage-600" /> My Healing Library
-        </h1>
-        <p className="text-gray-500 mt-1">Your saved protocols for clinical wellness.</p>
+    <div className="h-full flex flex-col bg-sage-50 overflow-y-auto pb-20">
+      <div className="bg-white border-b border-sage-200 p-8 shadow-sm">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="font-serif text-3xl font-bold text-sage-900 flex items-center gap-3">
+              <BookMarked className="text-sage-600" /> Saved Healing Library
+            </h1>
+            <p className="text-gray-500 mt-1 text-sm">A centralized record of your personalized holistic protocols.</p>
+          </div>
+          <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-sage-50 border border-sage-100 rounded-full">
+            <span className="text-[10px] font-black text-sage-600 uppercase tracking-widest">{groupedAilments.length} / 5 Ailments Stored</span>
+          </div>
+        </div>
       </div>
 
-      <div className="p-8 max-w-6xl mx-auto w-full space-y-12">
+      <div className="p-8 max-w-6xl mx-auto w-full">
         {isEmpty ? (
-          <div className="text-center py-20 opacity-40">
-            <BookMarked size={64} className="mx-auto mb-4" />
-            <p className="font-bold text-lg">Your library is empty.</p>
-            <p className="text-sm">Generate and save a routine to see it here.</p>
+          <div className="text-center py-32 bg-white rounded-[3rem] border border-dashed border-sage-300">
+            <div className="w-20 h-20 bg-sage-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <BookMarked size={40} className="text-sage-300" />
+            </div>
+            <p className="font-serif text-2xl font-bold text-sage-900 mb-2">No Protocols Stored</p>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto">Start a consultation and use the "Save to Library" button on any recommendation card.</p>
           </div>
         ) : (
-          <>
-            {/* Remedies */}
-            {library.remedy.length > 0 && (
-              <section>
-                <h2 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                  <Stethoscope size={14} className="text-blue-500" /> Saved Remedies
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {library.remedy.map((plan) => (
-                    <div 
-                      key={plan.id}
-                      onClick={() => onNavigate('REMEDY', { type: 'REMEDY', title: plan.title, detail: plan.detail })}
-                      className="bg-white p-6 rounded-2xl border border-blue-50 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-                          <FileText size={20} />
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
-                          <Calendar size={10} /> {formatDate(plan.created_at)}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-sage-900 mb-2 truncate group-hover:text-blue-600 transition-colors">{plan.title}</h3>
-                      <p className="text-xs text-gray-500 mb-4">Clinical Protocol</p>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-blue-500 uppercase">
-                        View Remedy <ChevronRight size={14} />
-                      </div>
-                    </div>
+          <div className="bg-white rounded-[2.5rem] shadow-xl border border-sage-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-sage-600 text-white">
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans">Ailment / Concern</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🌿 Remedy</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🧘 Yoga Aid</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🥗 Nutri Heal</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-right">Last Sync</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sage-50">
+                  {groupedAilments.map((group, idx) => (
+                    <tr key={idx} className="hover:bg-sage-50/50 transition-colors group">
+                      <td className="px-8 py-6">
+                        <div className="font-serif font-bold text-sage-900 text-lg group-hover:text-sage-600 transition-colors">{group.title}</div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-tighter">Verified Protocol</div>
+                      </td>
+                      <td className="px-6 py-6 text-center">
+                        {group.remedy ? (
+                          <button 
+                            onClick={() => setViewingRemedy(group.remedy)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                          >
+                            <FileText size={14} /> View Details
+                          </button>
+                        ) : <span className="text-gray-300 italic text-[10px] font-bold">---</span>}
+                      </td>
+                      <td className="px-6 py-6 text-center">
+                        {group.yoga ? (
+                          <button 
+                            onClick={() => onNavigate('YOGA', { id: group.yoga.title, title: group.yoga.title, cachedPoses: group.yoga.poses })}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-pink-50 text-pink-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-pink-600 hover:text-white transition-all shadow-sm"
+                          >
+                            <Flower2 size={14} /> Open Studio
+                          </button>
+                        ) : <span className="text-gray-300 italic text-[10px] font-bold">---</span>}
+                      </td>
+                      <td className="px-6 py-6 text-center">
+                        {group.diet ? (
+                          <button 
+                            onClick={() => onNavigate('DIET', { id: group.diet.title, title: group.diet.title, cachedPlan: group.diet.plan_data })}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-orange-600 hover:text-white transition-all shadow-sm"
+                          >
+                            <Utensils size={14} /> View Plan
+                          </button>
+                        ) : <span className="text-gray-300 italic text-[10px] font-bold">---</span>}
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="text-[10px] font-bold text-gray-400">{formatDate(group.lastUpdated)}</div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              </section>
-            )}
-
-            {/* Yoga Routines */}
-            {library.yoga.length > 0 && (
-              <section>
-                <h2 className="text-xs font-black text-pink-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                  <Flower2 size={14} className="text-pink-500" /> Saved Yoga Routines
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {library.yoga.map((plan) => (
-                    <div 
-                      key={plan.id}
-                      onClick={() => onNavigate('YOGA', { id: plan.title, title: plan.title, cachedPoses: plan.poses })}
-                      className="bg-white p-6 rounded-2xl border border-pink-50 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600">
-                          <Wind size={20} />
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
-                          <Calendar size={10} /> {formatDate(plan.created_at)}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-sage-900 mb-2 truncate group-hover:text-pink-600 transition-colors">{plan.title}</h3>
-                      <p className="text-xs text-gray-500 mb-4">{plan.poses.length} Therapeutic Practices</p>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-pink-500 uppercase">
-                        View Routine <ChevronRight size={14} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Diet Plans */}
-            {library.diet.length > 0 && (
-              <section>
-                <h2 className="text-xs font-black text-orange-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                  <Utensils size={14} className="text-orange-500" /> Saved Diet Protocols
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {library.diet.map((plan) => (
-                    <div 
-                      key={plan.id}
-                      onClick={() => onNavigate('DIET', { id: plan.title, title: plan.title, cachedPlan: plan.plan_data })}
-                      className="bg-white p-6 rounded-2xl border border-orange-50 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
-                          <Utensils size={20} />
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
-                          <Calendar size={10} /> {formatDate(plan.created_at)}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-sage-900 mb-2 truncate group-hover:text-orange-600 transition-colors">{plan.title}</h3>
-                      <p className="text-xs text-gray-500 mb-4">3-Day Meal Plan</p>
-                      <div className="flex items-center gap-2 text-[10px] font-bold text-orange-500 uppercase">
-                        View Plan <ChevronRight size={14} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Local Remedy Detail Modal */}
+      {viewingRemedy && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-sage-900/70 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setViewingRemedy(null)}>
+          <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-white/20" onClick={e => e.stopPropagation()}>
+            <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Saved Remedy Detail</span>
+                <h2 className="text-2xl font-serif font-bold text-sage-900">{viewingRemedy.title}</h2>
+              </div>
+              <button onClick={() => setViewingRemedy(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={24} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8 md:p-12">
+              <div className="markdown-content prose prose-slate max-w-none">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-50 pb-2" {...props} />,
+                    p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700" {...props} />,
+                    table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full" {...props} /></div>,
+                    th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
+                    td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
+                  }}
+                >
+                  {viewingRemedy.detail || ''}
+                </ReactMarkdown>
+              </div>
+            </div>
+            <div className="p-6 bg-sage-50 border-t border-sage-100 flex justify-center">
+               <button onClick={() => setViewingRemedy(null)} className="px-8 py-3 bg-sage-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-sage-200">Close Library Record</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

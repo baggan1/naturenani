@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, RemedyDocument, SearchSource, QueryUsage, SavedMealPlan, DayPlan, YogaPose, SavedYogaPlan, SubscriptionStatus } from '../types';
 import { DAILY_QUERY_LIMIT } from '../utils/constants';
@@ -382,52 +381,56 @@ export const createStripePortalSession = async () => {
   if (portalLink) window.location.href = portalLink;
 };
 
+// Helper to check 5-ailment limit
+const canSaveNewAilment = async (userId: string, targetTitle: string): Promise<boolean> => {
+  if (!supabase) return true;
+  const { data, error } = await supabase.from('nani_saved_plans').select('title').eq('user_id', userId);
+  if (error || !data) return true;
+  const uniqueTitles = new Set(data.map((item: any) => item.title.toLowerCase()));
+  if (uniqueTitles.has(targetTitle.toLowerCase())) return true;
+  return uniqueTitles.size < 5;
+};
+
 export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string) => {
-  if (!supabase) {
-    console.error("[Backend] Supabase client not initialized.");
+  if (!supabase) return null;
+  const isAllowed = await canSaveNewAilment(user.id, title);
+  if (!isAllowed) {
+    alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
     return null;
   }
   const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: poses, type: 'YOGA' }).select().single();
-  if (error) {
-    console.error("[Backend] Error saving Yoga Plan (500 likely indicates missing table 'nani_saved_plans'):", error.message);
-    return null;
-  }
+  if (error) return null;
   return data;
 };
 
 export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: string) => {
-  if (!supabase) {
-    console.error("[Backend] Supabase client not initialized.");
+  if (!supabase) return null;
+  const isAllowed = await canSaveNewAilment(user.id, title);
+  if (!isAllowed) {
+    alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
     return null;
   }
   const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data, type: 'DIET' }).select().single();
-  if (error) {
-    console.error("[Backend] Error saving Meal Plan (500 likely indicates missing table 'nani_saved_plans'):", error.message);
-    return null;
-  }
+  if (error) return null;
   return data;
 };
 
 export const saveRemedy = async (user: User, detail: string, title: string) => {
-  if (!supabase) {
-    console.error("[Backend] Supabase client not initialized.");
+  if (!supabase) return null;
+  const isAllowed = await canSaveNewAilment(user.id, title);
+  if (!isAllowed) {
+    alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
     return null;
   }
   const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: { detail }, type: 'REMEDY' }).select().single();
-  if (error) {
-    console.error("[Backend] Error saving Remedy (500 likely indicates missing table 'nani_saved_plans'):", error.message);
-    return null;
-  }
+  if (error) return null;
   return data;
 };
 
 export const getUserLibrary = async (user: User) => {
   if (!supabase) return { diet: [], yoga: [], remedy: [] };
   const { data, error } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-  if (error) {
-    console.error("[Backend] Error fetching library:", error.message);
-    return { diet: [], yoga: [], remedy: [] };
-  }
+  if (error) return { diet: [], yoga: [], remedy: [] };
   if (!data) return { diet: [], yoga: [], remedy: [] };
   return {
     diet: data.filter((item: any) => item.type === 'DIET'),
