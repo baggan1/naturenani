@@ -1,4 +1,3 @@
-
 /**
  * Programmatically fetch high-quality images from Google Custom Search
  * Ensures authentic visuals for Yoga Aid poses and Nutri Heal recipes.
@@ -26,7 +25,12 @@ export const fetchImageFromSearch = async (query: string, category: 'yoga' | 'fo
     }
 
     if (data.items && data.items.length > 0) {
-      return data.items[0].link;
+      let imageUrl = data.items[0].link;
+      // Force HTTPS to prevent Mixed Content warnings
+      if (imageUrl.startsWith('http://')) {
+        imageUrl = imageUrl.replace('http://', 'https://');
+      }
+      return imageUrl;
     }
     return '';
   } catch (error) {
