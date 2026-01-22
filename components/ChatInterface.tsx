@@ -380,13 +380,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       <div className="p-4 bg-white border-t border-sage-200 relative z-10">
         {showTrialPrompt && (
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 w-[90%] max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 w-[calc(100%-2rem)] max-w-[360px] animate-in fade-in slide-in-from-bottom-4 duration-300">
              <div className="bg-white rounded-[2rem] shadow-2xl border border-sage-100 p-8 relative">
-                <button onClick={() => setShowTrialPrompt(false)} className="absolute top-4 right-4 text-gray-400"><X size={18} /></button>
+                <button onClick={() => setShowTrialPrompt(false)} className="absolute top-4 right-4 text-gray-400 hover:text-sage-600 transition-colors" aria-label="Close prompt"><X size={18} /></button>
                 <h4 className="font-serif font-bold text-sage-900 mb-2 flex items-center gap-2"><Sparkles size={16} className="text-yellow-500" /> Unlock Healer Plan</h4>
-                <p className="text-xs text-gray-600 mb-6">Access clinical dosages, visual yoga guides, and full meal plans.</p>
-                <button onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }} className="w-full bg-sage-600 text-white py-4 rounded-2xl font-bold text-sm shadow-lg">
-                  Upgrade to Healer Plan <Zap size={14} className="ml-1" />
+                <p className="text-xs text-gray-600 mb-6 leading-relaxed">Access clinical dosages, visual yoga guides, and full meal plans.</p>
+                <button 
+                  onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }} 
+                  className="w-full bg-sage-700 text-white py-4 rounded-2xl font-bold text-sm shadow-xl shadow-sage-200 hover:bg-sage-800 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  <Zap size={16} fill="currentColor" /> Upgrade to Healer Plan
                 </button>
              </div>
           </div>
