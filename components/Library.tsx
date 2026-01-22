@@ -35,31 +35,31 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
   const groupedAilments = useMemo(() => {
     const groups: Record<string, GroupedAilment> = {};
     
-    // Group Remedies
+    // Process Remedies
     library.remedy.forEach(r => {
-      const key = r.title.toLowerCase();
+      const key = r.title.trim().toLowerCase();
       if (!groups[key]) groups[key] = { title: r.title, lastUpdated: r.created_at };
       groups[key].remedy = r;
       if (new Date(r.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = r.created_at;
     });
 
-    // Group Yoga
+    // Process Yoga
     library.yoga.forEach(y => {
-      const key = y.title.toLowerCase();
+      const key = y.title.trim().toLowerCase();
       if (!groups[key]) groups[key] = { title: y.title, lastUpdated: y.created_at };
       groups[key].yoga = y;
       if (new Date(y.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = y.created_at;
     });
 
-    // Group Diet
+    // Process Diet
     library.diet.forEach(d => {
-      const key = d.title.toLowerCase();
+      const key = d.title.trim().toLowerCase();
       if (!groups[key]) groups[key] = { title: d.title, lastUpdated: d.created_at };
       groups[key].diet = d;
       if (new Date(d.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = d.created_at;
     });
 
-    return Object.values(groups).sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+    return Object.values(groups).sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()).slice(0, 5);
   }, [library]);
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -98,7 +98,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
               <BookMarked size={40} className="text-sage-300" />
             </div>
             <p className="font-serif text-2xl font-bold text-sage-900 mb-2">No Protocols Stored</p>
-            <p className="text-sm text-gray-500 max-w-xs mx-auto">Start a consultation and use the "Save to Library" button on any recommendation card.</p>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto">Start a consultation and use the "Save" button on any recommendation card.</p>
           </div>
         ) : (
           <div className="bg-white rounded-[2.5rem] shadow-xl border border-sage-100 overflow-hidden">
@@ -117,7 +117,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                   {groupedAilments.map((group, idx) => (
                     <tr key={idx} className="hover:bg-sage-50/50 transition-colors group">
                       <td className="px-8 py-6">
-                        <div className="font-serif font-bold text-sage-900 text-lg group-hover:text-sage-600 transition-colors">{group.title}</div>
+                        <div className="font-serif font-bold text-sage-900 text-lg group-hover:text-sage-600 transition-colors capitalize">{group.title}</div>
                         <div className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-tighter">Verified Protocol</div>
                       </td>
                       <td className="px-6 py-6 text-center">
@@ -169,7 +169,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
             <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Saved Remedy Detail</span>
-                <h2 className="text-2xl font-serif font-bold text-sage-900">{viewingRemedy.title}</h2>
+                <h2 className="text-2xl font-serif font-bold text-sage-900 capitalize">{viewingRemedy.title}</h2>
               </div>
               <button onClick={() => setViewingRemedy(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={24} /></button>
             </div>

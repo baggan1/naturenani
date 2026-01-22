@@ -128,7 +128,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!user || !selectedDetail) return;
     setSaveLoading(true);
     try {
-      await saveRemedy(user, selectedDetail.detail || '', selectedDetail.title);
+      // Use ailment name (id) as the title for grouping, not the card title
+      await saveRemedy(user, selectedDetail.detail || '', selectedDetail.id);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e) {
@@ -143,7 +144,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
 
-    // Split at the explicit metadata marker
     const marker = "[METADATA_START]";
     const markerIndex = rawText.indexOf(marker);
 
@@ -151,7 +151,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       visibleText = rawText.substring(0, markerIndex).trim();
       const metadataPart = rawText.substring(markerIndex + marker.length);
       
-      // Try to find the JSON block inside markdown if present
       const jsonMatch = metadataPart.match(/```json\s*([\s\S]*?)\s*```/) || metadataPart.match(/(\{[\s\S]*?\})/);
       
       if (jsonMatch && jsonMatch[1]) {
@@ -159,12 +158,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const data = JSON.parse(jsonMatch[1].trim());
           if (data.recommendations) metadata = data.recommendations;
           if (data.suggestions) suggestions = data.suggestions;
-        } catch (e) {
-          // JSON might be partial while streaming
-        }
+        } catch (e) {}
       }
     } else {
-        // Fallback for older formats or missing marker: look for fenced JSON
         const fallbackMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
         if (fallbackMatch && fallbackMatch.index !== undefined) {
             visibleText = rawText.substring(0, fallbackMatch.index).trim();
@@ -176,9 +172,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
     }
 
-    // Clean up trailing dashes or artifacts
     visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
-    
     return { visibleText, metadata, suggestions };
   };
 
@@ -317,7 +311,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </div>
                       <p className="text-sm text-gray-600 leading-relaxed mb-4">{rec.summary}</p>
                       <button 
-                        onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.title)) : setShowTrialPrompt(true)} 
+                        onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.id)) : setShowTrialPrompt(true)} 
                         className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}
                       >
                          {!hasAccess && <Lock size={12} />} 

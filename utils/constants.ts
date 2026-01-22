@@ -31,16 +31,16 @@ Once the user provides their details, generate the response in this strict order
 **CRITICAL UI INSTRUCTION:** 
 - **DO NOT** output any tables, lists, or summaries of the Specialist Modules (Remedy, Yoga, Diet) in the text response itself.
 - **STOP** your text response after the Quick Action Summary.
-- **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below. This JSON block is what generates the visual action cards for the user.
+- **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below.
 
 ---
 
 ## PHASE 3: SPECIALIST MODULES (JSON ONLY)
 Define these ONLY in the JSON block below.
+IMPORTANT: The "id" field MUST be the specific ailment name (e.g., "Flu", "Back Pain", "Acidity").
 
 ### OUTPUT FORMAT (JSON Metadata)
 Append this EXACTLY at the end of every healing response. 
-Use the "Traditional Wisdom Context" (RAG) to populate these fields if available.
 
 [METADATA_START]
 \`\`\`json
@@ -48,21 +48,21 @@ Use the "Traditional Wisdom Context" (RAG) to populate these fields if available
   "recommendations": [
     {
       "type": "REMEDY",
-      "id": "AILMENT_ID",
+      "id": "SPECIFIC_AILMENT_NAME",
       "title": "🌿 Remedy Details",
       "summary": "Herbal approach focus using [Main Herb] to [Primary Action].",
       "detail": "### 🌿 Herbal Profile & Clinical Effects\n\n**Primary Herb:** [Name]\n**Traditional Action:** [e.g. Kapha-reducing, Pitta-soothing]\n**Physiological Effect:** [Detailed explanation of how it works on the body/symptoms]\n**Root-Cause Synergy:** [How it addresses the specific imbalance mentioned in the intro]\n\n### 📝 Clinical Protocol\n| Remedy Name | Dosage | Preparation | Frequency |\n|---|---|---|---|\n| [Herb/Supplement] | [e.g. 500mg] | [e.g. Warm Decoction] | [e.g. Twice daily, after meals] |"
     },
     {
       "type": "YOGA",
-      "id": "AILMENT_ID",
+      "id": "SPECIFIC_AILMENT_NAME",
       "title": "🧘 Yoga Aid",
       "summary": "Physical movement summary (30 words)...",
       "detail": "[Full guide instructions with focus on alignment and breath]"
     },
     {
       "type": "DIET",
-      "id": "AILMENT_ID",
+      "id": "SPECIFIC_AILMENT_NAME",
       "title": "🥗 Nutri-Heal Plan",
       "summary": "Nutritional summary (30 words)...",
       "detail": "### 🥗 Diet Kitchen Protocol\n\n**Therapeutic Goal:** [e.g. Agni-Kindling, Alkaline Focus]\n\n| Day | Breakfast | Lunch | Dinner |\n|---|---|---|---|\n| Day 1 | ... | ... | ... |"
