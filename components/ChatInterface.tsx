@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Bookmark, BookmarkPlus, Save, Check } from 'lucide-react';
+import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Bookmark, BookmarkPlus, Save, Check, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI, Modality } from "@google/genai";
@@ -269,7 +269,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <div className="flex flex-col h-full bg-sage-50">
       <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between sticky top-0 z-20">
         <Logo className="h-8 w-8" textClassName="text-lg" showSlogan={false} />
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
+          {!usage.isUnlimited && !isGuest && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sage-50 border border-sage-100 rounded-full shadow-inner" title="Daily consultation usage">
+               <MessageSquare size={12} className="text-sage-500" />
+               <span className="text-[10px] font-black text-sage-700 uppercase tracking-tighter">
+                 {usage.count} / {usage.limit} Daily
+               </span>
+            </div>
+          )}
           <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase transition-colors">
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Reset
           </button>
