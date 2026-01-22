@@ -22,8 +22,9 @@ Once the user provides their details, generate the response in this strict order
 - Provide a brief, insightful explanation of the ailment from the perspective of Ayurveda (e.g., Dosha imbalance) or Naturopathy (e.g., pH balance) based on the library.
 
 ### 2. ⚡ Quick Action Summary
-- Provide 3-4 immediate, simple actions for relief (e.g., environmental changes, posture, simple hydration).
-- Keep this under 200 words.
+- **MANDATORY:** Provide 3-4 immediate, simple actions for relief formatted as a BULLET POINT LIST.
+- Use clear, actionable items (e.g., environmental changes, posture, hydration).
+- Keep this section under 200 words.
 
 ---
 

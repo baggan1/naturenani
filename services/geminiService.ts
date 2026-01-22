@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_INSTRUCTION, MAX_PROMPT_LENGTH } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
@@ -8,7 +7,7 @@ const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
-// Fix: Changed 'content' to 'contents' to match EmbedContentParameters type as suggested by the error message
+// Fix: Changed 'content' to 'contents' to match EmbedContentParameters type
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
@@ -26,7 +25,10 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
 const cleanHistory = (history: Message[]) => {
   if (!history || history.length === 0) return [];
 
-  let raw = history
+  // Limit history to last 10 turns to prevent context bloat and "stuck" queries
+  const recentHistory = history.slice(-10);
+
+  let raw = recentHistory
     .filter(m => m.content && m.content.trim() !== '' && m.id !== 'welcome')
     .map(m => ({
       role: m.role === 'model' ? 'model' : 'user',
@@ -53,6 +55,7 @@ const cleanHistory = (history: Message[]) => {
     }
   }
 
+  // Ensure history ends with a model message for Chat API compatibility
   while (alternating.length > 0 && alternating[alternating.length - 1].role === 'user') {
     alternating.pop();
   }
@@ -73,18 +76,28 @@ export const sendMessageWithRAG = async function* (
     let contextDocs: RemedyDocument[] = [];
     let hasRAG = false;
 
-    // PERFORMANCE OPTIMIZATION: 
-    // If it's the very first message from the user (history is empty or just welcome), 
-    // skip RAG to speed up the Intake Question phase (Age/Sex clarification).
     const isFirstTurn = history.length <= 1;
 
     if (!isFirstTurn) {
       try {
-        const queryVector = await generateEmbedding(safeMessage);
-        if (queryVector) {
-          contextDocs = await searchVectorDatabase(safeMessage, queryVector);
+        // Wrap RAG in a timeout to prevent it from blocking the interaction if the vector DB is slow
+        const ragPromise = (async () => {
+          const queryVector = await generateEmbedding(safeMessage);
+          if (queryVector) {
+            return await searchVectorDatabase(safeMessage, queryVector);
+          }
+          return [];
+        })();
+
+        const timeoutPromise = new Promise<RemedyDocument[]>((resolve) => 
+          setTimeout(() => resolve([]), 3500)
+        );
+
+        contextDocs = await Promise.race([ragPromise, timeoutPromise]);
+        
+        if (contextDocs.length > 0) {
           if (onSourcesFound) onSourcesFound(contextDocs);
-          hasRAG = contextDocs.length > 0;
+          hasRAG = true;
         }
       } catch (ragErr) {
         console.warn("[GeminiService] RAG retrieval failed, falling back to pure AI:", ragErr);
@@ -94,10 +107,14 @@ export const sendMessageWithRAG = async function* (
     const dynamicSystemInstruction = SYSTEM_INSTRUCTION + 
       "\n\nCURRENT CONTEXT:\nTier: " + userTier + "\nToday's Consultations: " + queryCount;
 
-    // Use 'gemini-3-flash-preview' for maximum speed and reliable streaming
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
-      config: { systemInstruction: dynamicSystemInstruction, temperature: 0.7 },
+      config: { 
+        systemInstruction: dynamicSystemInstruction, 
+        temperature: 0.7,
+        topP: 0.95,
+        topK: 40
+      },
       history: cleanHistory(history)
     });
 
@@ -119,8 +136,7 @@ export const sendMessageWithRAG = async function* (
     }
   } catch (error: any) { 
     console.error("[GeminiService] Consultation failed:", error);
-    // Graceful error message for the user in case of 500 or timeout
-    yield "My dear, I am having trouble connecting with our ancient wisdom archives right now. Please check your internet connection or try again in a moment.";
+    yield "My dear, I am having a moment of forgetfulness. Let's try that again, or perhaps share your concern in a different way.";
     throw error; 
   }
 };
