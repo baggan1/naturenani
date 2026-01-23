@@ -128,8 +128,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!user || !selectedDetail) return;
     setSaveLoading(true);
     try {
-      // Use ailment name (id) as the title for grouping, not the card title
-      await saveRemedy(user, selectedDetail.detail || '', selectedDetail.id);
+      // CRITICAL FIX: Always use the Ailment Name (id) for grouping in the database
+      const ailmentName = selectedDetail.id || "General Wellness";
+      await saveRemedy(user, selectedDetail.detail || '', ailmentName);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e) {
@@ -150,9 +151,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (markerIndex !== -1) {
       visibleText = rawText.substring(0, markerIndex).trim();
       const metadataPart = rawText.substring(markerIndex + marker.length);
-      
       const jsonMatch = metadataPart.match(/```json\s*([\s\S]*?)\s*```/) || metadataPart.match(/(\{[\s\S]*?\})/);
-      
       if (jsonMatch && jsonMatch[1]) {
         try {
           const data = JSON.parse(jsonMatch[1].trim());
@@ -160,18 +159,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           if (data.suggestions) suggestions = data.suggestions;
         } catch (e) {}
       }
-    } else {
-        const fallbackMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
-        if (fallbackMatch && fallbackMatch.index !== undefined) {
-            visibleText = rawText.substring(0, fallbackMatch.index).trim();
-            try {
-                const data = JSON.parse(fallbackMatch[1].trim());
-                if (data.recommendations) metadata = data.recommendations;
-                if (data.suggestions) suggestions = data.suggestions;
-            } catch (e) {}
-        }
     }
-
     visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
     return { visibleText, metadata, suggestions };
   };
@@ -242,7 +230,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const renderMarkdown = (content: string) => {
     return (
-      <div className="markdown-content prose prose-slate max-w-none">
+      <div className="markdown-content prose prose-slate max-w-none text-left">
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}
           components={{
@@ -265,14 +253,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <Logo className="h-8 w-8" textClassName="text-lg" showSlogan={false} />
         <div className="flex items-center gap-2 md:gap-4">
           {!usage.isUnlimited && !isGuest && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sage-50 border border-sage-100 rounded-full shadow-inner" title="Daily consultation usage">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sage-50 border border-sage-100 rounded-full shadow-inner">
                <MessageSquare size={12} className="text-sage-500" />
                <span className="text-[10px] font-black text-sage-700 uppercase tracking-tighter">
                  {usage.count} / {usage.limit} Daily
                </span>
             </div>
           )}
-          <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase transition-colors">
+          <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase">
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Reset
           </button>
         </div>
@@ -333,12 +321,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ))}
               </div>
             )}
-
-            {msg.role === 'model' && (
-              <div className="ml-11 mt-4 text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 font-sans">
-                VIEW OUR <button onClick={() => onNavigateToFeature(AppView.LEGAL, '', '')} className="text-[#3B6EB1] hover:underline font-black">DISCLAIMER AND PRIVACY POLICY</button> FOR MORE DETAILS.
-              </div>
-            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
@@ -365,37 +347,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                    </button>
                 </div>
               )}
-              {!hasAccess && (
-                <div className="mt-8 p-8 bg-amber-50 rounded-[2rem] border border-amber-100 text-center">
-                   <Lock className="mx-auto text-amber-500 mb-3" size={32} />
-                   <h4 className="text-lg font-bold text-amber-900 mb-2">Protocol Gated</h4>
-                   <p className="text-sm text-amber-700/80 mb-6">Detailed dosage tables and clinical protocols are available in the Healer Plan.</p>
-                   <button onClick={() => { setSelectedDetail(null); onUpgradeClick(); }} className="bg-sage-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-sage-200">
-                     Start 7-Day Free Trial
-                   </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
 
       <div className="p-4 bg-white border-t border-sage-200 relative z-10">
-        {showTrialPrompt && (
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-6 w-[calc(100%-2rem)] max-w-[360px] animate-in fade-in slide-in-from-bottom-4 duration-300">
-             <div className="bg-white rounded-[2rem] shadow-2xl border border-sage-100 p-8 relative">
-                <button onClick={() => setShowTrialPrompt(false)} className="absolute top-4 right-4 text-gray-400 hover:text-sage-600 transition-colors" aria-label="Close prompt"><X size={18} /></button>
-                <h4 className="font-serif font-bold text-sage-900 mb-2 flex items-center gap-2"><Sparkles size={16} className="text-yellow-500" /> Unlock Healer Plan</h4>
-                <p className="text-xs text-gray-600 mb-6 leading-relaxed">Access clinical dosages, visual yoga guides, and full meal plans.</p>
-                <button 
-                  onClick={() => { setShowTrialPrompt(false); onUpgradeClick(); }} 
-                  className="w-full bg-sage-700 text-white py-4 rounded-2xl font-bold text-sm shadow-xl shadow-sage-200 hover:bg-sage-800 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  <Zap size={16} fill="currentColor" /> Upgrade to Healer Plan
-                </button>
-             </div>
-          </div>
-        )}
         <div className="max-w-4xl mx-auto flex items-center gap-2">
           <textarea
             value={input}

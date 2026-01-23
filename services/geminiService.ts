@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_INSTRUCTION, MAX_PROMPT_LENGTH } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
@@ -7,7 +8,6 @@ const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
-// Fix: Changed 'content' to 'contents' to match EmbedContentParameters type
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
@@ -24,10 +24,7 @@ export const generateEmbedding = async (text: string): Promise<number[] | null> 
 
 const cleanHistory = (history: Message[]) => {
   if (!history || history.length === 0) return [];
-
-  // Limit history to last 10 turns to prevent context bloat and "stuck" queries
   const recentHistory = history.slice(-10);
-
   let raw = recentHistory
     .filter(m => m.content && m.content.trim() !== '' && m.id !== 'welcome')
     .map(m => ({
@@ -36,17 +33,12 @@ const cleanHistory = (history: Message[]) => {
     }));
 
   if (raw.length === 0) return [];
-
   const alternating: any[] = [];
-  
   for (const msg of raw) {
     if (alternating.length === 0) {
-      if (msg.role === 'user') {
-        alternating.push(msg);
-      }
+      if (msg.role === 'user') alternating.push(msg);
       continue;
     }
-
     const last = alternating[alternating.length - 1];
     if (msg.role === last.role) {
       last.parts[0].text += "\n\n" + msg.parts[0].text;
@@ -54,12 +46,9 @@ const cleanHistory = (history: Message[]) => {
       alternating.push(msg);
     }
   }
-
-  // Ensure history ends with a model message for Chat API compatibility
   while (alternating.length > 0 && alternating[alternating.length - 1].role === 'user') {
     alternating.pop();
   }
-
   return alternating;
 };
 
@@ -75,32 +64,23 @@ export const sendMessageWithRAG = async function* (
     const ai = getAiClient();
     let contextDocs: RemedyDocument[] = [];
     let hasRAG = false;
-
     const isFirstTurn = history.length <= 1;
 
     if (!isFirstTurn) {
       try {
-        // Wrap RAG in a timeout to prevent it from blocking the interaction if the vector DB is slow
         const ragPromise = (async () => {
           const queryVector = await generateEmbedding(safeMessage);
-          if (queryVector) {
-            return await searchVectorDatabase(safeMessage, queryVector);
-          }
+          if (queryVector) return await searchVectorDatabase(safeMessage, queryVector);
           return [];
         })();
-
-        const timeoutPromise = new Promise<RemedyDocument[]>((resolve) => 
-          setTimeout(() => resolve([]), 3500)
-        );
-
+        const timeoutPromise = new Promise<RemedyDocument[]>((resolve) => setTimeout(() => resolve([]), 3500));
         contextDocs = await Promise.race([ragPromise, timeoutPromise]);
-        
         if (contextDocs.length > 0) {
           if (onSourcesFound) onSourcesFound(contextDocs);
           hasRAG = true;
         }
       } catch (ragErr) {
-        console.warn("[GeminiService] RAG retrieval failed, falling back to pure AI:", ragErr);
+        console.warn("[GeminiService] RAG retrieval failed:", ragErr);
       }
     }
 
@@ -118,9 +98,10 @@ export const sendMessageWithRAG = async function* (
       history: cleanHistory(history)
     });
 
-    const contextText = contextDocs.map(d => d.content).join('\n');
+    // Added source citation info to the context string
+    const contextText = contextDocs.map(d => `[SOURCE: ${d.book_name || 'Verified Text'}]\n${d.content}`).join('\n\n');
     const augmentedMessage = hasRAG 
-      ? "Traditional Wisdom Context:\n" + contextText + "\n\nUser Consultation Request:\n" + safeMessage
+      ? "Traditional Wisdom Context with Sources:\n" + contextText + "\n\nUser Request:\n" + safeMessage
       : safeMessage;
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
@@ -136,7 +117,7 @@ export const sendMessageWithRAG = async function* (
     }
   } catch (error: any) { 
     console.error("[GeminiService] Consultation failed:", error);
-    yield "My dear, I am having a moment of forgetfulness. Let's try that again, or perhaps share your concern in a different way.";
+    yield "My dear, I am having a moment of forgetfulness. Let's try that again.";
     throw error; 
   }
 };

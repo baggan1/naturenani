@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText, X } from 'lucide-react';
+import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText, X, CheckCircle2 } from 'lucide-react';
 import { SavedMealPlan, SavedYogaPlan, User, AppView } from '../types';
 import { getUserLibrary } from '../services/backendService';
 import ReactMarkdown from 'react-markdown';
@@ -35,31 +36,35 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
   const groupedAilments = useMemo(() => {
     const groups: Record<string, GroupedAilment> = {};
     
-    // Process Remedies
-    library.remedy.forEach(r => {
-      const key = r.title.trim().toLowerCase();
-      if (!groups[key]) groups[key] = { title: r.title, lastUpdated: r.created_at };
-      groups[key].remedy = r;
-      if (new Date(r.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = r.created_at;
-    });
+    const isGeneric = (title: string) => {
+      const t = title.toLowerCase();
+      return t === 'remedy details' || t === 'yoga aid' || t === 'nutri-heal plan' || t === 'general wellness';
+    };
 
-    // Process Yoga
-    library.yoga.forEach(y => {
-      const key = y.title.trim().toLowerCase();
-      if (!groups[key]) groups[key] = { title: y.title, lastUpdated: y.created_at };
-      groups[key].yoga = y;
-      if (new Date(y.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = y.created_at;
-    });
+    // Helper to add or update group
+    const addToGroup = (title: string, data: any, type: 'remedy' | 'yoga' | 'diet') => {
+      const key = title.trim().toLowerCase();
+      if (!groups[key]) {
+        groups[key] = { title: title.trim(), lastUpdated: data.created_at };
+      }
+      groups[key][type] = data;
+      if (new Date(data.created_at) > new Date(groups[key].lastUpdated)) {
+        groups[key].lastUpdated = data.created_at;
+      }
+    };
 
-    // Process Diet
-    library.diet.forEach(d => {
-      const key = d.title.trim().toLowerCase();
-      if (!groups[key]) groups[key] = { title: d.title, lastUpdated: d.created_at };
-      groups[key].diet = d;
-      if (new Date(d.created_at) > new Date(groups[key].lastUpdated)) groups[key].lastUpdated = d.created_at;
-    });
+    // Group Remedies
+    library.remedy.forEach(r => addToGroup(r.title, r, 'remedy'));
+    // Group Yoga
+    library.yoga.forEach(y => addToGroup(y.title, y, 'yoga'));
+    // Group Diet
+    library.diet.forEach(d => addToGroup(d.title, d, 'diet'));
 
-    return Object.values(groups).sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()).slice(0, 5);
+    // Filter out generic entries that have no partner
+    return Object.values(groups)
+      .filter(g => !isGeneric(g.title) || (g.remedy && g.yoga && g.diet)) 
+      .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
+      .slice(0, 5);
   }, [library]);
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -85,7 +90,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
             </h1>
             <p className="text-gray-500 mt-1 text-sm">A centralized record of your personalized holistic protocols.</p>
           </div>
-          <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-sage-50 border border-sage-100 rounded-full">
+          <div className="flex items-center gap-2 px-4 py-2 bg-sage-50 border border-sage-100 rounded-full">
             <span className="text-[10px] font-black text-sage-600 uppercase tracking-widest">{groupedAilments.length} / 5 Ailments Stored</span>
           </div>
         </div>
@@ -106,9 +111,9 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-sage-600 text-white">
-                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans">Ailment / Concern</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans">Ailment Name</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🌿 Remedy</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🧘 Yoga Aid</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🧘 Yoga Routine</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🥗 Nutri Heal</th>
                     <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-right">Last Sync</th>
                   </tr>
@@ -117,7 +122,9 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                   {groupedAilments.map((group, idx) => (
                     <tr key={idx} className="hover:bg-sage-50/50 transition-colors group">
                       <td className="px-8 py-6">
-                        <div className="font-serif font-bold text-sage-900 text-lg group-hover:text-sage-600 transition-colors capitalize">{group.title}</div>
+                        <div className="font-serif font-bold text-sage-900 text-lg group-hover:text-sage-600 transition-colors capitalize">
+                          {group.title}
+                        </div>
                         <div className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-tighter">Verified Protocol</div>
                       </td>
                       <td className="px-6 py-6 text-center">
@@ -128,7 +135,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                           >
                             <FileText size={14} /> View Details
                           </button>
-                        ) : <span className="text-gray-300 italic text-[10px] font-bold">---</span>}
+                        ) : <span className="text-gray-200 text-[10px] font-bold">---</span>}
                       </td>
                       <td className="px-6 py-6 text-center">
                         {group.yoga ? (
@@ -138,7 +145,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                           >
                             <Flower2 size={14} /> Open Studio
                           </button>
-                        ) : <span className="text-gray-300 italic text-[10px] font-bold">---</span>}
+                        ) : <span className="text-gray-200 text-[10px] font-bold">---</span>}
                       </td>
                       <td className="px-6 py-6 text-center">
                         {group.diet ? (
@@ -148,7 +155,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                           >
                             <Utensils size={14} /> View Plan
                           </button>
-                        ) : <span className="text-gray-300 italic text-[10px] font-bold">---</span>}
+                        ) : <span className="text-gray-200 text-[10px] font-bold">---</span>}
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="text-[10px] font-bold text-gray-400">{formatDate(group.lastUpdated)}</div>
@@ -162,18 +169,18 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
         )}
       </div>
 
-      {/* Local Remedy Detail Modal */}
+      {/* Remedy Details Modal */}
       {viewingRemedy && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-sage-900/70 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setViewingRemedy(null)}>
-          <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-white/20" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Saved Remedy Detail</span>
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Library Record</span>
                 <h2 className="text-2xl font-serif font-bold text-sage-900 capitalize">{viewingRemedy.title}</h2>
               </div>
-              <button onClick={() => setViewingRemedy(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={24} /></button>
+              <button onClick={() => setViewingRemedy(null)} className="p-2 text-gray-400 hover:text-sage-600"><X size={24} /></button>
             </div>
-            <div className="flex-1 overflow-y-auto p-8 md:p-12">
+            <div className="flex-1 overflow-y-auto p-8 md:p-12 text-left">
               <div className="markdown-content prose prose-slate max-w-none">
                 <ReactMarkdown 
                   remarkPlugins={[remarkGfm]}
@@ -190,7 +197,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
               </div>
             </div>
             <div className="p-6 bg-sage-50 border-t border-sage-100 flex justify-center">
-               <button onClick={() => setViewingRemedy(null)} className="px-8 py-3 bg-sage-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-sage-200">Close Library Record</button>
+               <button onClick={() => setViewingRemedy(null)} className="px-8 py-3 bg-sage-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg">Close Record</button>
             </div>
           </div>
         </div>
