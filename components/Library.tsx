@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText, X, CheckCircle2 } from 'lucide-react';
 import { SavedMealPlan, SavedYogaPlan, User, AppView } from '../types';
@@ -90,7 +89,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
             </h1>
             <p className="text-gray-500 mt-1 text-sm">A centralized record of your personalized holistic protocols.</p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-sage-50 border border-sage-100 rounded-full">
+          <div className="flex items-center gap-2 px-4 py-2 bg-sage-50 border border-sage-100 rounded-full shadow-sm">
             <span className="text-[10px] font-black text-sage-600 uppercase tracking-widest">{groupedAilments.length} / 5 Ailments Stored</span>
           </div>
         </div>
@@ -111,9 +110,9 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-sage-600 text-white">
-                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans">Ailment Name</th>
+                    <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans">Ailment / Concern</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🌿 Remedy</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🧘 Yoga Routine</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🧘 Yoga Aid</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🥗 Nutri Heal</th>
                     <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-right">Last Sync</th>
                   </tr>
@@ -178,7 +177,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Library Record</span>
                 <h2 className="text-2xl font-serif font-bold text-sage-900 capitalize">{viewingRemedy.title}</h2>
               </div>
-              <button onClick={() => setViewingRemedy(null)} className="p-2 text-gray-400 hover:text-sage-600"><X size={24} /></button>
+              <button onClick={() => setViewingRemedy(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={24} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-8 md:p-12 text-left">
               <div className="markdown-content prose prose-slate max-w-none">

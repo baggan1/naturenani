@@ -128,11 +128,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!user || !selectedDetail) return;
     setSaveLoading(true);
     try {
-      // CRITICAL FIX: Always use the Ailment Name (id) for grouping in the database
+      // FORCE Ailment Name (id) for grouping
       const ailmentName = selectedDetail.id || "General Wellness";
-      await saveRemedy(user, selectedDetail.detail || '', ailmentName);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      const result = await saveRemedy(user, selectedDetail.detail || '', ailmentName);
+      if (result) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
     } catch (e) {
       console.error("Failed to save remedy:", e);
     } finally {
@@ -260,7 +262,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                </span>
             </div>
           )}
-          <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase">
+          <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase transition-colors">
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Reset
           </button>
         </div>
@@ -331,7 +333,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl relative border border-white/20" onClick={e => e.stopPropagation()}>
             <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
               <h2 className="text-2xl font-serif font-bold text-sage-900">{selectedDetail.title}</h2>
-              <button onClick={() => setSelectedDetail(null)} className="p-2 text-gray-400 hover:text-sage-600"><X size={20} /></button>
+              <button onClick={() => setSelectedDetail(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-8">
               {renderMarkdown(selectedDetail.detail || '')}

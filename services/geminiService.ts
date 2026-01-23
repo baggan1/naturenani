@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_INSTRUCTION, MAX_PROMPT_LENGTH } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
@@ -98,10 +97,14 @@ export const sendMessageWithRAG = async function* (
       history: cleanHistory(history)
     });
 
-    // Added source citation info to the context string
-    const contextText = contextDocs.map(d => `[SOURCE: ${d.book_name || 'Verified Text'}]\n${d.content}`).join('\n\n');
+    // Provide book names in context for citation formatting
+    const contextText = contextDocs.map(d => {
+      const book = d.book_name ? d.book_name.replace(/\.pdf$/i, '') : 'Ancient Text';
+      return `[SOURCE BOOK: ${book}]\n${d.content}`;
+    }).join('\n\n');
+    
     const augmentedMessage = hasRAG 
-      ? "Traditional Wisdom Context with Sources:\n" + contextText + "\n\nUser Request:\n" + safeMessage
+      ? "Traditional Wisdom Context with Source Names:\n" + contextText + "\n\nUser Request:\n" + safeMessage
       : safeMessage;
 
     const result = await chat.sendMessageStream({ message: augmentedMessage });
