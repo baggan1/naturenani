@@ -115,7 +115,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
           <CheckCircle2 className="absolute h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity left-0.5" />
         </div>
         <span className={`${labelStyle} text-gray-500`}>
-          I agree to the <button onClick={() => onNavigate?.(AppView.LEGAL)} className="text-[#3B6EB1] hover:underline font-black">Terms</button> and <button onClick={() => onNavigate?.(AppView.LEGAL)} className="text-[#3B6EB1] hover:underline font-black">Privacy Policy</button>
+          I AGREE TO THE <button onClick={() => onNavigate?.(AppView.LEGAL)} className="text-[#3B6EB1] hover:underline font-black">TERMS</button> AND <button onClick={() => onNavigate?.(AppView.LEGAL)} className="text-[#3B6EB1] hover:underline font-black">PRIVACY POLICY</button>
         </span>
       </label>
     </div>
@@ -176,10 +176,10 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
 
               <div className="pt-6 text-center space-y-4">
                 <p className={`${labelStyle} text-gray-400`}>
-                  What does this app do? <button onClick={() => onNavigate?.(AppView.ABOUT)} className="text-[#3B6EB1] font-black hover:underline ml-1">Learn More</button>
+                  WHAT DOES THIS APP DO? <button onClick={() => onNavigate?.(AppView.ABOUT)} className="text-[#3B6EB1] font-black hover:underline ml-1">LEARN MORE</button>
                 </p>
                 <p className={`${labelStyle} text-gray-400`}>
-                  Have an account? <button onClick={() => { setMethod('password'); setIsSignUp(false); }} className="text-[#3B6EB1] font-black hover:underline ml-1">Log in</button>
+                  HAVE AN ACCOUNT? <button onClick={() => { setMethod('password'); setIsSignUp(false); }} className="text-[#3B6EB1] font-black hover:underline ml-1">LOG IN</button>
                 </p>
               </div>
             </div>

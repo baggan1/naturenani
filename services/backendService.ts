@@ -56,7 +56,10 @@ export const getCurrentUser = (): User | null => {
   const stored = safeStorage.getItem(CURRENT_USER_KEY);
   if (!stored) return null;
   try {
-    return JSON.parse(stored);
+    const user = JSON.parse(stored);
+    // Basic UUID validation check
+    if (!user.id || typeof user.id !== 'string') return null;
+    return user;
   } catch (e) {
     return null;
   }
@@ -384,57 +387,76 @@ export const createStripePortalSession = async () => {
 // Helper to check 5-ailment limit
 const canSaveNewAilment = async (userId: string, targetTitle: string): Promise<boolean> => {
   if (!supabase) return true;
-  const { data, error } = await supabase.from('nani_saved_plans').select('title').eq('user_id', userId);
-  if (error || !data) return true;
-  const uniqueTitles = new Set(data.map((item: any) => item.title.toLowerCase()));
-  if (uniqueTitles.has(targetTitle.toLowerCase())) return true;
-  return uniqueTitles.size < 5;
+  try {
+    const { data, error } = await supabase.from('nani_saved_plans').select('title').eq('user_id', userId);
+    if (error || !data) return true;
+    const uniqueTitles = new Set(data.map((item: any) => item.title.toLowerCase()));
+    if (uniqueTitles.has(targetTitle.toLowerCase())) return true;
+    return uniqueTitles.size < 5;
+  } catch (e) { return true; }
 };
 
 export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string) => {
-  if (!supabase) return null;
+  if (!supabase || !user?.id) return null;
   const isAllowed = await canSaveNewAilment(user.id, title);
   if (!isAllowed) {
     alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
     return null;
   }
   const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: poses, type: 'YOGA' }).select().single();
-  if (error) return null;
+  if (error) { console.error("Save Yoga Plan error:", error); return null; }
   return data;
 };
 
 export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: string) => {
-  if (!supabase) return null;
+  if (!supabase || !user?.id) return null;
   const isAllowed = await canSaveNewAilment(user.id, title);
   if (!isAllowed) {
     alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
     return null;
   }
   const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data, type: 'DIET' }).select().single();
-  if (error) return null;
+  if (error) { console.error("Save Meal Plan error:", error); return null; }
   return data;
 };
 
 export const saveRemedy = async (user: User, detail: string, title: string) => {
-  if (!supabase) return null;
+  if (!supabase || !user?.id || !detail) return null;
   const isAllowed = await canSaveNewAilment(user.id, title);
   if (!isAllowed) {
     alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
     return null;
   }
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: { detail }, type: 'REMEDY' }).select().single();
-  if (error) return null;
-  return data;
+  try {
+    const { data, error } = await supabase.from('nani_saved_plans').insert({ 
+      user_id: user.id, 
+      title: title.trim(), 
+      plan_data: { detail }, 
+      type: 'REMEDY' 
+    }).select().single();
+    if (error) {
+      console.error("Save Remedy error detail:", error);
+      return null;
+    }
+    return data;
+  } catch (e) {
+    console.error("Save Remedy exception:", e);
+    return null;
+  }
 };
 
 export const getUserLibrary = async (user: User) => {
-  if (!supabase) return { diet: [], yoga: [], remedy: [] };
-  const { data, error } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-  if (error) return { diet: [], yoga: [], remedy: [] };
-  if (!data) return { diet: [], yoga: [], remedy: [] };
-  return {
-    diet: data.filter((item: any) => item.type === 'DIET'),
-    yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({ ...item, poses: item.plan_data })),
-    remedy: data.filter((item: any) => item.type === 'REMEDY').map((item: any) => ({ ...item, detail: item.plan_data?.detail }))
-  };
+  if (!supabase || !user?.id) return { diet: [], yoga: [], remedy: [] };
+  try {
+    const { data, error } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+    if (error) { console.error("Fetch Library error:", error); return { diet: [], yoga: [], remedy: [] }; }
+    if (!data) return { diet: [], yoga: [], remedy: [] };
+    return {
+      diet: data.filter((item: any) => item.type === 'DIET'),
+      yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({ ...item, poses: item.plan_data })),
+      remedy: data.filter((item: any) => item.type === 'REMEDY').map((item: any) => ({ ...item, detail: item.plan_data?.detail }))
+    };
+  } catch (e) {
+    return { diet: [], yoga: [], remedy: [] };
+  }
 };

@@ -25,9 +25,14 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
 
   useEffect(() => {
     const fetchLibrary = async () => {
-      const data = await getUserLibrary(user);
-      setLibrary(data);
-      setLoading(false);
+      try {
+        const data = await getUserLibrary(user);
+        setLibrary(data);
+      } catch (e) {
+        console.error("Library load error:", e);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchLibrary();
   }, [user]);
@@ -133,7 +138,14 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                       <td className="px-6 py-6 text-center">
                         {group.remedy ? (
                           <button 
-                            onClick={() => setViewingRemedy(group.remedy)}
+                            onClick={() => {
+                              // Ensure we have the detail before opening
+                              if (group.remedy.detail || group.remedy.plan_data?.detail) {
+                                setViewingRemedy(group.remedy);
+                              } else {
+                                console.warn("Missing detail for remedy:", group.remedy);
+                              }
+                            }}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                           >
                             <FileText size={14} /> View Details
@@ -195,7 +207,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                     td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
                   }}
                 >
-                  {viewingRemedy.detail || ''}
+                  {viewingRemedy.detail || viewingRemedy.plan_data?.detail || ''}
                 </ReactMarkdown>
               </div>
             </div>
