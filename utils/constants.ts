@@ -45,7 +45,7 @@ Define these ONLY in the JSON block below.
   - **Physiological Effect:** [Value]
   - **Root-Cause Synergy:** [Value]
 - At the very bottom of the "detail" field, you MUST add a Source Citation.
-- Citation Format: "**Source Citation:** Wisdom synthesized from: [Source Book Name]." (Trim any '.pdf' from the name).
+- Citation Format: "**Source Citation:** [Source Book Name]." (Trim any '.pdf' from the name).
 
 [METADATA_START]
 \`\`\`json
