@@ -50,6 +50,10 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
       if (new Date(data.created_at) > new Date(groups[key].lastUpdated)) {
         groups[key].lastUpdated = data.created_at;
       }
+      // If the current title is generic but we have an ailment name stored in the group, don't overwrite it
+      if (isGeneric(groups[key].title) && !isGeneric(title)) {
+        groups[key].title = title.trim();
+      }
     };
 
     // Group Remedies

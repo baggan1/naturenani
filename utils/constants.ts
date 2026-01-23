@@ -30,7 +30,7 @@ Once the user provides their details, generate the response in this strict order
 **CRITICAL UI INSTRUCTION:** 
 - **DO NOT** output any tables or specialist modules in the text response.
 - **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below.
-- **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the specific ailment name (e.g., "Flu", "Back Pain", "Acidity"). DO NOT use generic titles like "Remedy Details".
+- **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the specific ailment name (e.g., "Flu", "Back Pain", "Acidity"). DO NOT use generic titles like "Remedy Details" for the ID.
 
 ---
 
@@ -45,7 +45,9 @@ Define these ONLY in the JSON block below.
   - **Physiological Effect:** [Value]
   - **Root-Cause Synergy:** [Value]
 - At the very bottom of the "detail" field, you MUST add a Source Citation.
-- Citation Format: "**Source Citation:** Wisdom synthesized from: [Source Book Name]." (IMPORTANT: Trim any '.pdf' from the name).
+- **Citation Format:** "**Source Citation:** [Source Book Name]" 
+- **CRITICAL:** DO NOT include the text "Wisdom synthesized from: ".
+- **CRITICAL:** DO NOT include ".pdf" in the book name.
 
 [METADATA_START]
 \`\`\`json
@@ -56,7 +58,7 @@ Define these ONLY in the JSON block below.
       "id": "AILMENT_NAME_HERE",
       "title": "🌿 Remedy Details",
       "summary": "Herbal approach focus using [Main Herb]...",
-      "detail": "### 🌿 Herbal Profile & Clinical Effects\n\n- **Primary Herb:** [Name]\n- **Traditional Action:** [Action]\n- **Physiological Effect:** [Description]\n- **Root-Cause Synergy:** [Description]\n\n### 📝 Clinical Protocol\n| Remedy Name | Dosage | Preparation | Frequency |\n|---|---|---|---|\n| [Herb] | [Dosage] | [Prep] | [Freq] |\n\n**Source Citation:** Wisdom synthesized from: [Book Title]"
+      "detail": "### 🌿 Herbal Profile & Clinical Effects\n\n- **Primary Herb:** [Name]\n- **Traditional Action:** [Action]\n- **Physiological Effect:** [Description]\n- **Root-Cause Synergy:** [Description]\n\n### 📝 Clinical Protocol\n| Remedy Name | Dosage | Preparation | Frequency |\n|---|---|---|---|\n| [Herb] | [Dosage] | [Prep] | [Freq] |\n\n**Source Citation:** [Book Title]"
     },
     {
       "type": "YOGA",
