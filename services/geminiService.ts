@@ -89,9 +89,9 @@ export const sendMessageWithRAG = async function* (
     if (currentUser) {
       const lib = await getUserLibrary(currentUser);
       const uniqueAilments = new Set([
-        ...lib.remedy.map(r => r.title.toLowerCase().trim()),
-        ...lib.yoga.map(y => y.title.toLowerCase().trim()),
-        ...lib.diet.map(d => d.title.toLowerCase().trim())
+        ...lib.remedy.map((r: any) => r.title.toLowerCase().trim()),
+        ...lib.yoga.map((y: any) => y.title.toLowerCase().trim()),
+        ...lib.diet.map((d: any) => d.title.toLowerCase().trim())
       ]);
       libraryCount = uniqueAilments.size;
     }
