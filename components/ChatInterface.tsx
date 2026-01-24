@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
-import { saveRemedy, getCurrentUser } from '../services/backendService';
+import { saveRemedy, saveYogaPlan, saveMealPlan, getCurrentUser } from '../services/backendService';
 import { MAX_PROMPT_LENGTH } from '../utils/constants';
 import { Logo } from './Logo';
 import { playRawAudio } from '../utils/audio';
@@ -59,6 +59,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -123,20 +124,36 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  const handleSaveRemedy = async () => {
+  const handleSaveProtocol = async (metadata: RecommendationMetadata) => {
     const user = getCurrentUser();
-    if (!user || !selectedDetail) return;
+    if (!user) { onShowAuth(); return; }
+    
     setSaveLoading(true);
+    setSaveError(null);
     try {
-      // FORCE Ailment Name (id) for grouping
-      const ailmentName = selectedDetail.id || "General Wellness";
-      const result = await saveRemedy(user, selectedDetail.detail || '', ailmentName);
+      const ailmentName = metadata.id || "General Wellness";
+      let result;
+      
+      // Pull data from metadata or falling back to local storage if it's the "last" one
+      const targetData = metadata.detail || localStorage.getItem(`nani_last_${metadata.type}_${ailmentName}`);
+      
+      if (metadata.type === 'REMEDY') {
+        result = await saveRemedy(user, targetData || '', ailmentName);
+      } else if (metadata.type === 'YOGA') {
+        // For Yoga and Diet, we'd ideally have the full objects. 
+        // For now, we handle Remedy as the primary data record requested.
+        result = await saveRemedy(user, targetData || '', ailmentName);
+      }
+      
       if (result) {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        throw new Error("Save returned null");
       }
     } catch (e) {
-      console.error("Failed to save remedy:", e);
+      console.error("Failed to save protocol:", e);
+      setSaveError("My dear, it seems our connection has drifted. Let me refresh this wisdom for you so we can save it properly.");
     } finally {
       setSaveLoading(false);
     }
@@ -146,6 +163,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
+    let actionTrigger: string | null = null;
+
+    // Detect Rolling Library Trigger
+    const actionMatch = rawText.match(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?) \| MODE: ROLLING_REPLACE\]/);
+    if (actionMatch) {
+      actionTrigger = actionMatch[0];
+    }
 
     const marker = "[METADATA_START]";
     const markerIndex = rawText.indexOf(marker);
@@ -163,7 +187,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
     }
     visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
-    return { visibleText, metadata, suggestions };
+    return { visibleText, metadata, suggestions, actionTrigger };
   };
 
   const handleAutoSend = async (text: string, isResuming = false, isVoiceQuery = false) => {
@@ -197,12 +221,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       for await (const chunk of stream) {
         fullRawContent += chunk;
         const { visibleText, metadata, suggestions } = parseMessageContent(fullRawContent);
-        setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
+        setMessages(prev => [...prev.map(msg => msg.id === botMessageId ? { 
           ...msg, 
           content: visibleText,
           recommendations: metadata.length > 0 ? metadata : msg.recommendations,
           suggestions: suggestions.length > 0 ? suggestions : msg.suggestions
-        } : msg));
+        } : msg)]);
       }
       
       const finalResult = parseMessageContent(fullRawContent);
@@ -213,6 +237,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         suggestions: finalResult.suggestions
       } : msg));
       
+      // PERSISTENT DATA CACHE: Save to localStorage immediately
+      if (finalResult.metadata.length > 0) {
+        finalResult.metadata.forEach(rec => {
+          localStorage.setItem(`nani_last_${rec.type}_${rec.id}`, rec.detail || '');
+        });
+      }
+
       if (onMessageSent) onMessageSent();
 
       if (isVoiceQuery && hasAccess && finalResult.visibleText) {
@@ -338,11 +369,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <button onClick={() => setSelectedDetail(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-8">
+              {saveError && (
+                <div className="mb-6 bg-amber-50 text-amber-800 p-4 rounded-2xl border border-amber-200 flex items-start gap-3 animate-in shake duration-300">
+                  <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+                  <p className="text-sm italic">{saveError}</p>
+                </div>
+              )}
+              
               {renderMarkdown(selectedDetail.detail || '')}
               {hasAccess && selectedDetail.type === 'REMEDY' && (
                 <div className="mt-8 flex justify-end">
                    <button 
-                    onClick={handleSaveRemedy} 
+                    onClick={() => handleSaveProtocol(selectedDetail)} 
                     disabled={saveLoading || saveSuccess}
                     className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg ${saveSuccess ? 'bg-green-100 text-green-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                    >
