@@ -169,7 +169,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleAutoSend = async (text: string, isResuming = false, isVoiceQuery = false) => {
     if (isLoading || !text.trim()) return;
     if (text === "New Consultation") { handleResetChat(); return; }
-    if (isGuest) { sessionStorage.setItem('nani_pending_message', text); onShowAuth(); return; }
+    
+    const currentUser = getCurrentUser();
+    if (isGuest || !currentUser) { sessionStorage.setItem('nani_pending_message', text); onShowAuth(); return; }
     
     if (!usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
@@ -186,7 +188,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => [...prev, { id: botMessageId, role: 'model', content: '', timestamp: Date.now() }]);
 
       const stream = sendMessageWithRAG(
-        text, messages, hasAccess ? 'Premium' : 'Free', usage.count,
+        text, messages, hasAccess ? 'Premium' : 'Free', usage.count, currentUser,
         (foundSources) => {
           setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, sources: foundSources } : msg));
         }

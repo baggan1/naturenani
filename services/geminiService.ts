@@ -1,7 +1,7 @@
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_INSTRUCTION, MAX_PROMPT_LENGTH } from "../utils/constants";
-import { searchVectorDatabase, logAnalyticsEvent } from "./backendService";
-import { SearchSource, RemedyDocument, YogaPose, Message, Meal } from "../types";
+import { searchVectorDatabase, logAnalyticsEvent, getUserLibrary } from "./backendService";
+import { SearchSource, RemedyDocument, YogaPose, Message, Meal, User } from "../types";
 
 const getAiClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -56,6 +56,7 @@ export const sendMessageWithRAG = async function* (
   history: Message[],
   userTier: 'Free' | 'Premium',
   queryCount: number,
+  currentUser: User | null,
   onSourcesFound?: (sources: RemedyDocument[]) => void
 ) {
   try {
@@ -83,8 +84,22 @@ export const sendMessageWithRAG = async function* (
       }
     }
 
+    // Fetch library count to inform Nani of limit status
+    let libraryCount = 0;
+    if (currentUser) {
+      const lib = await getUserLibrary(currentUser);
+      const uniqueAilments = new Set([
+        ...lib.remedy.map(r => r.title.toLowerCase().trim()),
+        ...lib.yoga.map(y => y.title.toLowerCase().trim()),
+        ...lib.diet.map(d => d.title.toLowerCase().trim())
+      ]);
+      libraryCount = uniqueAilments.size;
+    }
+
     const dynamicSystemInstruction = SYSTEM_INSTRUCTION + 
-      "\n\nCURRENT CONTEXT:\nTier: " + userTier + "\nToday's Consultations: " + queryCount;
+      "\n\nCURRENT CONTEXT:\nTier: " + userTier + 
+      "\nToday's Consultations: " + queryCount +
+      "\nLibrary Ailments Count: " + libraryCount + "/5";
 
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
@@ -97,7 +112,6 @@ export const sendMessageWithRAG = async function* (
       history: cleanHistory(history)
     });
 
-    // Provide book names in context for citation formatting
     const contextText = contextDocs.map(d => {
       const book = d.book_name ? d.book_name.replace(/\.pdf$/i, '') : 'Ancient Text';
       return `[SOURCE BOOK: ${book}]\n${d.content}`;
@@ -113,9 +127,9 @@ export const sendMessageWithRAG = async function* (
       if (c.text) yield c.text;
     }
     
-    if (hasRAG) {
+    if (hasRAG && currentUser) {
       logAnalyticsEvent(safeMessage, 'RAG', contextDocs.map(d => d.book_name || 'Verified Source'));
-    } else {
+    } else if (currentUser) {
       logAnalyticsEvent(safeMessage, 'AI', ['Gemini Knowledge Base']);
     }
   } catch (error: any) { 

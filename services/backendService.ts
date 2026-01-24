@@ -386,49 +386,79 @@ export const createStripePortalSession = async () => {
   if (portalLink) window.location.href = portalLink;
 };
 
-// Helper to check 5-ailment limit
-const canSaveNewAilment = async (userId: string, targetTitle: string): Promise<boolean> => {
+/**
+ * PHASE 3: ROLLING LIBRARY MANAGEMENT (FIFO Logic)
+ * Ensures user stays within 5-ailment limit by deleting the oldest records automatically.
+ */
+const enforceRollingLimit = async (userId: string, targetTitle: string): Promise<boolean> => {
   if (!supabase || !userId) return true;
   try {
-    const { data, error } = await supabase.from('nani_saved_plans').select('title').eq('user_id', userId);
+    const { data, error } = await supabase
+      .from('nani_saved_plans')
+      .select('title, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
     if (error || !data) return true;
-    const uniqueTitles = new Set(data.map((item: any) => item.title.toLowerCase()));
-    if (uniqueTitles.has(targetTitle.toLowerCase())) return true;
-    return uniqueTitles.size < 5;
-  } catch (e) { return true; }
+
+    const uniqueTitles = Array.from(new Set(data.map((item: any) => item.title.toLowerCase())));
+    const currentTitleLower = targetTitle.toLowerCase().trim();
+
+    // If we already have 5 distinct ailments and this is a NEW one
+    if (uniqueTitles.length >= 5 && !uniqueTitles.includes(currentTitleLower)) {
+      // The oldest entry is the first in our sorted data
+      const oldestAilmentTitle = data[0].title;
+      
+      // Delete all records (Remedy, Yoga, Diet) associated with that oldest title
+      await supabase
+        .from('nani_saved_plans')
+        .delete()
+        .eq('user_id', userId)
+        .eq('title', oldestAilmentTitle);
+      
+      console.log(`[Rolling Library] Retired oldest journey: "${oldestAilmentTitle}" to make room for "${targetTitle}"`);
+    }
+    return true;
+  } catch (e) {
+    console.error("[Rolling Library] FIFO check failed:", e);
+    return true; 
+  }
 };
 
 export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string) => {
   if (!supabase || !user?.id) return null;
-  const isAllowed = await canSaveNewAilment(user.id, title);
-  if (!isAllowed) {
-    alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
-    return null;
-  }
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data: poses, type: 'YOGA' }).select().single();
+  await enforceRollingLimit(user.id, title);
+  
+  const { data, error } = await supabase.from('nani_saved_plans').insert({ 
+    user_id: user.id, 
+    title: title.trim(), 
+    plan_data: poses, 
+    type: 'YOGA' 
+  }).select().single();
+  
   if (error) { console.error("Save Yoga Plan error:", error); return null; }
   return data;
 };
 
 export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: string) => {
   if (!supabase || !user?.id) return null;
-  const isAllowed = await canSaveNewAilment(user.id, title);
-  if (!isAllowed) {
-    alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
-    return null;
-  }
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: user.id, title, plan_data, type: 'DIET' }).select().single();
+  await enforceRollingLimit(user.id, title);
+
+  const { data, error } = await supabase.from('nani_saved_plans').insert({ 
+    user_id: user.id, 
+    title: title.trim(), 
+    plan_data: plan_data, 
+    type: 'DIET' 
+  }).select().single();
+
   if (error) { console.error("Save Meal Plan error:", error); return null; }
   return data;
 };
 
 export const saveRemedy = async (user: User, detail: string, title: string) => {
   if (!supabase || !user?.id || !detail) return null;
-  const isAllowed = await canSaveNewAilment(user.id, title);
-  if (!isAllowed) {
-    alert("Library Limit Reached: You can only save protocols for up to 5 distinct ailments. Please delete an old ailment to save a new one.");
-    return null;
-  }
+  await enforceRollingLimit(user.id, title);
+
   try {
     const { data, error } = await supabase.from('nani_saved_plans').insert({ 
       user_id: user.id, 
@@ -436,6 +466,7 @@ export const saveRemedy = async (user: User, detail: string, title: string) => {
       plan_data: { detail }, 
       type: 'REMEDY' 
     }).select().single();
+    
     if (error) {
       console.error("Save Remedy error detail:", error);
       return null;
