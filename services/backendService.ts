@@ -87,6 +87,7 @@ export const fetchUserRecord = async (email: string): Promise<User | null> => {
 };
 
 export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
+  if (!user?.id) return { count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false };
   const isServiceUser = (user as any).is_service_user === true;
   
   if (user.subscription_status === 'active' || user.subscription_status === 'trialing' || isServiceUser) {
@@ -122,7 +123,7 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, boo
   if (!supabase) return;
   try {
     const user = getCurrentUser();
-    if (!user) return; 
+    if (!user?.id) return; 
     
     const payload = { 
       query, 
@@ -136,7 +137,7 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, boo
 };
 
 export const getUserSearchHistory = async (user: User): Promise<string[]> => {
-  if (!supabase) return [];
+  if (!supabase || !user?.id) return [];
   try {
     const { data, error } = await supabase
       .from('nani_analytics')
@@ -323,7 +324,8 @@ const getOrCreateUser = async (email: string, name: string, method: string = 'ot
 
 export const checkSubscriptionStatus = async (user: User) => {
   const now = new Date();
-  
+  if (!user?.id) return { hasAccess: false, status: 'free', daysRemaining: 0, isTrialExpired: false, nextBillingDate: null };
+
   if ((user as any).is_service_user === true) {
     return { hasAccess: true, status: 'active', daysRemaining: 999, isTrialExpired: false, nextBillingDate: null };
   }
@@ -386,7 +388,7 @@ export const createStripePortalSession = async () => {
 
 // Helper to check 5-ailment limit
 const canSaveNewAilment = async (userId: string, targetTitle: string): Promise<boolean> => {
-  if (!supabase) return true;
+  if (!supabase || !userId) return true;
   try {
     const { data, error } = await supabase.from('nani_saved_plans').select('title').eq('user_id', userId);
     if (error || !data) return true;
@@ -448,15 +450,28 @@ export const saveRemedy = async (user: User, detail: string, title: string) => {
 export const getUserLibrary = async (user: User) => {
   if (!supabase || !user?.id) return { diet: [], yoga: [], remedy: [] };
   try {
-    const { data, error } = await supabase.from('nani_saved_plans').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-    if (error) { console.error("Fetch Library error:", error); return { diet: [], yoga: [], remedy: [] }; }
+    const { data, error } = await supabase
+      .from('nani_saved_plans')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) { 
+      console.error("Fetch Library error:", error); 
+      return { diet: [], yoga: [], remedy: [] }; 
+    }
     if (!data) return { diet: [], yoga: [], remedy: [] };
+    
     return {
       diet: data.filter((item: any) => item.type === 'DIET'),
       yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({ ...item, poses: item.plan_data })),
-      remedy: data.filter((item: any) => item.type === 'REMEDY').map((item: any) => ({ ...item, detail: item.plan_data?.detail }))
+      remedy: data.filter((item: any) => item.type === 'REMEDY').map((item: any) => ({ 
+        ...item, 
+        detail: item.plan_data?.detail 
+      }))
     };
   } catch (e) {
+    console.error("[getUserLibrary] Fatal Exception:", e);
     return { diet: [], yoga: [], remedy: [] };
   }
 };

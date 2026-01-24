@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ArrowRight, Loader2, Mail, Lock, ShieldCheck, AlertTriangle, CheckCircle2, User, Eye, EyeOff, KeyRound, ShieldAlert } from 'lucide-react';
 import { sendOtp, signInWithGoogle, signInWithPassword, signUpWithPassword } from '../services/backendService';

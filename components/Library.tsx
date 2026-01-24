@@ -25,6 +25,10 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
 
   useEffect(() => {
     const fetchLibrary = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
       try {
         const data = await getUserLibrary(user);
         setLibrary(data);
@@ -55,7 +59,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
       if (new Date(data.created_at) > new Date(groups[key].lastUpdated)) {
         groups[key].lastUpdated = data.created_at;
       }
-      // If the current title is generic but we have an ailment name stored in the group, don't overwrite it
+      // If the current group title is generic but we have a specific ailment name now, prioritize the specific one
       if (isGeneric(groups[key].title) && !isGeneric(title)) {
         groups[key].title = title.trim();
       }
@@ -68,9 +72,11 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
     // Group Diet
     library.diet.forEach(d => addToGroup(d.title, d, 'diet'));
 
-    // Filter out generic entries that have no partner
+    // Filter rules:
+    // 1. Specific ailment titles (e.g. "Acidity") always pass.
+    // 2. Generic titles only pass if they have at least one valid protocol component.
     return Object.values(groups)
-      .filter(g => !isGeneric(g.title) || (g.remedy && g.yoga && g.diet)) 
+      .filter(g => !isGeneric(g.title) || (g.remedy || g.yoga || g.diet)) 
       .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
       .slice(0, 5);
   }, [library]);
@@ -139,9 +145,10 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                         {group.remedy ? (
                           <button 
                             onClick={() => {
-                              // Ensure we have the detail before opening
-                              if (group.remedy.detail || group.remedy.plan_data?.detail) {
-                                setViewingRemedy(group.remedy);
+                              // Ensure we have the detail from plan_data if available
+                              const detail = group.remedy.detail || group.remedy.plan_data?.detail;
+                              if (detail) {
+                                setViewingRemedy({ ...group.remedy, detail });
                               } else {
                                 console.warn("Missing detail for remedy:", group.remedy);
                               }
@@ -184,7 +191,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
         )}
       </div>
 
-      {/* Remedy Details Modal */}
+      {/* Remedy Details Modal (Card Style) */}
       {viewingRemedy && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-sage-900/70 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setViewingRemedy(null)}>
           <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -207,7 +214,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                     td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
                   }}
                 >
-                  {viewingRemedy.detail || viewingRemedy.plan_data?.detail || ''}
+                  {viewingRemedy.detail || ''}
                 </ReactMarkdown>
               </div>
             </div>
