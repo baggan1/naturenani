@@ -137,12 +137,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Pull data from metadata or falling back to local storage if it's the "last" one
       const targetData = metadata.detail || localStorage.getItem(`nani_last_${metadata.type}_${ailmentName}`);
       
+      if (!targetData) {
+        throw new Error("Missing protocol data. Please ask Nani to re-generate the plan.");
+      }
+
       if (metadata.type === 'REMEDY') {
-        result = await saveRemedy(user, targetData || '', ailmentName);
+        result = await saveRemedy(user, targetData, ailmentName);
       } else if (metadata.type === 'YOGA') {
-        // For Yoga and Diet, we'd ideally have the full objects. 
-        // For now, we handle Remedy as the primary data record requested.
-        result = await saveRemedy(user, targetData || '', ailmentName);
+        // Fallback save as remedy for stability if the full object is lost
+        result = await saveRemedy(user, targetData, ailmentName);
+      } else if (metadata.type === 'DIET') {
+        result = await saveRemedy(user, targetData, ailmentName);
       }
       
       if (result) {
@@ -151,7 +156,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       } else {
         throw new Error("Save returned null");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to save protocol:", e);
       setSaveError("My dear, it seems our connection has drifted. Let me refresh this wisdom for you so we can save it properly.");
     } finally {
@@ -165,18 +170,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let suggestions: string[] = [];
     let actionTrigger: string | null = null;
 
-    // Detect Rolling Library Trigger
+    // Detect and Strip Rolling Library Trigger from display
     const actionMatch = rawText.match(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?) \| MODE: ROLLING_REPLACE\]/);
     if (actionMatch) {
       actionTrigger = actionMatch[0];
+      visibleText = visibleText.replace(actionTrigger, '').trim();
     }
 
     const marker = "[METADATA_START]";
-    const markerIndex = rawText.indexOf(marker);
+    const markerIndex = visibleText.indexOf(marker);
 
     if (markerIndex !== -1) {
-      visibleText = rawText.substring(0, markerIndex).trim();
-      const metadataPart = rawText.substring(markerIndex + marker.length);
+      const metadataPart = visibleText.substring(markerIndex + marker.length);
+      visibleText = visibleText.substring(0, markerIndex).trim();
+      
       const jsonMatch = metadataPart.match(/```json\s*([\s\S]*?)\s*```/) || metadataPart.match(/(\{[\s\S]*?\})/);
       if (jsonMatch && jsonMatch[1]) {
         try {
@@ -221,12 +228,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       for await (const chunk of stream) {
         fullRawContent += chunk;
         const { visibleText, metadata, suggestions } = parseMessageContent(fullRawContent);
-        setMessages(prev => [...prev.map(msg => msg.id === botMessageId ? { 
+        setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
           ...msg, 
           content: visibleText,
           recommendations: metadata.length > 0 ? metadata : msg.recommendations,
           suggestions: suggestions.length > 0 ? suggestions : msg.suggestions
-        } : msg)]);
+        } : msg));
       }
       
       const finalResult = parseMessageContent(fullRawContent);
@@ -237,10 +244,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         suggestions: finalResult.suggestions
       } : msg));
       
-      // PERSISTENT DATA CACHE: Save to localStorage immediately
+      // PERSISTENT DATA CACHE: Save to localStorage immediately the moment Nani speaks
       if (finalResult.metadata.length > 0) {
         finalResult.metadata.forEach(rec => {
-          localStorage.setItem(`nani_last_${rec.type}_${rec.id}`, rec.detail || '');
+          if (rec.detail) {
+            localStorage.setItem(`nani_last_${rec.type}_${rec.id}`, rec.detail);
+          }
         });
       }
 
@@ -377,7 +386,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               )}
               
               {renderMarkdown(selectedDetail.detail || '')}
-              {hasAccess && selectedDetail.type === 'REMEDY' && (
+              {hasAccess && (selectedDetail.type === 'REMEDY' || selectedDetail.type === 'YOGA' || selectedDetail.type === 'DIET') && (
                 <div className="mt-8 flex justify-end">
                    <button 
                     onClick={() => handleSaveProtocol(selectedDetail)} 
@@ -385,7 +394,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg ${saveSuccess ? 'bg-green-100 text-green-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                    >
                      {saveLoading ? <RefreshCw className="animate-spin" size={16} /> : saveSuccess ? <Check size={16} /> : <Save size={16} />}
-                     {saveSuccess ? "Stored in Library" : "Save Remedy Details"}
+                     {saveSuccess ? "Stored in Library" : "Save Details to Library"}
                    </button>
                 </div>
               )}

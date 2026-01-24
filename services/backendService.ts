@@ -388,14 +388,15 @@ export const createStripePortalSession = async () => {
 
 /**
  * PHASE 3 & 4: ROLLING LIBRARY MANAGEMENT (FIFO Logic) & SESSION STABILITY
- * Ensures user stays within 5-ailment limit by deleting the oldest records automatically.
- * Re-validates user session before every write to avoid 500 errors.
  */
 const enforceRollingLimit = async (userId: string, targetTitle: string): Promise<boolean> => {
   if (!supabase || !userId) return true;
   try {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) throw new Error("Session expired. Please log in again.");
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    if (authError || !authUser) {
+      console.warn("[Rolling Library] No active session found during FIFO check.");
+      return true;
+    }
 
     const { data, error } = await supabase
       .from('nani_saved_plans')
@@ -408,12 +409,8 @@ const enforceRollingLimit = async (userId: string, targetTitle: string): Promise
     const uniqueTitles = Array.from(new Set(data.map((item: any) => item.title.toLowerCase().trim())));
     const currentTitleLower = targetTitle.toLowerCase().trim();
 
-    // If we already have 5 distinct ailments and this is a NEW one
     if (uniqueTitles.length >= 5 && !uniqueTitles.includes(currentTitleLower)) {
-      // Find the oldest ailment (first unique title by creation date)
       const oldestAilmentTitle = data[0].title;
-      
-      // Delete all records (Remedy, Yoga, Diet) associated with that oldest title
       const { error: delError } = await supabase
         .from('nani_saved_plans')
         .delete()
@@ -421,11 +418,10 @@ const enforceRollingLimit = async (userId: string, targetTitle: string): Promise
         .eq('title', oldestAilmentTitle);
       
       if (delError) console.error("[Rolling Library] Retire failed:", delError);
-      else console.log(`[Rolling Library] Retired oldest journey: "${oldestAilmentTitle}" to make room for "${targetTitle}"`);
     }
     return true;
   } catch (e) {
-    console.error("[Rolling Library] FIFO check failed:", e);
+    console.error("[Rolling Library] FIFO check fatal error:", e);
     return true; 
   }
 };
@@ -461,18 +457,20 @@ export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: stri
 };
 
 export const saveRemedy = async (user: User, detail: string, title: string) => {
-  if (!supabase || !user?.id || !detail) return null;
-  
-  // SESSION VALIDATION: Check auth status right before write
-  const { data: { user: authUser } } = await supabase.auth.getUser();
-  if (!authUser) {
-    console.warn("[Save Remedy] Unauthorized write attempt. Session likely expired.");
-    return null;
+  if (!supabase || !user?.id || !detail) {
+     console.warn("[saveRemedy] Invalid inputs:", { hasUser: !!user?.id, hasDetail: !!detail, title });
+     return null;
   }
-
-  await enforceRollingLimit(user.id, title);
-
+  
   try {
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    if (authError || !authUser) {
+      console.warn("[saveRemedy] Session verification failed. Redirecting to auth may be required.");
+      return null;
+    }
+
+    await enforceRollingLimit(user.id, title);
+
     const { data, error } = await supabase.from('nani_saved_plans').insert({ 
       user_id: user.id, 
       title: title.trim(), 
@@ -481,12 +479,12 @@ export const saveRemedy = async (user: User, detail: string, title: string) => {
     }).select().single();
     
     if (error) {
-      console.error("Save Remedy error detail:", error);
+      console.error("[saveRemedy] Supabase Insert Error:", error);
       return null;
     }
     return data;
   } catch (e) {
-    console.error("Save Remedy exception:", e);
+    console.error("[saveRemedy] Fatal Exception:", e);
     return null;
   }
 };
