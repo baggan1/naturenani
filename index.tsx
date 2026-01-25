@@ -16,6 +16,7 @@ import AccountSettings from './components/AccountSettings';
 import Library from './components/Library';
 import YogaAid from './components/YogaStudio'; 
 import NutriHeal from './components/DietKitchen'; 
+import BotanicalRx from './components/BotanicalRx';
 import { LegalNotice } from './components/LegalNotice';
 import { AboutView } from './components/AboutView';
 import { FAQView } from './components/FAQView';
@@ -116,20 +117,16 @@ const App: React.FC = () => {
     setShowAuthModal(false); 
   };
 
-  const handleFeatureHandoff = (view: AppView, id: string, title: string) => {
-    const isPremiumView = [AppView.YOGA, AppView.DIET, AppView.LIBRARY].includes(view);
+  // Fixed: Updated signature to accept FeatureContext as a single object to fix TS2322
+  const handleFeatureHandoff = (view: AppView, context: FeatureContext) => {
+    const isPremiumView = [AppView.YOGA, AppView.DIET, AppView.LIBRARY, AppView.BOTANICAL].includes(view);
     if (isPremiumView && !subscriptionState.hasAccess) {
       setShowPaywall(true);
       return;
     }
-    setFeatureContext({ id, title });
+    setFeatureContext(context);
     setCurrentView(view);
     setIsMobileMenuOpen(false);
-  };
-
-  const handleLibraryNavigate = (view: string, context: any) => {
-    setFeatureContext(context);
-    setCurrentView(view === 'YOGA' ? AppView.YOGA : AppView.DIET);
   };
 
   const handleVoiceConsult = (query: string) => {
@@ -158,6 +155,7 @@ const App: React.FC = () => {
             <button onClick={() => handleNav(AppView.VOICE, false)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode</div></button>
             <div className="pt-4 pb-2">
               <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">Healing Aids {subscriptionState.hasAccess && <Sparkles size={10} className="text-yellow-500" />}</p>
+              <button onClick={() => handleNav(AppView.BOTANICAL, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.BOTANICAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Leaf size={18} className="text-blue-500" /> Botanical Rx</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
               <button onClick={() => handleNav(AppView.YOGA, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Flower2 size={18} className="text-pink-500" /> Yoga Aid</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
               <button onClick={() => handleNav(AppView.DIET, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Utensils size={18} className="text-orange-500" /> Nutri Heal</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
             </div>
@@ -217,7 +215,8 @@ const App: React.FC = () => {
         {currentView === AppView.ACCOUNT && user && (
           <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={handleLogout} onRefresh={() => refreshAppData(user)} />
         )}
-        {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={handleLibraryNavigate} />}
+        {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={handleFeatureHandoff} />}
+        {currentView === AppView.BOTANICAL && <BotanicalRx activeContext={featureContext} />}
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
         {currentView === AppView.DIET && <NutriHeal activeContext={featureContext} />}
         {currentView === AppView.LEGAL && <LegalNotice onBack={() => setCurrentView(AppView.CHAT)} />}

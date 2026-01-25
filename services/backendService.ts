@@ -263,7 +263,7 @@ export const saveRemedy = async (user: User, detail: string, title: string) => {
   if (!supabase || !user?.id || !detail) return null;
   try {
     const verifiedId = await enforceRollingLimit(user.id, title);
-    // FIXED: Strictly sending 'REMEDY' as a string to match DB constraint exactly
+    // Explicitly using 'REMEDY' string to satisfy Supabase check constraint
     const { data, error } = await supabase.from('nani_saved_plans').insert({ 
       user_id: verifiedId, 
       title: title.trim(), 
