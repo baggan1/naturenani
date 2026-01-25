@@ -137,7 +137,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const targetData = metadata.detail || localStorage.getItem(`nani_last_${metadata.type}_${ailmentName}`);
       
       if (!targetData) {
-        throw new Error("Missing protocol data. Please ask Nani to re-generate the plan.");
+        throw new Error("Missing protocol data. Please ask Nani to re-sync.");
       }
 
       if (metadata.type === 'REMEDY') {
@@ -156,7 +156,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
     } catch (e: any) {
       console.error("Failed to save protocol:", e);
-      setSaveError("My dear, it seems our connection has drifted. Let me refresh this wisdom for you so we can save it properly.");
+      setSaveError("My dear, it seems our connection has drifted. Let me refresh this wisdom for you.");
     } finally {
       setSaveLoading(false);
     }
@@ -168,8 +168,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let suggestions: string[] = [];
     let actionTrigger: string | null = null;
 
-    // Detect and Strip Rolling Library Trigger from display
-    const actionMatch = rawText.match(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?) \| MODE: ROLLING_REPLACE\]/);
+    // Enhanced Trigger Parsing for Standalone App Modules
+    const actionMatch = rawText.match(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?) \| BOTANICAL_RX_DATA: (.*?) \| YOGA_ID: (.*?) \| NUTRI_ID: (.*?) \| MODE: ROLLING_REPLACE\]/);
     if (actionMatch) {
       actionTrigger = actionMatch[0];
       visibleText = visibleText.replace(actionTrigger, '').trim();
@@ -226,12 +226,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       for await (const chunk of stream) {
         fullRawContent += chunk;
         const { visibleText, metadata, suggestions } = parseMessageContent(fullRawContent);
-        setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
+        setMessages(prev => [...prev.map(msg => msg.id === botMessageId ? { 
           ...msg, 
           content: visibleText,
           recommendations: metadata.length > 0 ? metadata : msg.recommendations,
           suggestions: suggestions.length > 0 ? suggestions : msg.suggestions
-        } : msg));
+        } : msg)]);
       }
       
       const finalResult = parseMessageContent(fullRawContent);
@@ -242,7 +242,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         suggestions: finalResult.suggestions
       } : msg));
       
-      // PHASE 4: PERSISTENT DATA CACHE
       if (finalResult.metadata.length > 0) {
         finalResult.metadata.forEach(rec => {
           if (rec.detail) {
@@ -250,12 +249,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           }
         });
 
-        // PHASE 3: AUTO-SAVE TRIGGER DETECTION
         if (finalResult.actionTrigger && hasAccess) {
-          const remedy = finalResult.metadata.find(r => r.type === 'REMEDY');
-          if (remedy) {
-            console.log("[Auto-Save] Triggering save for ailment:", remedy.id);
-            handleSaveProtocol(remedy);
+          const botanicalRx = finalResult.metadata.find(r => r.type === 'REMEDY');
+          if (botanicalRx) {
+            handleSaveProtocol(botanicalRx);
           }
         }
       }
@@ -340,7 +337,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {msg.recommendations && msg.recommendations.length > 0 && (
               <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4">
                 {msg.recommendations.map((rec, idx) => (
-                  <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden">
+                  <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden hover:ring-2 hover:ring-sage-200 transition-all">
                     <div className="p-6 flex-1">
                       <div className="flex items-center gap-2 mb-4">
                          <div className={`p-2 rounded-lg ${rec.type === 'YOGA' ? 'bg-pink-50 text-pink-500' : rec.type === 'DIET' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
@@ -354,7 +351,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}
                       >
                          {!hasAccess && <Lock size={12} />} 
-                         {rec.type === 'REMEDY' ? 'Remedy Details' : rec.type === 'YOGA' ? 'Yoga Aid' : 'Nutri Heal Plan'} 
+                         {rec.type === 'REMEDY' ? 'Botanical Rx' : rec.type === 'YOGA' ? 'Yoga Aid' : 'Nutri Heal Plan'} 
                          <ChevronRight size={14} />
                       </button>
                     </div>

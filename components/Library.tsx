@@ -46,10 +46,9 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
     
     const isGeneric = (title: string) => {
       const t = title.toLowerCase();
-      return t === 'remedy details' || t === 'yoga aid' || t === 'nutri-heal plan' || t === 'general wellness';
+      return t === 'remedy details' || t === 'botanical rx' || t === 'yoga aid' || t === 'nutri-heal plan' || t === 'general wellness';
     };
 
-    // Helper to add or update group
     const addToGroup = (title: string, data: any, type: 'remedy' | 'yoga' | 'diet') => {
       const key = title.trim().toLowerCase();
       if (!groups[key]) {
@@ -59,22 +58,15 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
       if (new Date(data.created_at) > new Date(groups[key].lastUpdated)) {
         groups[key].lastUpdated = data.created_at;
       }
-      // If the current group title is generic but we have a specific ailment name now, prioritize the specific one
       if (isGeneric(groups[key].title) && !isGeneric(title)) {
         groups[key].title = title.trim();
       }
     };
 
-    // Group Remedies
     library.remedy.forEach(r => addToGroup(r.title, r, 'remedy'));
-    // Group Yoga
     library.yoga.forEach(y => addToGroup(y.title, y, 'yoga'));
-    // Group Diet
     library.diet.forEach(d => addToGroup(d.title, d, 'diet'));
 
-    // Filter rules:
-    // 1. Specific ailment titles (e.g. "Acidity") always pass.
-    // 2. Generic titles only pass if they have at least one valid protocol component.
     return Object.values(groups)
       .filter(g => !isGeneric(g.title) || (g.remedy || g.yoga || g.diet)) 
       .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
@@ -117,7 +109,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
               <BookMarked size={40} className="text-sage-300" />
             </div>
             <p className="font-serif text-2xl font-bold text-sage-900 mb-2">No Protocols Stored</p>
-            <p className="text-sm text-gray-500 max-w-xs mx-auto">Start a consultation and use the "Save" button on any recommendation card.</p>
+            <p className="text-sm text-gray-500 max-w-xs mx-auto">Start a consultation and save your first protocol to see it here.</p>
           </div>
         ) : (
           <div className="bg-white rounded-[2.5rem] shadow-xl border border-sage-100 overflow-hidden">
@@ -126,7 +118,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                 <thead>
                   <tr className="bg-sage-600 text-white">
                     <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans">Ailment / Concern</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🌿 Remedy</th>
+                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🌿 Botanical Rx</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🧘 Yoga Aid</th>
                     <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-center">🥗 Nutri Heal</th>
                     <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] font-sans text-right">Last Sync</th>
@@ -145,17 +137,14 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                         {group.remedy ? (
                           <button 
                             onClick={() => {
-                              // Ensure we have the detail from plan_data if available
                               const detail = group.remedy.detail || group.remedy.plan_data?.detail;
                               if (detail) {
                                 setViewingRemedy({ ...group.remedy, detail });
-                              } else {
-                                console.warn("Missing detail for remedy:", group.remedy);
                               }
                             }}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                           >
-                            <FileText size={14} /> View Details
+                            <FileText size={14} /> View Remedy
                           </button>
                         ) : <span className="text-gray-200 text-[10px] font-bold">---</span>}
                       </td>
@@ -191,13 +180,12 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
         )}
       </div>
 
-      {/* Remedy Details Modal (Card Style) */}
       {viewingRemedy && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-sage-900/70 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setViewingRemedy(null)}>
           <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Library Record</span>
+                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Botanical Rx Record</span>
                 <h2 className="text-2xl font-serif font-bold text-sage-900 capitalize">{viewingRemedy.title}</h2>
               </div>
               <button onClick={() => setViewingRemedy(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={24} /></button>
@@ -219,7 +207,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
               </div>
             </div>
             <div className="p-6 bg-sage-50 border-t border-sage-100 flex justify-center">
-               <button onClick={() => setViewingRemedy(null)} className="px-8 py-3 bg-sage-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg">Close Record</button>
+               <button onClick={() => setViewingRemedy(null)} className="px-8 py-3 bg-sage-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg">Close Botanical Rx</button>
             </div>
           </div>
         </div>
