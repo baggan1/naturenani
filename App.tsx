@@ -9,13 +9,13 @@ import AccountSettings from './components/AccountSettings';
 import Library from './components/Library';
 import YogaAid from './components/YogaStudio'; 
 import NutriHeal from './components/DietKitchen'; 
-import { BrandingKit } from './components/BrandingKit';
+import BotanicalRx from './components/BotanicalRx';
 import { LegalNotice } from './components/LegalNotice';
 import { AboutView } from './components/AboutView';
 import { FAQView } from './components/FAQView';
 import { VoiceConsultation } from './components/VoiceConsultation';
 import { Logo } from './components/Logo';
-import { LogOut, MessageSquare, History, UserCircle, Utensils, Flower2, Lock, Menu, X, ChevronRight, Sparkles, BookMarked, ShieldAlert, Info, ShieldCheck, Star, Mic, TreePine, Sprout, HelpCircle } from 'lucide-react';
+import { LogOut, MessageSquare, UserCircle, Utensils, Flower2, Lock, Menu, X, Sparkles, BookMarked, ShieldAlert, Info, ShieldCheck, Star, Mic, TreePine, Sprout, HelpCircle, Leaf } from 'lucide-react';
 import { DAILY_QUERY_LIMIT } from './utils/constants';
 
 const App: React.FC = () => {
@@ -25,22 +25,15 @@ const App: React.FC = () => {
   const authInitialized = useRef(false);
   
   const [chatMessages, setChatMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'model',
-      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.',
-      timestamp: Date.now()
-    }
+    { id: 'welcome', role: 'model', content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.', timestamp: Date.now() }
   ]);
 
   const [featureContext, setFeatureContext] = useState<FeatureContext | null>(null);
   const [subscriptionState, setSubscriptionState] = useState({ hasAccess: false, daysRemaining: 0, isTrialExpired: false, status: 'free' as SubscriptionStatus });
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [triggerQuery, setTriggerQuery] = useState<string>('');
   const [isVoiceTrigger, setIsVoiceTrigger] = useState(false);
-  
   const [queryUsage, setQueryUsage] = useState<QueryUsage>({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
 
   const refreshAppData = useCallback(async (u: User) => {
@@ -48,104 +41,36 @@ const App: React.FC = () => {
       const freshUser = await fetchUserRecord(u.email);
       const activeUser = freshUser || u;
       if (freshUser) setUser(freshUser);
-
-      const [usage, history, subStatus] = await Promise.all([
-        checkDailyQueryLimit(activeUser),
-        getUserSearchHistory(activeUser),
-        checkSubscriptionStatus(activeUser)
-      ]);
-      
+      const [usage, subStatus] = await Promise.all([checkDailyQueryLimit(activeUser), checkSubscriptionStatus(activeUser)]);
       setQueryUsage(usage);
-      setSearchHistory(history);
-      setSubscriptionState({ 
-        hasAccess: subStatus.hasAccess, 
-        daysRemaining: subStatus.daysRemaining, 
-        isTrialExpired: subStatus.isTrialExpired,
-        status: subStatus.status as SubscriptionStatus
-      });
-    } catch (err) {
-      console.error("[App] Data refresh failed:", err);
-    }
+      setSubscriptionState({ hasAccess: subStatus.hasAccess, daysRemaining: subStatus.daysRemaining, isTrialExpired: subStatus.isTrialExpired, status: subStatus.status as SubscriptionStatus });
+    } catch (err) {}
   }, []);
 
   const handleAuthChange = useCallback((u: User | null) => {
-    if (u) {
-      setUser(u);
-      setShowAuthModal(false);
-      refreshAppData(u);
-    } else {
-      setUser(null);
-      setSearchHistory([]);
-      setQueryUsage({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false });
-      setSubscriptionState({ hasAccess: false, daysRemaining: 0, isTrialExpired: false, status: 'free' as SubscriptionStatus });
-      setCurrentView(AppView.CHAT);
-    }
+    if (u) { setUser(u); setShowAuthModal(false); refreshAppData(u); } 
+    else { setUser(null); setQueryUsage({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false }); setSubscriptionState({ hasAccess: false, daysRemaining: 0, isTrialExpired: false, status: 'free' as SubscriptionStatus }); setCurrentView(AppView.CHAT); }
   }, [refreshAppData]);
 
-  const handleLogout = async () => {
-    setIsMobileMenuOpen(false);
-    handleAuthChange(null);
-    await logoutUser();
-  };
-
   useEffect(() => {
-    if (!authInitialized.current) {
-      authInitialized.current = true;
-      warmupDatabase();
-      const u = getCurrentUser();
-      if (u) refreshAppData(u);
-      setupAuthListener(handleAuthChange);
-    }
+    if (!authInitialized.current) { authInitialized.current = true; warmupDatabase(); const u = getCurrentUser(); if (u) refreshAppData(u); setupAuthListener(handleAuthChange); }
   }, [handleAuthChange, refreshAppData]);
 
-  const handleHistoryClick = (query: string) => {
-    setTriggerQuery(query);
-    setIsVoiceTrigger(false);
-    setCurrentView(AppView.CHAT);
-    setIsMobileMenuOpen(false);
-  };
-
   const handleNav = (view: AppView, isPremiumFeature = false) => {
-    if (isPremiumFeature && !subscriptionState.hasAccess) {
-      setShowPaywall(true);
-      return;
-    }
-    if (!user && (view === AppView.ACCOUNT || view === AppView.LIBRARY || view === AppView.VOICE)) {
-      setShowAuthModal(true);
-      return;
-    }
+    if (isPremiumFeature && !subscriptionState.hasAccess) { setShowPaywall(true); return; }
+    if (!user && (view === AppView.ACCOUNT || view === AppView.LIBRARY || view === AppView.VOICE)) { setShowAuthModal(true); return; }
     setCurrentView(view);
     setFeatureContext(null);
     setIsMobileMenuOpen(false);
     setShowAuthModal(false); 
   };
 
-  const handleFeatureHandoff = (view: AppView, id: string, title: string) => {
-    if (id === 'save') {
-        handleNav(AppView.LIBRARY, true);
-        return;
-    }
-    
-    const isPremiumView = [AppView.YOGA, AppView.DIET, AppView.LIBRARY].includes(view);
-    if (isPremiumView && !subscriptionState.hasAccess) {
-      setShowPaywall(true);
-      return;
-    }
-    
-    setFeatureContext({ id, title });
+  const handleFeatureHandoff = (view: AppView, id: string, title: string, detail?: string) => {
+    const isPremiumView = [AppView.YOGA, AppView.DIET, AppView.LIBRARY, AppView.BOTANICAL].includes(view);
+    if (isPremiumView && !subscriptionState.hasAccess) { setShowPaywall(true); return; }
+    setFeatureContext({ id, title, detail });
     setCurrentView(view);
     setIsMobileMenuOpen(false);
-  };
-
-  const handleLibraryNavigate = (view: string, context: any) => {
-    setFeatureContext(context);
-    setCurrentView(view === 'YOGA' ? AppView.YOGA : AppView.DIET);
-  };
-
-  const handleVoiceConsult = (query: string) => {
-    setTriggerQuery(query);
-    setIsVoiceTrigger(true); 
-    setCurrentView(AppView.CHAT);
   };
 
   return (
@@ -162,90 +87,47 @@ const App: React.FC = () => {
              <Logo className="h-10 w-10" textClassName="text-2xl" showSlogan={false} />
              <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={20} /></button>
           </div>
-          
           <div className="space-y-2">
             <button onClick={() => handleNav(AppView.CHAT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><MessageSquare size={18} /> Consultation</button>
-            <button onClick={() => handleNav(AppView.VOICE, false)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode</div></button>
+            <button onClick={() => handleNav(AppView.VOICE)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode</button>
             <div className="pt-4 pb-2">
               <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">Healing Aids {subscriptionState.hasAccess && <Sparkles size={10} className="text-yellow-500" />}</p>
+              <button onClick={() => handleNav(AppView.BOTANICAL, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.BOTANICAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Leaf size={18} className="text-blue-500" /> Botanical Rx</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
               <button onClick={() => handleNav(AppView.YOGA, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.YOGA ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Flower2 size={18} className="text-pink-500" /> Yoga Aid</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
               <button onClick={() => handleNav(AppView.DIET, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Utensils size={18} className="text-orange-500" /> Nutri Heal</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
             </div>
             <button onClick={() => handleNav(AppView.LIBRARY, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.LIBRARY ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><BookMarked size={18} className="text-blue-500" /> Saved Library</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
-            
-            <div className="pt-4 pb-2">
-              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Information</p>
-              <button onClick={() => handleNav(AppView.ABOUT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ABOUT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><Info size={18} /> About NatureNani</button>
-              <button onClick={() => handleNav(AppView.FAQ)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.FAQ ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><HelpCircle size={18} /> FAQ</button>
-              <button onClick={() => handleNav(AppView.LEGAL)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.LEGAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><ShieldAlert size={18} /> Medical Disclaimer</button>
-              <button onClick={() => handleNav(AppView.LEGAL)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.LEGAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><ShieldCheck size={18} /> Privacy Policy</button>
-            </div>
           </div>
         </div>
-
         <div className="pt-4 border-t border-sage-100">
           {user ? (
             <div className="px-2">
-              <button onClick={() => handleNav(AppView.ACCOUNT)} className="w-full flex items-center gap-3 p-2 mb-2 bg-sage-50/50 rounded-xl hover:bg-sage-100 transition-all text-left group">
-                <div className="w-8 h-8 rounded-full bg-sage-600 flex items-center justify-center text-white font-bold text-xs shadow-sm group-hover:scale-105 transition-transform">
-                  {user.name?.[0] || user.email[0].toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-sage-900 truncate group-hover:text-sage-700">{user.name || 'User'}</p>
-                  <div className="flex items-center gap-1">
-                    {subscriptionState.status === 'active' ? <TreePine size={10} className="text-sage-600" /> : subscriptionState.status === 'trialing' ? <Star size={10} className="text-amber-500" /> : <Sprout size={10} className="text-sage-400" />}
-                    <p className="text-[10px] text-gray-400 truncate uppercase tracking-tighter">
-                      {subscriptionState.status === 'active' ? 'Healer Plan' : subscriptionState.status === 'trialing' ? 'Trial Access' : 'Free Plan'}
-                    </p>
-                  </div>
-                </div>
+              <button onClick={() => handleNav(AppView.ACCOUNT)} className="w-full flex items-center gap-3 p-2 mb-2 bg-sage-50/50 rounded-xl hover:bg-sage-100 transition-all text-left">
+                <div className="w-8 h-8 rounded-full bg-sage-600 flex items-center justify-center text-white font-bold text-xs">{user.name?.[0] || 'U'}</div>
+                <div className="flex-1 min-w-0"><p className="text-xs font-bold text-sage-900 truncate">{user.name || 'User'}</p></div>
               </button>
-              <button onClick={handleLogout} className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"><LogOut size={14} /> Sign Out</button>
+              <button onClick={() => logoutUser()} className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-xs px-2 w-full py-2"><LogOut size={14} /> Sign Out</button>
             </div>
-          ) : (
-            <button onClick={() => setShowAuthModal(true)} className="w-full bg-sage-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-sage-700 transition-colors shadow-lg">Sign In</button>
-          )}
+          ) : <button onClick={() => setShowAuthModal(true)} className="w-full bg-sage-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-sage-700 transition-colors shadow-lg">Sign In</button>}
         </div>
       </div>
 
       <div className="flex-1 h-full relative overflow-hidden">
         <div className={`h-full w-full ${currentView === AppView.CHAT ? 'block' : 'hidden'}`}>
-          <ChatInterface 
-            messages={chatMessages} 
-            setMessages={setChatMessages} 
-            onTrialEnd={() => setShowPaywall(true)} 
-            hasAccess={subscriptionState.hasAccess} 
-            subscriptionStatus={subscriptionState.status}
-            initialMessage={triggerQuery} 
-            onMessageSent={() => {
-              if (user) refreshAppData(user);
-              setTriggerQuery(''); 
-              setIsVoiceTrigger(false);
-            }} 
-            usage={queryUsage} 
-            onUpgradeClick={() => setShowPaywall(true)} 
-            isGuest={!user} 
-            onShowAuth={() => setShowAuthModal(true)} 
-            onNavigateToFeature={handleFeatureHandoff}
-            /* Fix: Changed typo VOUSE to VOICE */
-            onVoiceClick={() => handleNav(AppView.VOICE, false)}
-            initialMessageIsVoice={isVoiceTrigger}
-          />
+          <ChatInterface messages={chatMessages} setMessages={setChatMessages} onTrialEnd={() => setShowPaywall(true)} hasAccess={subscriptionState.hasAccess} subscriptionStatus={subscriptionState.status} initialMessage={triggerQuery} onMessageSent={() => { if (user) refreshAppData(user); setTriggerQuery(''); setIsVoiceTrigger(false); }} usage={queryUsage} onUpgradeClick={() => setShowPaywall(true)} isGuest={!user} onShowAuth={() => setShowAuthModal(true)} onNavigateToFeature={handleFeatureHandoff} onVoiceClick={() => handleNav(AppView.VOICE)} initialMessageIsVoice={isVoiceTrigger} />
         </div>
-        {currentView === AppView.ACCOUNT && user && (
-          <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={handleLogout} onRefresh={() => refreshAppData(user)} />
-        )}
-        {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={handleLibraryNavigate} />}
+        {currentView === AppView.ACCOUNT && user && <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={() => logoutUser()} onRefresh={() => refreshAppData(user)} />}
+        {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={(v, c) => handleFeatureHandoff(v === 'YOGA' ? AppView.YOGA : AppView.DIET, c.id, c.title)} />}
+        {currentView === AppView.BOTANICAL && <BotanicalRx activeContext={featureContext} />}
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
         {currentView === AppView.DIET && <NutriHeal activeContext={featureContext} />}
-        {currentView === AppView.BRANDING && <BrandingKit />}
         {currentView === AppView.LEGAL && <LegalNotice onBack={() => setCurrentView(AppView.CHAT)} />}
         {currentView === AppView.ABOUT && <AboutView onBack={() => setCurrentView(AppView.CHAT)} />}
         {currentView === AppView.FAQ && <FAQView onBack={() => setCurrentView(AppView.CHAT)} />}
-        {currentView === AppView.VOICE && <VoiceConsultation onClose={() => setCurrentView(AppView.CHAT)} onSubmit={handleVoiceConsult} />}
+        {currentView === AppView.VOICE && <VoiceConsultation onClose={() => setCurrentView(AppView.CHAT)} onSubmit={(q) => { setTriggerQuery(q); setIsVoiceTrigger(true); setCurrentView(AppView.CHAT); }} />}
       </div>
 
-      <AuthForm isOpen={showAuthModal} onAuthSuccess={(u) => handleAuthChange(u)} onClose={() => setShowAuthModal(false)} onNavigate={(view) => handleNav(view)} />
+      <AuthForm isOpen={showAuthModal} onAuthSuccess={handleAuthChange} onClose={() => setShowAuthModal(false)} onNavigate={handleNav} />
       <SubscriptionModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} isTrialExpired={subscriptionState.isTrialExpired} daysRemaining={subscriptionState.daysRemaining} subscriptionStatus={subscriptionState.status} onRefreshUser={() => user && refreshAppData(user)} />
     </div>
   );

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Bookmark, BookmarkPlus, Save, Check, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -22,7 +23,7 @@ interface ChatInterfaceProps {
   onUpgradeClick: () => void;
   isGuest: boolean;
   onShowAuth: () => void;
-  onNavigateToFeature: (view: AppView, contextId: string, contextTitle: string) => void;
+  onNavigateToFeature: (view: AppView, contextId: string, contextTitle: string, detail?: string) => void;
   onVoiceClick?: () => void;
   isMobileView?: boolean;
   initialMessageIsVoice?: boolean;
@@ -56,7 +57,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [showTrialPrompt, setShowTrialPrompt] = useState(false);
-  const [selectedDetail, setSelectedDetail] = useState<RecommendationMetadata | null>(null);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -73,30 +73,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading, scrollToBottom]); 
+  useEffect(() => { scrollToBottom(); }, [messages, isLoading, scrollToBottom]); 
 
   const handleResetChat = useCallback(() => {
     if (isLoading) return; 
-    setMessages([{
-      id: 'welcome',
-      role: 'model',
-      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.',
-      timestamp: Date.now()
-    }]);
+    setMessages([{ id: 'welcome', role: 'model', content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.', timestamp: Date.now() }]);
     if (onMessageSent) onMessageSent(); 
   }, [setMessages, isLoading, onMessageSent]);
 
   const generateAndPlaySpeech = async (msgId: string, fullText: string) => {
-    if (!hasAccess) {
-      onUpgradeClick();
-      return;
-    }
+    if (!hasAccess) { onUpgradeClick(); return; }
     if (isSpeaking) return;
     setIsSpeaking(true);
     setPlayingMessageId(msgId);
-    
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
@@ -104,62 +93,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         contents: [{ parts: [{ text: `${NANI_VOICE_PROMPT}\n\nCONTENT:\n${fullText}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
-          },
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
         },
       });
       const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       if (audioData) {
-        if (!audioContextRef.current) {
-          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        }
+        if (!audioContextRef.current) { audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 }); }
         await playRawAudio(audioData, audioContextRef.current);
       }
-    } catch (e) {
-      console.error("Speech Generation failed:", e);
-    } finally {
-      setIsSpeaking(false);
-      setPlayingMessageId(null);
-    }
+    } catch (e) {} finally { setIsSpeaking(false); setPlayingMessageId(null); }
   };
 
   const handleSaveProtocol = async (metadata: RecommendationMetadata) => {
     const user = getCurrentUser();
     if (!user) { onShowAuth(); return; }
-    
     setSaveLoading(true);
     setSaveError(null);
     try {
       const ailmentName = metadata.id || "General Wellness";
-      let result;
-      
       const targetData = metadata.detail || localStorage.getItem(`nani_last_${metadata.type}_${ailmentName}`);
-      
-      if (!targetData) {
-        throw new Error("Missing protocol data. Please ask Nani to re-sync.");
-      }
-
-      if (metadata.type === 'REMEDY') {
-        result = await saveRemedy(user, targetData, ailmentName);
-      } else if (metadata.type === 'YOGA') {
-        result = await saveRemedy(user, targetData, ailmentName);
-      } else if (metadata.type === 'DIET') {
-        result = await saveRemedy(user, targetData, ailmentName);
-      }
-      
-      if (result) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      } else {
-        throw new Error("Save returned null");
-      }
-    } catch (e: any) {
-      console.error("Failed to save protocol:", e);
-      setSaveError("My dear, it seems our connection has drifted. Let me refresh this wisdom for you.");
-    } finally {
-      setSaveLoading(false);
-    }
+      if (!targetData) throw new Error("Missing protocol data.");
+      const result = await saveRemedy(user, targetData, ailmentName);
+      if (result) { setSaveSuccess(true); setTimeout(() => setSaveSuccess(false), 3000); } 
+      else { throw new Error("Save returned null"); }
+    } catch (e: any) { setSaveError("Timeout or session drift. Please ask Nani to re-sync."); } 
+    finally { setSaveLoading(false); }
   };
 
   const parseMessageContent = (rawText: string) => {
@@ -167,29 +125,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
     let actionTrigger: string | null = null;
-
-    // Enhanced Trigger Parsing for Standalone App Modules
     const actionMatch = rawText.match(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?) \| BOTANICAL_RX_DATA: (.*?) \| YOGA_ID: (.*?) \| NUTRI_ID: (.*?) \| MODE: ROLLING_REPLACE\]/);
-    if (actionMatch) {
-      actionTrigger = actionMatch[0];
-      visibleText = visibleText.replace(actionTrigger, '').trim();
-    }
-
+    if (actionMatch) { actionTrigger = actionMatch[0]; visibleText = visibleText.replace(actionTrigger, '').trim(); }
     const marker = "[METADATA_START]";
     const markerIndex = visibleText.indexOf(marker);
-
     if (markerIndex !== -1) {
       const metadataPart = visibleText.substring(markerIndex + marker.length);
       visibleText = visibleText.substring(0, markerIndex).trim();
-      
       const jsonMatch = metadataPart.match(/```json\s*([\s\S]*?)\s*```/) || metadataPart.match(/(\{[\s\S]*?\})/);
-      if (jsonMatch && jsonMatch[1]) {
-        try {
-          const data = JSON.parse(jsonMatch[1].trim());
-          if (data.recommendations) metadata = data.recommendations;
-          if (data.suggestions) suggestions = data.suggestions;
-        } catch (e) {}
-      }
+      if (jsonMatch && jsonMatch[1]) { try { const data = JSON.parse(jsonMatch[1].trim()); if (data.recommendations) metadata = data.recommendations; if (data.suggestions) suggestions = data.suggestions; } catch (e) {} }
     }
     visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
     return { visibleText, metadata, suggestions, actionTrigger };
@@ -198,102 +142,46 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleAutoSend = async (text: string, isResuming = false, isVoiceQuery = false) => {
     if (isLoading || !text.trim()) return;
     if (text === "New Consultation") { handleResetChat(); return; }
-    
     const currentUser = getCurrentUser();
     if (isGuest || !currentUser) { sessionStorage.setItem('nani_pending_message', text); onShowAuth(); return; }
-    
-    if (!usage.isUnlimited && usage.remaining <= 0) {
-      onUpgradeClick();
-      return;
-    }
-
+    if (!usage.isUnlimited && usage.remaining <= 0) { onUpgradeClick(); return; }
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() };
     if (!isResuming) setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
-
     try {
       const botMessageId = crypto.randomUUID();
       let fullRawContent = '';
       setMessages(prev => [...prev, { id: botMessageId, role: 'model', content: '', timestamp: Date.now() }]);
-
-      const stream = sendMessageWithRAG(
-        text, messages, hasAccess ? 'Premium' : 'Free', usage.count, currentUser,
-        (foundSources) => {
-          setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, sources: foundSources } : msg));
-        }
-      );
-
+      const stream = sendMessageWithRAG(text, messages, hasAccess ? 'Premium' : 'Free', usage.count, currentUser);
       for await (const chunk of stream) {
         fullRawContent += chunk;
         const { visibleText, metadata, suggestions } = parseMessageContent(fullRawContent);
-        setMessages(prev => [...prev.map(msg => msg.id === botMessageId ? { 
-          ...msg, 
-          content: visibleText,
-          recommendations: metadata.length > 0 ? metadata : msg.recommendations,
-          suggestions: suggestions.length > 0 ? suggestions : msg.suggestions
-        } : msg)]);
+        setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, content: visibleText, recommendations: metadata.length > 0 ? metadata : msg.recommendations, suggestions: suggestions.length > 0 ? suggestions : msg.suggestions } : msg));
       }
-      
       const finalResult = parseMessageContent(fullRawContent);
-      setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
-        ...msg, 
-        content: finalResult.visibleText, 
-        recommendations: finalResult.metadata,
-        suggestions: finalResult.suggestions
-      } : msg));
-      
+      setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, content: finalResult.visibleText, recommendations: finalResult.metadata, suggestions: finalResult.suggestions } : msg));
       if (finalResult.metadata.length > 0) {
-        finalResult.metadata.forEach(rec => {
-          if (rec.detail) {
-            localStorage.setItem(`nani_last_${rec.type}_${rec.id}`, rec.detail);
-          }
-        });
-
-        if (finalResult.actionTrigger && hasAccess) {
-          const botanicalRx = finalResult.metadata.find(r => r.type === 'REMEDY');
-          if (botanicalRx) {
-            handleSaveProtocol(botanicalRx);
-          }
-        }
+        finalResult.metadata.forEach(rec => { if (rec.detail) localStorage.setItem(`nani_last_${rec.type}_${rec.id}`, rec.detail); });
+        if (finalResult.actionTrigger && hasAccess) { const botanicalRx = finalResult.metadata.find(r => r.type === 'REMEDY'); if (botanicalRx) handleSaveProtocol(botanicalRx); }
       }
-
       if (onMessageSent) onMessageSent();
-
-      if (isVoiceQuery && hasAccess && finalResult.visibleText) {
-        generateAndPlaySpeech(botMessageId, finalResult.visibleText);
-      }
-    } catch (error: any) {
-      console.error("Chat Error:", error);
-    } finally {
-      setIsLoading(false);
-    }
+      if (isVoiceQuery && hasAccess && finalResult.visibleText) { generateAndPlaySpeech(botMessageId, finalResult.visibleText); }
+    } catch (error: any) {} finally { setIsLoading(false); }
   };
 
-  const handleSend = () => {
-    if (!input.trim() || isLoading) return;
-    const text = input;
-    setInput('');
-    handleAutoSend(text);
-  };
+  const handleSend = () => { if (!input.trim() || isLoading) return; const text = input; setInput(''); handleAutoSend(text); };
 
-  const renderMarkdown = (content: string) => {
-    return (
-      <div className="markdown-content prose prose-slate max-w-none text-left">
-        <ReactMarkdown 
-          remarkPlugins={[remarkGfm]}
-          components={{
-            h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-50 pb-2" {...props} />,
-            p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700" {...props} />,
-            table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full" {...props} /></div>,
-            th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
-            td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
-          }}
-        >
-          {content}
-        </ReactMarkdown>
-      </div>
-    );
-  };
+  const renderMarkdown = (content: string) => (
+    <div className="markdown-content prose prose-slate max-w-none text-left">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+        h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-50 pb-2" {...props} />,
+        p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700" {...props} />,
+        table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full" {...props} /></div>,
+        th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
+        td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
+      }}>{content}</ReactMarkdown>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full bg-sage-50">
@@ -303,17 +191,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {!usage.isUnlimited && !isGuest && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sage-50 border border-sage-100 rounded-full shadow-inner">
                <MessageSquare size={12} className="text-sage-500" />
-               <span className="text-[10px] font-black text-sage-700 uppercase tracking-tighter">
-                 {usage.count} / {usage.limit} Daily
-               </span>
+               <span className="text-[10px] font-black text-sage-700 uppercase tracking-tighter">{usage.count} / {usage.limit} Daily</span>
             </div>
           )}
-          <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase transition-colors">
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Reset
-          </button>
+          <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase transition-colors"><RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Reset</button>
         </div>
       </div>
-
       <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-40 scroll-smooth">
         {messages.map((msg) => (
           <div key={msg.id} className="flex flex-col gap-2">
@@ -333,7 +216,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 )}
               </div>
             </div>
-
             {msg.recommendations && msg.recommendations.length > 0 && (
               <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4">
                 {msg.recommendations.map((rec, idx) => (
@@ -347,8 +229,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </div>
                       <p className="text-sm text-gray-600 leading-relaxed mb-4">{rec.summary}</p>
                       <button 
-                        onClick={() => hasAccess ? (rec.type === 'REMEDY' ? setSelectedDetail(rec) : onNavigateToFeature(rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET, rec.id, rec.id)) : setShowTrialPrompt(true)} 
-                        className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+                        onClick={() => {
+                          if (!hasAccess) { setShowTrialPrompt(true); return; }
+                          const view = rec.type === 'REMEDY' ? AppView.BOTANICAL : rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
+                          onNavigateToFeature(view, rec.id, rec.id, rec.detail);
+                        }} 
+                        className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-700'}`}
                       >
                          {!hasAccess && <Lock size={12} />} 
                          {rec.type === 'REMEDY' ? 'Botanical Rx' : rec.type === 'YOGA' ? 'Yoga Aid' : 'Nutri Heal Plan'} 
@@ -359,13 +245,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ))}
               </div>
             )}
-
             {msg.suggestions && msg.suggestions.length > 0 && (
               <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl">
                 {msg.suggestions.map((s, idx) => (
-                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm">
-                    {s}
-                  </button>
+                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm">{s}</button>
                 ))}
               </div>
             )}
@@ -373,49 +256,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         ))}
         <div ref={messagesEndRef} />
       </div>
-
-      {selectedDetail && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-sage-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300" onClick={() => setSelectedDetail(null)}>
-          <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl relative border border-white/20" onClick={e => e.stopPropagation()}>
-            <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
-              <h2 className="text-2xl font-serif font-bold text-sage-900">{selectedDetail.title}</h2>
-              <button onClick={() => setSelectedDetail(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={24} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-8">
-              {saveError && (
-                <div className="mb-6 bg-amber-50 text-amber-800 p-4 rounded-2xl border border-amber-200 flex items-start gap-3 animate-in shake duration-300">
-                  <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
-                  <p className="text-sm italic">{saveError}</p>
-                </div>
-              )}
-              
-              {renderMarkdown(selectedDetail.detail || '')}
-              {hasAccess && (selectedDetail.type === 'REMEDY' || selectedDetail.type === 'YOGA' || selectedDetail.type === 'DIET') && (
-                <div className="mt-8 flex justify-end">
-                   <button 
-                    onClick={() => handleSaveProtocol(selectedDetail)} 
-                    disabled={saveLoading || saveSuccess}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg ${saveSuccess ? 'bg-green-100 text-green-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                   >
-                     {saveLoading ? <RefreshCw className="animate-spin" size={16} /> : saveSuccess ? <Check size={16} /> : <Save size={16} />}
-                     {saveSuccess ? "Stored in Library" : "Save Details to Library"}
-                   </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="p-4 bg-white border-t border-sage-200 relative z-10">
         <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value.substring(0, MAX_PROMPT_LENGTH))}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-            placeholder="Share your symptoms with Nani..."
-            className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[64px]"
-          />
+          <textarea value={input} onChange={(e) => setInput(e.target.value.substring(0, MAX_PROMPT_LENGTH))} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder="Share your symptoms with Nani..." className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[64px]" />
           <button onClick={onVoiceClick} className="p-3 text-sage-400 hover:text-sage-600 rounded-2xl transition-all"><Mic size={24} /></button>
           <button onClick={handleSend} disabled={isLoading || !input.trim()} className="p-3 bg-sage-600 text-white rounded-2xl shadow-lg transition-all active:scale-95">
             {isLoading ? <RefreshCw size={24} className="animate-spin" /> : <Send size={24} />}

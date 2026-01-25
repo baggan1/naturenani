@@ -39,7 +39,7 @@ export interface Message {
   timestamp: number;
   sources?: RemedyDocument[]; 
   recommendations?: RecommendationMetadata[]; 
-  suggestions?: string[]; // Progressive follow-up options
+  suggestions?: string[];
 }
 
 export enum AppView {
@@ -50,6 +50,7 @@ export enum AppView {
   ACCOUNT = 'ACCOUNT',
   YOGA = 'YOGA', 
   DIET = 'DIET',
+  BOTANICAL = 'BOTANICAL',
   LIBRARY = 'LIBRARY',
   BRANDING = 'BRANDING',
   LEGAL = 'LEGAL',
@@ -68,6 +69,9 @@ export interface QueryUsage {
 export interface FeatureContext {
   id: string; 
   title: string;
+  detail?: string;
+  cachedPoses?: YogaPose[];
+  cachedPlan?: DayPlan[];
 }
 
 export interface YogaPose {
