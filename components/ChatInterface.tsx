@@ -4,7 +4,7 @@ import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronU
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI, Modality } from "@google/genai";
-import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus } from '../types';
+import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus, FeatureContext } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
 import { saveRemedy, saveYogaPlan, saveMealPlan, getCurrentUser } from '../services/backendService';
 import { MAX_PROMPT_LENGTH } from '../utils/constants';
@@ -23,7 +23,8 @@ interface ChatInterfaceProps {
   onUpgradeClick: () => void;
   isGuest: boolean;
   onShowAuth: () => void;
-  onNavigateToFeature: (view: AppView, contextId: string, contextTitle: string, detail?: string) => void;
+  // Fixed: Use FeatureContext object for navigation to maintain consistency
+  onNavigateToFeature: (view: AppView, context: FeatureContext) => void;
   onVoiceClick?: () => void;
   isMobileView?: boolean;
   initialMessageIsVoice?: boolean;
@@ -166,7 +167,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
       if (onMessageSent) onMessageSent();
       if (isVoiceQuery && hasAccess && finalResult.visibleText) { generateAndPlaySpeech(botMessageId, finalResult.visibleText); }
-    } catch (error: any) {} finally { setIsLoading(false); }
+    } catch (error: any) { console.error(error); } finally { setIsLoading(false); }
   };
 
   const handleSend = () => { if (!input.trim() || isLoading) return; const text = input; setInput(''); handleAutoSend(text); };
@@ -232,7 +233,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         onClick={() => {
                           if (!hasAccess) { setShowTrialPrompt(true); return; }
                           const view = rec.type === 'REMEDY' ? AppView.BOTANICAL : rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
-                          onNavigateToFeature(view, rec.id, rec.id, rec.detail);
+                          // Fixed: Pass context as a single object to match the unified handleFeatureHandoff signature
+                          onNavigateToFeature(view, { id: rec.id, title: rec.id, detail: rec.detail });
                         }} 
                         className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-700'}`}
                       >

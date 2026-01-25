@@ -65,10 +65,11 @@ const App: React.FC = () => {
     setShowAuthModal(false); 
   };
 
-  const handleFeatureHandoff = (view: AppView, id: string, title: string, detail?: string) => {
+  // Fixed: Unified handleFeatureHandoff to accept FeatureContext as a single object for consistency
+  const handleFeatureHandoff = (view: AppView, context: FeatureContext) => {
     const isPremiumView = [AppView.YOGA, AppView.DIET, AppView.LIBRARY, AppView.BOTANICAL].includes(view);
     if (isPremiumView && !subscriptionState.hasAccess) { setShowPaywall(true); return; }
-    setFeatureContext({ id, title, detail });
+    setFeatureContext(context);
     setCurrentView(view);
     setIsMobileMenuOpen(false);
   };
@@ -89,7 +90,7 @@ const App: React.FC = () => {
           </div>
           <div className="space-y-2">
             <button onClick={() => handleNav(AppView.CHAT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><MessageSquare size={18} /> Consultation</button>
-            <button onClick={() => handleNav(AppView.VOICE)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode</button>
+            <button onClick={() => handleNav(AppView.VOICE)} className={`\w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors group ${currentView === AppView.VOICE ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><Mic size={18} className="text-sage-600 group-hover:animate-pulse" /> Voice Mode</button>
             <div className="pt-4 pb-2">
               <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">Healing Aids {subscriptionState.hasAccess && <Sparkles size={10} className="text-yellow-500" />}</p>
               <button onClick={() => handleNav(AppView.BOTANICAL, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.BOTANICAL ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Leaf size={18} className="text-blue-500" /> Botanical Rx</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
@@ -117,7 +118,7 @@ const App: React.FC = () => {
           <ChatInterface messages={chatMessages} setMessages={setChatMessages} onTrialEnd={() => setShowPaywall(true)} hasAccess={subscriptionState.hasAccess} subscriptionStatus={subscriptionState.status} initialMessage={triggerQuery} onMessageSent={() => { if (user) refreshAppData(user); setTriggerQuery(''); setIsVoiceTrigger(false); }} usage={queryUsage} onUpgradeClick={() => setShowPaywall(true)} isGuest={!user} onShowAuth={() => setShowAuthModal(true)} onNavigateToFeature={handleFeatureHandoff} onVoiceClick={() => handleNav(AppView.VOICE)} initialMessageIsVoice={isVoiceTrigger} />
         </div>
         {currentView === AppView.ACCOUNT && user && <AccountSettings user={user} onUpgrade={() => setShowPaywall(true)} onLogout={() => logoutUser()} onRefresh={() => refreshAppData(user)} />}
-        {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={(v, c) => handleFeatureHandoff(v === 'YOGA' ? AppView.YOGA : AppView.DIET, c.id, c.title)} />}
+        {currentView === AppView.LIBRARY && user && <Library user={user} onNavigate={handleFeatureHandoff} />}
         {currentView === AppView.BOTANICAL && <BotanicalRx activeContext={featureContext} />}
         {currentView === AppView.YOGA && <YogaAid activeContext={featureContext} />}
         {currentView === AppView.DIET && <NutriHeal activeContext={featureContext} />}

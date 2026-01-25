@@ -58,7 +58,6 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
   } catch (e) { return { count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false }; }
 };
 
-// Added getUserSearchHistory to fix missing export error in index.tsx and App.tsx
 export const getUserSearchHistory = async (user: User): Promise<string[]> => {
   if (!supabase || !user?.id) return [];
   try {
@@ -82,17 +81,14 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, boo
   } catch (e) {}
 };
 
-/**
- * FIXED 500 ERROR: Reduced match_count and added safety checks
- */
 export const searchVectorDatabase = async (queryText: string, queryEmbedding: number[] | null): Promise<RemedyDocument[]> => {
   if (!supabase || !queryEmbedding || queryEmbedding.length === 0) return [];
   try {
-    // Reduced match_count to 3 to speed up Supabase RPC and avoid timeouts
+    // Aggressively optimized for speed to prevent timeouts
     const { data, error } = await supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
-      match_threshold: 0.4, 
-      match_count: 3 
+      match_threshold: 0.5, // Increased threshold to filter faster
+      match_count: 2       // Lower count to reduce RPC execution time
     });
     if (error) {
       console.warn("[searchVectorDatabase] RPC Handled Error:", error.message);
@@ -263,14 +259,11 @@ export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: stri
   return error ? null : data;
 };
 
-/**
- * FIXED 400 ERROR: Strictly use 'REMEDY' type
- */
 export const saveRemedy = async (user: User, detail: string, title: string) => {
   if (!supabase || !user?.id || !detail) return null;
   try {
     const verifiedId = await enforceRollingLimit(user.id, title);
-    // Explicitly setting type to 'REMEDY' to satisfy DB check constraint
+    // FIXED: Strictly sending 'REMEDY' as a string to match DB constraint exactly
     const { data, error } = await supabase.from('nani_saved_plans').insert({ 
       user_id: verifiedId, 
       title: title.trim(), 

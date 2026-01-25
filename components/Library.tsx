@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText, X, CheckCircle2 } from 'lucide-react';
-import { SavedMealPlan, SavedYogaPlan, User, AppView } from '../types';
+import { SavedMealPlan, SavedYogaPlan, User, AppView, FeatureContext } from '../types';
 import { getUserLibrary } from '../services/backendService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface LibraryProps {
   user: User;
-  onNavigate: (view: any, context?: any) => void;
+  // Fixed: Define specific types for navigation callback to match handleFeatureHandoff in App.tsx
+  onNavigate: (view: AppView, context: FeatureContext) => void;
 }
 
 interface GroupedAilment {
@@ -138,7 +140,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                             onClick={() => {
                               const detail = group.remedy.detail || group.remedy.plan_data?.detail;
                               if (detail) {
-                                // FIXED: Navigate to standalone BotanicalRx view instead of a modal
+                                // Fixed: Use direct navigation to the Botanical view with the correct FeatureContext shape
                                 onNavigate(AppView.BOTANICAL, { id: group.remedy.title, title: group.remedy.title, detail });
                               }
                             }}
