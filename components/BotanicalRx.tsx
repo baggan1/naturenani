@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-// Added ShieldCheck to the imports from lucide-react
-import { Leaf, Search, Loader2, Save, Check, RefreshCw, X, FileText, Sparkles, ChevronRight, Stethoscope, ShieldCheck } from 'lucide-react';
+import { Leaf, Loader2, Save, Check, RefreshCw, X, FileText, Sparkles, ChevronRight, Stethoscope, ShieldCheck, HelpCircle } from 'lucide-react';
 import { FeatureContext, User } from '../types';
 import { saveRemedy, getCurrentUser } from '../services/backendService';
 import ReactMarkdown from 'react-markdown';
@@ -12,16 +10,14 @@ interface BotanicalRxProps {
 }
 
 const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
-  const [loading, setLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
   const [title, setTitle] = useState("Botanical Rx Protocol");
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeContext) {
-      setTitle(activeContext.title);
+      setTitle(activeContext.title || "Botanical Rx Protocol");
       setDetail(activeContext.detail || null);
     }
   }, [activeContext]);
@@ -61,53 +57,78 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
   );
 
   return (
-    <div className="h-full flex flex-col bg-white overflow-hidden">
-      <div className="bg-blue-50 border-b border-blue-100 p-6 flex items-center justify-between">
-        <div>
-           <h1 className="font-serif text-2xl font-bold text-blue-900 flex items-center gap-2">
-             <Leaf className="text-blue-600" /> Botanical Rx
-           </h1>
-           <p className="text-blue-700 mt-1 text-sm">Clinical herbal protocols & clinical dosages.</p>
+    <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
+      {/* Standalone Header */}
+      <div className="bg-white border-b border-slate-200 px-8 py-6 flex items-center justify-between sticky top-0 z-20">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
+            <Leaf size={24} />
+          </div>
+          <div>
+            <h1 className="font-serif text-2xl font-bold text-slate-900">Botanical Rx</h1>
+            <p className="text-slate-500 text-xs font-medium uppercase tracking-widest">Clinical Herbal Protocols</p>
+          </div>
         </div>
+        
         {detail && (
           <button 
             onClick={handleSave} 
             disabled={saveLoading || saveSuccess}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${saveSuccess ? 'bg-green-100 text-green-700' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'}`}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg ${
+              saveSuccess 
+              ? 'bg-green-100 text-green-700 border border-green-200' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
           >
             {saveLoading ? <RefreshCw className="animate-spin" size={16} /> : saveSuccess ? <Check size={16} /> : <Save size={16} />}
-            {saveSuccess ? "Stored in Library" : "Save Protocol"}
+            {saveSuccess ? "Saved to Library" : "Save to Library"}
           </button>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 md:p-12">
+      <div className="flex-1 overflow-y-auto p-8 md:p-12 scrollbar-hide">
         <div className="max-w-4xl mx-auto">
           {!detail ? (
-            <div className="text-center py-32 opacity-30 flex flex-col items-center gap-6">
-              <Stethoscope size={80} className="text-blue-200" />
-              <div className="space-y-2">
-                <p className="text-2xl font-serif font-bold text-blue-900">No Protocol Active</p>
-                <p className="text-sm font-medium">Please initiate a consultation to generate a Botanical Rx.</p>
+            <div className="text-center py-32 flex flex-col items-center gap-8 animate-in fade-in duration-700">
+              <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-xl border border-slate-100 relative">
+                <div className="absolute inset-0 rounded-full border-4 border-dashed border-blue-100 animate-spin-slow"></div>
+                <Stethoscope size={48} className="text-blue-200" />
+              </div>
+              <div className="space-y-3">
+                <p className="text-2xl font-serif font-bold text-slate-900">Consult Nani for Guidance</p>
+                <p className="text-slate-500 max-w-xs mx-auto text-sm leading-relaxed">
+                  Botanical Rx protocols are generated specifically for your ailment after a consultation.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">
+                <HelpCircle size={14} /> Waiting for Active Context
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-[2.5rem] border border-blue-50 p-10 shadow-xl shadow-blue-900/5 animate-in fade-in slide-in-from-bottom-4">
-              <div className="mb-10 flex items-center gap-4">
-                <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
-                  <Sparkles size={28} />
+            <div className="bg-white rounded-[3rem] border border-slate-100 p-10 md:p-16 shadow-2xl shadow-slate-200/50 animate-in fade-in slide-in-from-bottom-8 duration-500 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
+                <Leaf size={200} />
+              </div>
+              
+              <div className="mb-12 flex items-center gap-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-3xl flex items-center justify-center text-blue-600 rotate-3">
+                  <Sparkles size={32} />
                 </div>
                 <div>
-                   <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1 block">Ancient Wisdom Validated</span>
-                   <h2 className="text-3xl font-serif font-bold text-slate-900 capitalize">{title} Protocol</h2>
+                   <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-1 block">Validating Ancient Scriptures</span>
+                   <h2 className="text-4xl font-serif font-bold text-slate-900 capitalize leading-tight">{title}</h2>
                 </div>
               </div>
-              {renderMarkdown(detail)}
-              <div className="mt-12 pt-8 border-t border-blue-50 flex items-center justify-between text-blue-400">
-                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
-                    <ShieldCheck size={16} /> Paraphrased for Educational Accuracy
+
+              <div className="space-y-8">
+                {renderMarkdown(detail)}
+              </div>
+
+              <div className="mt-16 pt-10 border-t border-slate-50 flex flex-col md:flex-row items-center justify-between gap-6 text-slate-400">
+                 <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest bg-slate-50 px-5 py-2 rounded-full border border-slate-100">
+                    <ShieldCheck size={18} className="text-blue-500" /> Paraphrased Clinical Synthesis
                  </div>
-                 <div className="text-[10px] font-black uppercase tracking-widest">Global Wellness Archives v2.5</div>
+                 <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Nature Nani Global Archives v2.5</div>
               </div>
             </div>
           )}

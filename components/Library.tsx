@@ -21,7 +21,6 @@ interface GroupedAilment {
 const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
   const [library, setLibrary] = useState<{ diet: SavedMealPlan[], yoga: SavedYogaPlan[], remedy: any[] }>({ diet: [], yoga: [], remedy: [] });
   const [loading, setLoading] = useState(true);
-  const [viewingRemedy, setViewingRemedy] = useState<any>(null);
 
   useEffect(() => {
     const fetchLibrary = async () => {
@@ -139,7 +138,8 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                             onClick={() => {
                               const detail = group.remedy.detail || group.remedy.plan_data?.detail;
                               if (detail) {
-                                setViewingRemedy({ ...group.remedy, detail });
+                                // FIXED: Navigate to standalone BotanicalRx view instead of a modal
+                                onNavigate(AppView.BOTANICAL, { id: group.remedy.title, title: group.remedy.title, detail });
                               }
                             }}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 hover:text-white transition-all shadow-sm"
@@ -151,7 +151,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                       <td className="px-6 py-6 text-center">
                         {group.yoga ? (
                           <button 
-                            onClick={() => onNavigate('YOGA', { id: group.yoga.title, title: group.yoga.title, cachedPoses: group.yoga.poses })}
+                            onClick={() => onNavigate(AppView.YOGA, { id: group.yoga.title, title: group.yoga.title, cachedPoses: group.yoga.poses })}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-pink-50 text-pink-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-pink-600 hover:text-white transition-all shadow-sm"
                           >
                             <Flower2 size={14} /> Open Studio
@@ -161,7 +161,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                       <td className="px-6 py-6 text-center">
                         {group.diet ? (
                           <button 
-                            onClick={() => onNavigate('DIET', { id: group.diet.title, title: group.diet.title, cachedPlan: group.diet.plan_data })}
+                            onClick={() => onNavigate(AppView.DIET, { id: group.diet.title, title: group.diet.title, cachedPlan: group.diet.plan_data })}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-orange-600 hover:text-white transition-all shadow-sm"
                           >
                             <Utensils size={14} /> View Plan
@@ -179,39 +179,6 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
           </div>
         )}
       </div>
-
-      {viewingRemedy && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-sage-900/70 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setViewingRemedy(null)}>
-          <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 block">Botanical Rx Record</span>
-                <h2 className="text-2xl font-serif font-bold text-sage-900 capitalize">{viewingRemedy.title}</h2>
-              </div>
-              <button onClick={() => setViewingRemedy(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={24} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-8 md:p-12 text-left">
-              <div className="markdown-content prose prose-slate max-w-none">
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-50 pb-2" {...props} />,
-                    p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700" {...props} />,
-                    table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full" {...props} /></div>,
-                    th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
-                    td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
-                  }}
-                >
-                  {viewingRemedy.detail || ''}
-                </ReactMarkdown>
-              </div>
-            </div>
-            <div className="p-6 bg-sage-50 border-t border-sage-100 flex justify-center">
-               <button onClick={() => setViewingRemedy(null)} className="px-8 py-3 bg-sage-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg">Close Botanical Rx</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

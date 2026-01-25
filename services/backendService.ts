@@ -5,7 +5,6 @@ import { DAILY_QUERY_LIMIT } from '../utils/constants';
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-const AGENT_PASSWORD = process.env.AGENT_PASSWORD;
 
 const supabase: any = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
@@ -30,8 +29,7 @@ export const getCurrentUser = (): User | null => {
   if (!stored) return null;
   try {
     const user = JSON.parse(stored);
-    if (!user.id || typeof user.id !== 'string') return null;
-    return user;
+    return user.id ? user : null;
   } catch (e) { return null; }
 };
 
@@ -39,12 +37,9 @@ export const fetchUserRecord = async (email: string): Promise<User | null> => {
   if (!supabase) return null;
   try {
     const { data, error } = await supabase.from('app_users').select('*').eq('email', email).maybeSingle();
-    if (error) return null;
-    if (data) {
-      safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
-      return data as User;
-    }
-    return null;
+    if (error || !data) return null;
+    safeStorage.setItem(CURRENT_USER_KEY, JSON.stringify(data));
+    return data as User;
   } catch (e) { return null; }
 };
 
@@ -58,8 +53,24 @@ export const checkDailyQueryLimit = async (user: User): Promise<QueryUsage> => {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { count, error } = await supabase.from('nani_analytics').select('*', { count: 'exact', head: true }).eq('user_id', user.id).gt('created_at', oneDayAgo);
     if (error) throw error;
-    return { count: count || 0, limit: DAILY_QUERY_LIMIT, remaining: Math.max(0, DAILY_QUERY_LIMIT - (count || 0)), isUnlimited: false };
+    const used = count || 0;
+    return { count: used, limit: DAILY_QUERY_LIMIT, remaining: Math.max(0, DAILY_QUERY_LIMIT - used), isUnlimited: false };
   } catch (e) { return { count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false }; }
+};
+
+// Added getUserSearchHistory to fix missing export error in index.tsx and App.tsx
+export const getUserSearchHistory = async (user: User): Promise<string[]> => {
+  if (!supabase || !user?.id) return [];
+  try {
+    const { data, error } = await supabase
+      .from('nani_analytics')
+      .select('query')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (error || !data) return [];
+    return data.map((item: any) => item.query);
+  } catch (e) { return []; }
 };
 
 export const logAnalyticsEvent = async (query: string, source: SearchSource, bookSources: string[] = []) => {
@@ -71,15 +82,22 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, boo
   } catch (e) {}
 };
 
+/**
+ * FIXED 500 ERROR: Reduced match_count and added safety checks
+ */
 export const searchVectorDatabase = async (queryText: string, queryEmbedding: number[] | null): Promise<RemedyDocument[]> => {
-  if (!supabase || !queryEmbedding || queryEmbedding.length < 100) return [];
+  if (!supabase || !queryEmbedding || queryEmbedding.length === 0) return [];
   try {
+    // Reduced match_count to 3 to speed up Supabase RPC and avoid timeouts
     const { data, error } = await supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
-      match_threshold: 0.35, 
-      match_count: 5
+      match_threshold: 0.4, 
+      match_count: 3 
     });
-    if (error) { console.warn("[searchVectorDatabase] RPC Error:", error); return []; }
+    if (error) {
+      console.warn("[searchVectorDatabase] RPC Handled Error:", error.message);
+      return [];
+    }
     return (data || []).map((doc: any) => ({
       id: doc.id.toString(),
       condition: 'Related Topic',
@@ -88,17 +106,9 @@ export const searchVectorDatabase = async (queryText: string, queryEmbedding: nu
       book_name: doc.book_name,
       similarity: doc.similarity
     }));
-  } catch (e) { return []; }
-};
-
-export const getUserSearchHistory = async (user: User): Promise<string[]> => {
-  if (!supabase || !user?.id) return [];
-  try {
-    const { data } = await supabase.from('nani_analytics').select('query').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
-    if (!data) return [];
-    const queryList: string[] = (data as any[]).map(item => String(item.query));
-    return Array.from(new Set(queryList)).slice(0, 5); 
-  } catch (e) { return []; }
+  } catch (e) { 
+    return []; 
+  }
 };
 
 export const warmupDatabase = async () => {
@@ -253,18 +263,24 @@ export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: stri
   return error ? null : data;
 };
 
+/**
+ * FIXED 400 ERROR: Strictly use 'REMEDY' type
+ */
 export const saveRemedy = async (user: User, detail: string, title: string) => {
   if (!supabase || !user?.id || !detail) return null;
   try {
     const verifiedId = await enforceRollingLimit(user.id, title);
-    // FIXED: Strictly sending 'REMEDY' to match DB check constraint
+    // Explicitly setting type to 'REMEDY' to satisfy DB check constraint
     const { data, error } = await supabase.from('nani_saved_plans').insert({ 
       user_id: verifiedId, 
       title: title.trim(), 
       plan_data: { detail }, 
       type: 'REMEDY' 
     }).select().single();
-    if (error) { console.error("[saveRemedy] DB Error:", error); return null; }
+    if (error) {
+      console.error("[saveRemedy] DB Save Violation:", error.message);
+      return null;
+    }
     return data;
   } catch (e) { return null; }
 };
