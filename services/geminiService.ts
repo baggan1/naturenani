@@ -66,7 +66,10 @@ export const sendMessageWithRAG = async function* (
     let hasRAG = false;
     const isFirstTurn = history.length <= 1;
 
-    if (!isFirstTurn) {
+    // Detect Re-Sync Intent
+    const isReSync = /re-sync|recall|re-generate|lost my last|bring back/i.test(safeMessage);
+
+    if (!isFirstTurn && !isReSync) {
       try {
         const ragPromise = (async () => {
           const queryVector = await generateEmbedding(safeMessage);
@@ -96,15 +99,19 @@ export const sendMessageWithRAG = async function* (
       libraryCount = uniqueAilments.size;
     }
 
-    const dynamicSystemInstruction = SYSTEM_INSTRUCTION + 
+    let dynamicInstruction = SYSTEM_INSTRUCTION + 
       "\n\nCURRENT CONTEXT:\nTier: " + userTier + 
       "\nToday's Consultations: " + queryCount +
       "\nLibrary Ailments Count: " + libraryCount + "/5";
 
+    if (isReSync) {
+      dynamicInstruction += "\n\nCRITICAL: The user is requesting a RE-SYNC of their last consultation. Skip Phase 1 entirely and immediately generate the full Response Architecture (Root Cause, Quick Actions, and JSON Metadata) for the last ailment discussed in the history.";
+    }
+
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
       config: { 
-        systemInstruction: dynamicSystemInstruction, 
+        systemInstruction: dynamicInstruction, 
         temperature: 0.7,
         topP: 0.95,
         topK: 40

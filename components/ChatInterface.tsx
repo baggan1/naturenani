@@ -134,7 +134,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const ailmentName = metadata.id || "General Wellness";
       let result;
       
-      // Pull data from metadata or falling back to local storage if it's the "last" one
       const targetData = metadata.detail || localStorage.getItem(`nani_last_${metadata.type}_${ailmentName}`);
       
       if (!targetData) {
@@ -144,7 +143,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (metadata.type === 'REMEDY') {
         result = await saveRemedy(user, targetData, ailmentName);
       } else if (metadata.type === 'YOGA') {
-        // Fallback save as remedy for stability if the full object is lost
         result = await saveRemedy(user, targetData, ailmentName);
       } else if (metadata.type === 'DIET') {
         result = await saveRemedy(user, targetData, ailmentName);
@@ -244,13 +242,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         suggestions: finalResult.suggestions
       } : msg));
       
-      // PERSISTENT DATA CACHE: Save to localStorage immediately the moment Nani speaks
+      // PHASE 4: PERSISTENT DATA CACHE
       if (finalResult.metadata.length > 0) {
         finalResult.metadata.forEach(rec => {
           if (rec.detail) {
             localStorage.setItem(`nani_last_${rec.type}_${rec.id}`, rec.detail);
           }
         });
+
+        // PHASE 3: AUTO-SAVE TRIGGER DETECTION
+        if (finalResult.actionTrigger && hasAccess) {
+          const remedy = finalResult.metadata.find(r => r.type === 'REMEDY');
+          if (remedy) {
+            console.log("[Auto-Save] Triggering save for ailment:", remedy.id);
+            handleSaveProtocol(remedy);
+          }
+        }
       }
 
       if (onMessageSent) onMessageSent();
@@ -372,10 +379,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       {selectedDetail && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-sage-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300" onClick={() => setSelectedDetail(null)}>
-          <div className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl relative border border-white/20" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl relative border border-white/20" onClick={e => e.stopPropagation()}>
             <div className="bg-sage-50 p-8 border-b border-sage-100 flex items-center justify-between">
               <h2 className="text-2xl font-serif font-bold text-sage-900">{selectedDetail.title}</h2>
-              <button onClick={() => setSelectedDetail(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={20} /></button>
+              <button onClick={() => setSelectedDetail(null)} className="p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={24} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-8">
               {saveError && (
