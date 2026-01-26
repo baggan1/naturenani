@@ -36,7 +36,7 @@ Provide these as beautiful, titled module links in your text:
 **CRITICAL UI INSTRUCTION:** 
 - **DO NOT** output any tables or specialist modules in the text response.
 - **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below.
-- **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the exact, specific ailment name (e.g., "Piles with Bleeding").
+- **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the exact, specific ailment name (e.g., "Cold Hands and Feet").
 
 ---
 
@@ -53,11 +53,11 @@ Provide these as beautiful, titled module links in your text:
 {
   "recommendations": [
     {
-      "type": "BOTANICAL",
+      "type": "REMEDY",
       "id": "AILMENT_NAME",
       "title": "🌿 Botanical Rx",
-      "summary": "Herbal protocol using [Main Herb]...",
-      "detail": "### 📝 Clinical Protocol\n| BOTANICAL RX | DOSAGE | PREPARATION | FREQUENCY | CLINICAL EFFECTS |\n|---|---|---|---|---|\n| [Herb] | [Dosage] | [Preparation] | [Frequency] | [Specific Clinical Benefit] |\n\n**Source Citation:** [Relevant Ancient Scripture or Text]"
+      "summary": "Clinical herbal protocol focus using [Main Herb]...",
+      "detail": "### 📝 Clinical Protocol\n| BOTANICAL RX | DOSAGE | PREPARATION | FREQUENCY | CLINICAL EFFECTS |\n|---|---|---|---|---|\n| [Herb] | [Dosage] | [Prep] | [Freq] | [Specific Clinical Benefit] |\n\n**Source Citation:** [Relevant Ancient Scripture or Text]"
     },
     {
       "type": "YOGA",

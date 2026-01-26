@@ -162,7 +162,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, content: finalResult.visibleText, recommendations: finalResult.metadata, suggestions: finalResult.suggestions } : msg));
       if (finalResult.metadata.length > 0) {
         finalResult.metadata.forEach(rec => { if (rec.detail) localStorage.setItem(`nani_last_${rec.type}_${rec.id}`, rec.detail); });
-        if (finalResult.actionTrigger && hasAccess) { const botanicalRx = finalResult.metadata.find(r => r.type === 'BOTANICAL'); if (botanicalRx) handleSaveProtocol(botanicalRx); }
+        if (finalResult.actionTrigger && hasAccess) { 
+          const botanicalRx = finalResult.metadata.find(r => r.type === 'REMEDY'); 
+          if (botanicalRx) handleSaveProtocol(botanicalRx); 
+        }
       }
       if (onMessageSent) onMessageSent();
       if (isVoiceQuery && hasAccess && finalResult.visibleText) { generateAndPlaySpeech(botMessageId, finalResult.visibleText); }
@@ -231,13 +234,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <button 
                         onClick={() => {
                           if (!hasAccess) { setShowTrialPrompt(true); return; }
-                          const view = rec.type === 'BOTANICAL' ? AppView.BOTANICAL : rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
+                          const view = rec.type === 'REMEDY' ? AppView.BOTANICAL : rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
                           onNavigateToFeature(view, { id: rec.id, title: rec.id, detail: rec.detail });
                         }} 
                         className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-700'}`}
                       >
                          {!hasAccess && <Lock size={12} />} 
-                         {rec.type === 'BOTANICAL' ? 'Botanical Rx' : rec.type === 'YOGA' ? 'Yoga Aid' : 'Nutri Heal Plan'} 
+                         {rec.type === 'REMEDY' ? 'Botanical Rx' : rec.type === 'YOGA' ? 'Yoga Aid' : 'Nutri Heal Plan'} 
                          <ChevronRight size={14} />
                       </button>
                     </div>
