@@ -262,7 +262,7 @@ export const saveRemedy = async (user: User, detail: string, title: string) => {
   if (!supabase || !user?.id || !detail) return null;
   try {
     const verifiedId = await enforceRollingLimit(user.id, title);
-    // Fixed: Reverted back to 'REMEDY' to match DB check constraint
+    // Explicitly using 'REMEDY' to match the database check constraint
     const { data, error } = await supabase.from('nani_saved_plans').insert({ 
       user_id: verifiedId, 
       title: title.trim(), 
@@ -285,7 +285,6 @@ export const getUserLibrary = async (user: User) => {
     return {
       diet: data.filter((item: any) => item.type === 'DIET'),
       yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({ ...item, poses: item.plan_data })),
-      // Fixed: Filtering by 'REMEDY' which matches the database column
       remedy: data.filter((item: any) => item.type === 'REMEDY').map((item: any) => ({ ...item, detail: item.plan_data?.detail }))
     };
   } catch (e) { return { diet: [], yoga: [], remedy: [] }; }
