@@ -36,7 +36,7 @@ Provide these as beautiful, titled module links in your text:
 **CRITICAL UI INSTRUCTION:** 
 - **DO NOT** output any tables or specialist modules in the text response.
 - **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below.
-- **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the exact, specific ailment name (e.g., "Cold Hands and Feet"). This ID is used to sync data across all three modules.
+- **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the exact, specific ailment name (e.g., "Piles with Bleeding").
 
 ---
 
@@ -53,11 +53,11 @@ Provide these as beautiful, titled module links in your text:
 {
   "recommendations": [
     {
-      "type": "REMEDY",
+      "type": "BOTANICAL",
       "id": "AILMENT_NAME",
       "title": "🌿 Botanical Rx",
-      "summary": "Herbal approach focus using [Main Herb]...",
-      "detail": "### 🌿 Botanical Profile & Clinical Effects\n\n- **Primary Herb:** [Name]\n- **Traditional Action:** [Action]\n- **Physiological Effect:** [Description]\n- **Root-Cause Synergy:** [Description]\n\n### 📝 Clinical Protocol\n| Botanical Rx | Dosage | Preparation | Frequency | Clinical Effects |\n|---|---|---|---|---|\n| [Herb] | [Dosage] | [Prep] | [Freq] | [Detailed Clinical Effects] |\n\n**Source Citation:** [Book Title]"
+      "summary": "Herbal protocol using [Main Herb]...",
+      "detail": "### 📝 Clinical Protocol\n| BOTANICAL RX | DOSAGE | PREPARATION | FREQUENCY | CLINICAL EFFECTS |\n|---|---|---|---|---|\n| [Herb] | [Dosage] | [Preparation] | [Frequency] | [Specific Clinical Benefit] |\n\n**Source Citation:** [Relevant Ancient Scripture or Text]"
     },
     {
       "type": "YOGA",
@@ -69,7 +69,7 @@ Provide these as beautiful, titled module links in your text:
     {
       "type": "DIET",
       "id": "AILMENT_NAME",
-      "title": "🥗 Nutri-Heal Plan",
+      "title": "DIET",
       "summary": "Nutritional summary...",
       "detail": "### 🥗 Diet Kitchen Protocol..."
     }

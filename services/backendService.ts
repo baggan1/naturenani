@@ -84,11 +84,10 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, boo
 export const searchVectorDatabase = async (queryText: string, queryEmbedding: number[] | null): Promise<RemedyDocument[]> => {
   if (!supabase || !queryEmbedding || queryEmbedding.length === 0) return [];
   try {
-    // Aggressively optimized for speed to prevent timeouts
     const { data, error } = await supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
-      match_threshold: 0.5, // Increased threshold to filter faster
-      match_count: 2       // Lower count to reduce RPC execution time
+      match_threshold: 0.5, 
+      match_count: 2       
     });
     if (error) {
       console.warn("[searchVectorDatabase] RPC Handled Error:", error.message);
@@ -263,12 +262,12 @@ export const saveRemedy = async (user: User, detail: string, title: string) => {
   if (!supabase || !user?.id || !detail) return null;
   try {
     const verifiedId = await enforceRollingLimit(user.id, title);
-    // Explicitly using 'REMEDY' string to satisfy Supabase check constraint
+    // Fixed: Using 'BOTANICAL' instead of 'REMEDY' to satisfy database check constraints
     const { data, error } = await supabase.from('nani_saved_plans').insert({ 
       user_id: verifiedId, 
       title: title.trim(), 
       plan_data: { detail }, 
-      type: 'REMEDY' 
+      type: 'BOTANICAL' 
     }).select().single();
     if (error) {
       console.error("[saveRemedy] DB Save Violation:", error.message);
@@ -286,7 +285,8 @@ export const getUserLibrary = async (user: User) => {
     return {
       diet: data.filter((item: any) => item.type === 'DIET'),
       yoga: data.filter((item: any) => item.type === 'YOGA').map((item: any) => ({ ...item, poses: item.plan_data })),
-      remedy: data.filter((item: any) => item.type === 'REMEDY').map((item: any) => ({ ...item, detail: item.plan_data?.detail }))
+      // Fixed: Filtering by 'BOTANICAL' and mapping to 'remedy' key for component compatibility
+      remedy: data.filter((item: any) => item.type === 'BOTANICAL').map((item: any) => ({ ...item, detail: item.plan_data?.detail }))
     };
   } catch (e) { return { diet: [], yoga: [], remedy: [] }; }
 };
