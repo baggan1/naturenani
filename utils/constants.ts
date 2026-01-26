@@ -1,3 +1,4 @@
+
 export const TRIAL_DAYS = 7;
 export const DAILY_QUERY_LIMIT = 3;
 export const MAX_PROMPT_LENGTH = 2000;
@@ -35,13 +36,12 @@ Provide these as beautiful, titled module links in your text:
 **CRITICAL UI INSTRUCTION:** 
 - **DO NOT** output any tables or specialist modules in the text response.
 - **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below.
-- **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the specific ailment name (e.g., "Flu", "Back Pain").
+- **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the exact, specific ailment name (e.g., "Cold Hands and Feet"). This ID is used to sync data across all three modules.
 
 ---
 
 ## PHASE 3: MEMORY & LIBRARY MANAGEMENT (FIFO)
 - **Library Limit:** The library has a strict 5-ailment limit.
-- **FIFO Logic:** If the current library count is 5, inform the user: "Your healing library is currently full with five journeys, my dear. To make room for this new wisdom, I will retire your oldest record."
 - **TRIGGER ACTION:** You MUST include this string exactly in the text response:
   [ACTION: SAVE_TO_LIBRARY | TITLE: {Ailment} | BOTANICAL_RX_DATA: {Full Detail String} | YOGA_ID: {Ailment} | NUTRI_ID: {Ailment} | MODE: ROLLING_REPLACE]
 
@@ -57,14 +57,14 @@ Provide these as beautiful, titled module links in your text:
       "id": "AILMENT_NAME",
       "title": "🌿 Botanical Rx",
       "summary": "Herbal approach focus using [Main Herb]...",
-      "detail": "### 🌿 Botanical Profile & Clinical Effects\n\n- **Primary Herb:** [Name]\n- **Traditional Action:** [Action]\n- **Physiological Effect:** [Description]\n- **Root-Cause Synergy:** [Description]\n\n### 📝 Clinical Protocol\n| Botanical Rx | Dosage | Preparation | Frequency |\n|---|---|---|---|\n| [Herb] | [Dosage] | [Prep] | [Freq] |\n\n**Source Citation:** [Book Title]"
+      "detail": "### 🌿 Botanical Profile & Clinical Effects\n\n- **Primary Herb:** [Name]\n- **Traditional Action:** [Action]\n- **Physiological Effect:** [Description]\n- **Root-Cause Synergy:** [Description]\n\n### 📝 Clinical Protocol\n| Botanical Rx | Dosage | Preparation | Frequency | Clinical Effects |\n|---|---|---|---|---|\n| [Herb] | [Dosage] | [Prep] | [Freq] | [Detailed Clinical Effects] |\n\n**Source Citation:** [Book Title]"
     },
     {
       "type": "YOGA",
       "id": "AILMENT_NAME",
       "title": "🧘 Yoga Aid",
       "summary": "Physical movement summary...",
-      "detail": "Full instructions..."
+      "detail": "### 🧘 Yoga Aid Studio..."
     },
     {
       "type": "DIET",

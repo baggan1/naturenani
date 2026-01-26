@@ -53,37 +53,51 @@
       .scrollbar-hide::-webkit-scrollbar { display: none; }
       .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       
-      /* Markdown Table Styles */
+      /* Markdown Table Styles - Optimized for 5 columns */
       .markdown-content table {
         width: 100%;
         border-collapse: collapse;
-        margin: 1rem 0;
-        font-size: 0.875rem;
+        margin: 1.5rem 0;
+        font-size: 0.75rem;
         background-color: #FDFBF7;
-        border-radius: 0.75rem;
+        border-radius: 1rem;
         overflow: hidden;
         border: 1px solid #e3ebe3;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        table-layout: fixed;
       }
       .markdown-content th {
         background-color: #4a7c59;
         color: white;
         text-align: left;
-        padding: 0.75rem;
+        padding: 0.75rem 0.5rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        font-size: 0.75rem;
+        font-size: 0.65rem;
+        border-right: 1px solid rgba(255,255,255,0.1);
+        word-wrap: break-word;
+      }
+      .markdown-content th:last-child {
+        border-right: none;
       }
       .markdown-content td {
-        padding: 0.75rem;
+        padding: 0.75rem 0.5rem;
         border-bottom: 1px solid #f5efe6;
         color: #365336;
+        line-height: 1.3;
+        vertical-align: top;
+        word-wrap: break-word;
       }
       .markdown-content tr:last-child td {
         border-bottom: none;
       }
       .markdown-content tr:nth-child(even) {
         background-color: #fbf8f4;
+      }
+      .markdown-content td:first-child {
+        font-weight: 700;
+        color: #4a7c59;
       }
     </style>
     <script type="importmap">

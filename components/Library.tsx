@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText, X, CheckCircle2 } from 'lucide-react';
+import { BookMarked, Flower2, Utensils, Loader2, Trash2, Calendar, ChevronRight, Wind, Sparkles, Stethoscope, FileText, X, CheckCircle2, Leaf } from 'lucide-react';
 import { SavedMealPlan, SavedYogaPlan, User, AppView, FeatureContext } from '../types';
 import { getUserLibrary } from '../services/backendService';
 import ReactMarkdown from 'react-markdown';
@@ -8,7 +8,6 @@ import remarkGfm from 'remark-gfm';
 
 interface LibraryProps {
   user: User;
-  // Fixed: Define specific types for navigation callback to match handleFeatureHandoff in App.tsx
   onNavigate: (view: AppView, context: FeatureContext) => void;
 }
 
@@ -46,11 +45,12 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
     const groups: Record<string, GroupedAilment> = {};
     
     const isGeneric = (title: string) => {
-      const t = title.toLowerCase();
+      const t = title.toLowerCase().trim();
       return t === 'remedy details' || t === 'botanical rx' || t === 'yoga aid' || t === 'nutri-heal plan' || t === 'general wellness';
     };
 
     const addToGroup = (title: string, data: any, type: 'remedy' | 'yoga' | 'diet') => {
+      if (!title) return;
       const key = title.trim().toLowerCase();
       if (!groups[key]) {
         groups[key] = { title: title.trim(), lastUpdated: data.created_at };
@@ -59,6 +59,7 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
       if (new Date(data.created_at) > new Date(groups[key].lastUpdated)) {
         groups[key].lastUpdated = data.created_at;
       }
+      // If we have a generic title but a better one comes in, update it
       if (isGeneric(groups[key].title) && !isGeneric(title)) {
         groups[key].title = title.trim();
       }
@@ -69,7 +70,6 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
     library.diet.forEach(d => addToGroup(d.title, d, 'diet'));
 
     return Object.values(groups)
-      .filter(g => !isGeneric(g.title) || (g.remedy || g.yoga || g.diet)) 
       .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
       .slice(0, 5);
   }, [library]);
@@ -140,13 +140,12 @@ const Library: React.FC<LibraryProps> = ({ user, onNavigate }) => {
                             onClick={() => {
                               const detail = group.remedy.detail || group.remedy.plan_data?.detail;
                               if (detail) {
-                                // Fixed: Use direct navigation to the Botanical view with the correct FeatureContext shape
                                 onNavigate(AppView.BOTANICAL, { id: group.remedy.title, title: group.remedy.title, detail });
                               }
                             }}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                           >
-                            <FileText size={14} /> View Remedy
+                            <Leaf size={14} /> Open Remedy
                           </button>
                         ) : <span className="text-gray-200 text-[10px] font-bold">---</span>}
                       </td>
