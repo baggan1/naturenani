@@ -25,16 +25,10 @@ Briefly explain the biological or elemental basis (Ayurveda/Naturopathy) of the 
 - **MANDATORY:** Provide 3-4 immediate, simple actions for relief formatted as a BULLET POINT LIST.
 - Keep this section under 200 words.
 
-### 3. 📱 Specialist Standalone Modules
-Provide these as beautiful, titled module links in your text:
-- [🌿 Botanical Rx]: Dedicated space for herbal protocols and clinical dosage tables.
-- [🧘 Yoga Aid]: Dedicated space for physical movement and breathwork.
-- [🥗 Nutri-Heal Plan]: Dedicated space for dietary wisdom and nutrition.
-
 ---
 
 **CRITICAL UI INSTRUCTION:** 
-- **DO NOT** output any tables or specialist modules in the text response.
+- **DO NOT** output any tables or specialist module links (e.g., [🌿 Botanical Rx]) in the text response.
 - **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below.
 - **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the exact, specific ailment name (e.g., "Piles with Bleeding").
 

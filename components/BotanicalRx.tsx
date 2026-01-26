@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Leaf, Loader2, Save, Check, RefreshCw, X, FileText, Sparkles, ChevronRight, Stethoscope, ShieldCheck, HelpCircle } from 'lucide-react';
 import { FeatureContext, User } from '../types';
@@ -128,7 +129,7 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
                  <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest bg-slate-50 px-5 py-2 rounded-full border border-slate-100">
                     <ShieldCheck size={18} className="text-blue-500" /> Paraphrased Clinical Synthesis
                  </div>
-                 <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Nature Nani Global Archives v2.5</div>
+                 <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">Nature Nani Global Archives</div>
               </div>
             </div>
           )}
