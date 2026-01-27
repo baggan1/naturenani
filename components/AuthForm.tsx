@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { ArrowRight, Loader2, Mail, Lock, ShieldCheck, AlertTriangle, CheckCircle2, User, Eye, EyeOff, KeyRound, ShieldAlert } from 'lucide-react';
-import { sendOtp, signInWithGoogle, signInWithPassword, signUpWithPassword } from '../services/backendService';
+import { sendOtp, signInWithGoogle, signInWithPassword, signUpWithPassword, verifyOtp } from '../services/backendService';
 import { User as AppUser, AppView } from '../types';
 import { Logo } from './Logo';
 
@@ -20,6 +21,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [otpToken, setOtpToken] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,6 +56,21 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
       setMethod('otp_input');
     } catch (err: any) {
       setError(err.message || 'Failed to send link.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpToken.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const user = await verifyOtp(email, otpToken);
+      onAuthSuccess(user);
+    } catch (err: any) {
+      setError('Invalid or expired code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -94,11 +111,10 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
     setMethod('menu');
     setError('');
     setIsSignUp(false);
+    setOtpToken('');
   };
 
   const inputClasses = "w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200 bg-white focus:ring-2 focus:ring-sage-500 focus:border-transparent outline-none transition-all text-gray-800 placeholder:text-gray-400 shadow-sm";
-
-  // Use the standard theme style for small uppercase labels
   const labelStyle = "text-[9px] md:text-[10px] font-bold uppercase tracking-widest font-sans select-none leading-relaxed";
 
   const CheckboxUI = () => (
@@ -124,7 +140,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-sage-900/40 backdrop-blur-md p-4 animate-in fade-in duration-300">
       <div className="bg-[#FFFCF7] rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden flex flex-col relative border border-white/40">
         
-        {/* Brand Header */}
         <div className="p-10 pb-6 text-center">
           <div className="flex justify-center mb-6">
             <Logo className="h-16 w-16" textClassName="text-4xl" showText={false} />
@@ -146,27 +161,17 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
 
           {method === 'menu' && (
             <div className="space-y-4">
-              <button
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className="w-full bg-white text-gray-700 border border-gray-200 py-4 rounded-xl font-bold hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]"
-              >
+              <button onClick={handleGoogleLogin} disabled={loading} className="w-full bg-white text-gray-700 border border-gray-200 py-4 rounded-xl font-bold hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]">
                 <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
                 Continue with Google
               </button>
 
-              <button
-                onClick={() => { setMethod('password'); setIsSignUp(true); }}
-                className="w-full bg-white text-[#8B0000] border-2 border-[#8B0000] py-4 rounded-xl font-bold hover:bg-[#8B0000]/5 transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]"
-              >
+              <button onClick={() => { setMethod('password'); setIsSignUp(true); }} className="w-full bg-white text-[#8B0000] border-2 border-[#8B0000] py-4 rounded-xl font-bold hover:bg-[#8B0000]/5 transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]">
                 <Mail size={20} />
                 Sign up with email
               </button>
 
-              <button
-                onClick={() => setMethod('email_input')}
-                className="w-full bg-[#4A7C59] text-white py-4 rounded-xl font-bold hover:bg-[#3d664a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-sage-200/50 active:scale-[0.98]"
-              >
+              <button onClick={() => setMethod('email_input')} className="w-full bg-[#4A7C59] text-white py-4 rounded-xl font-bold hover:bg-[#3d664a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-sage-200/50 active:scale-[0.98]">
                 <KeyRound size={20} />
                 Send One time link
               </button>
@@ -203,9 +208,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-
               <CheckboxUI />
-
               <button type="submit" disabled={loading} className="w-full bg-[#4A7C59] text-white py-4 rounded-xl font-bold hover:bg-[#3d664a] transition-all flex items-center justify-center gap-2 shadow-lg">
                 {loading ? <Loader2 className="animate-spin" /> : <>{isSignUp ? 'Sign Up' : 'Log In'} <ArrowRight size={18} /></>}
               </button>
@@ -219,9 +222,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} className={inputClasses} placeholder="name@email.com" />
               </div>
-
               <CheckboxUI />
-
               <button type="submit" disabled={loading} className="w-full bg-[#4A7C59] text-white py-4 rounded-xl font-bold hover:bg-[#3d664a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-sage-200/50">
                 {loading ? <Loader2 className="animate-spin" /> : <>Send One time link <ArrowRight size={18} /></>}
               </button>
@@ -230,18 +231,35 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
           )}
 
           {method === 'otp_input' && (
-            <div className="text-center py-6 animate-in slide-in-from-bottom-4 duration-300">
+            <form onSubmit={handleVerifyOtp} className="text-center py-6 animate-in slide-in-from-bottom-4 duration-300 space-y-6">
                <div className="w-16 h-16 bg-sage-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-sage-100">
                  <Mail className="text-[#4A7C59]" size={32} />
                </div>
-               <p className="text-sm font-bold text-gray-800">Check your email</p>
-               <p className="text-xs text-gray-500 mt-1">We've sent a magic link to {email}</p>
-               <button onClick={reset} className={`${labelStyle} text-[#3B6EB1] hover:underline mt-6`}>Back to options</button>
-            </div>
+               <div>
+                  <p className="text-sm font-bold text-gray-800">Check your email</p>
+                  <p className="text-xs text-gray-500 mt-1">Enter the 6-digit code sent to {email}</p>
+               </div>
+               <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="text" 
+                    maxLength={6} 
+                    required 
+                    autoFocus 
+                    value={otpToken} 
+                    onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))} 
+                    className={`${inputClasses} tracking-[1em] font-black text-center pl-4`} 
+                    placeholder="000000" 
+                  />
+               </div>
+               <button type="submit" disabled={loading || otpToken.length < 6} className="w-full bg-[#4A7C59] text-white py-4 rounded-xl font-bold hover:bg-[#3d664a] transition-all flex items-center justify-center gap-2 shadow-lg shadow-sage-200/50 disabled:opacity-50">
+                {loading ? <Loader2 className="animate-spin" /> : <>Verify & Sign In <ArrowRight size={18} /></>}
+               </button>
+               <button type="button" onClick={reset} className={`${labelStyle} text-[#3B6EB1] hover:underline mt-6 w-full`}>Back to options</button>
+            </form>
           )}
         </div>
         
-        {/* Footer Navigation Section */}
         <div className="bg-white/50 p-8 border-t border-gray-100 flex items-center justify-center gap-16">
            <button onClick={() => onNavigate?.(AppView.LEGAL)} className="flex flex-col items-center gap-1 group">
              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-[#8B0000]/10 group-hover:text-[#8B0000] transition-all shadow-sm">
@@ -249,7 +267,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
              </div>
              <span className={`${labelStyle} text-gray-400 group-hover:text-gray-600`}>Disclaimer</span>
            </button>
-
            <button onClick={() => onNavigate?.(AppView.LEGAL)} className="flex flex-col items-center gap-1 group">
              <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-[#4A7C59]/10 group-hover:text-[#4A7C59] transition-all shadow-sm">
                <ShieldCheck size={20} />
@@ -257,7 +274,6 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess, isOpen, onClose, onN
              <span className={`${labelStyle} text-gray-400 group-hover:text-gray-600`}>Privacy</span>
            </button>
         </div>
-
       </div>
     </div>
   );

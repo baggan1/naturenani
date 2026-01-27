@@ -56,7 +56,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
-  const [showTrialPrompt, setShowTrialPrompt] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -144,7 +143,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (text === "New Consultation") { handleResetChat(); return; }
     const currentUser = getCurrentUser();
     if (isGuest || !currentUser) { sessionStorage.setItem('nani_pending_message', text); onShowAuth(); return; }
-    if (!usage.isUnlimited && usage.remaining <= 0) { onUpgradeClick(); return; }
+    
+    // Only check limit if it's the START of a consultation (Welcome msg or "New Consultation")
+    const isConsultationStart = messages.length <= 1;
+    if (isConsultationStart && !usage.isUnlimited && usage.remaining <= 0) {
+      onUpgradeClick();
+      return;
+    }
+
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() };
     if (!isResuming) setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
@@ -233,7 +239,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <p className="text-sm text-gray-600 leading-relaxed mb-4">{rec.summary}</p>
                       <button 
                         onClick={() => {
-                          if (!hasAccess) { setShowTrialPrompt(true); return; }
+                          if (!hasAccess) { onUpgradeClick(); return; }
                           const view = rec.type === 'REMEDY' ? AppView.BOTANICAL : rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
                           onNavigateToFeature(view, { id: rec.id, title: rec.id, detail: rec.detail });
                         }} 

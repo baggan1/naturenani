@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Chat, Type, GenerateContentResponse } from "@google/genai";
 import { SYSTEM_INSTRUCTION, MAX_PROMPT_LENGTH } from "../utils/constants";
 import { searchVectorDatabase, logAnalyticsEvent, getUserLibrary } from "./backendService";
@@ -76,27 +77,31 @@ export const sendMessageWithRAG = async function* (
           if (queryVector) return await searchVectorDatabase(safeMessage, queryVector);
           return [];
         })();
-        const timeoutPromise = new Promise<RemedyDocument[]>((resolve) => setTimeout(() => resolve([]), 3500));
+        // Tighter timeout (3s) to prevent 500 errors from blocking UI
+        const timeoutPromise = new Promise<RemedyDocument[]>((resolve) => setTimeout(() => resolve([]), 3000));
         contextDocs = await Promise.race([ragPromise, timeoutPromise]);
-        if (contextDocs.length > 0) {
+        if (contextDocs && contextDocs.length > 0) {
           if (onSourcesFound) onSourcesFound(contextDocs);
           hasRAG = true;
         }
       } catch (ragErr) {
-        console.warn("[GeminiService] RAG retrieval failed:", ragErr);
+        console.warn("[GeminiService] RAG retrieval failed safely:", ragErr);
+        contextDocs = [];
       }
     }
 
     // Fetch library count to inform Nani of limit status
     let libraryCount = 0;
     if (currentUser) {
-      const lib = await getUserLibrary(currentUser);
-      const uniqueAilments = new Set([
-        ...lib.remedy.map((r: any) => r.title.toLowerCase().trim()),
-        ...lib.yoga.map((y: any) => y.title.toLowerCase().trim()),
-        ...lib.diet.map((d: any) => d.title.toLowerCase().trim())
-      ]);
-      libraryCount = uniqueAilments.size;
+      try {
+        const lib = await getUserLibrary(currentUser);
+        const uniqueAilments = new Set([
+          ...lib.remedy.map((r: any) => r.title.toLowerCase().trim()),
+          ...lib.yoga.map((y: any) => y.title.toLowerCase().trim()),
+          ...lib.diet.map((d: any) => d.title.toLowerCase().trim())
+        ]);
+        libraryCount = uniqueAilments.size;
+      } catch (e) {}
     }
 
     let dynamicInstruction = SYSTEM_INSTRUCTION + 
@@ -105,7 +110,7 @@ export const sendMessageWithRAG = async function* (
       "\nLibrary Ailments Count: " + libraryCount + "/5";
 
     if (isReSync) {
-      dynamicInstruction += "\n\nCRITICAL: The user is requesting a RE-SYNC of their last consultation. Skip Phase 1 entirely and immediately generate the full Response Architecture (Root Cause, Quick Actions, and JSON Metadata) for the last ailment discussed in the history.";
+      dynamicInstruction += "\n\nCRITICAL: The user is requesting a RE-SYNC. Skip Phase 1 and generate the Response Architecture (Root Cause + Quick Actions + JSON) for the last ailment.";
     }
 
     const chat = ai.chats.create({

@@ -21,14 +21,14 @@ Once intake is complete, generate the response in this strict order:
 ### 1. 🏛️ Root Cause Explanation
 Briefly explain the biological or elemental basis (Ayurveda/Naturopathy) of the ailment in 2-3 sentences.
 
-### 2. ⚡ Quick Action Summary
+### 3. ⚡ Quick Action Summary
 - **MANDATORY:** Provide 3-4 immediate, simple actions for relief formatted as a BULLET POINT LIST.
 - Keep this section under 200 words.
 
 ---
 
 **CRITICAL UI INSTRUCTION:** 
-- **DO NOT** output any tables or specialist module links (e.g., [🌿 Botanical Rx]) in the text response.
+- **DO NOT** output any tables or specialist module links (e.g., [🌿 Botanical Rx]) in the text response. The UI handles these as cards automatically.
 - **MANDATORY:** You MUST append the [METADATA_START] marker followed by the JSON block below.
 - **IMPORTANT:** The "id" field in the JSON MUST ALWAYS be the exact, specific ailment name.
 
