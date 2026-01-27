@@ -6,11 +6,37 @@ Nature Nani is a production-grade Generative AI platform that leverages **Google
 
 The platform is built on a "Grounding-First" philosophy, ensuring that every LLM response is anchored in verified vector embeddings from ancient Ayurvedic and Naturopathic scriptures.
 
-### Key Technical Pillars:
-*   **Model Serving:** Orchestrated via Google AI Studio (`gemini-3-flash-preview`) to minimize time-to-first-token (TTFT) and maximize reasoning capabilities for clinical synthesis.
-*   **Vector Database:** `pgvector` on Supabase for high-dimensional similarity search, enabling precise retrieval of botanical protocols.
-*   **Identity Layer:** Google OAuth 2.0 and OTP verification integrated with Supabase Auth for enterprise-grade security.
-*   **Data Ingestion:** Asynchronous pipelines that handle document chunking, embedding generation (using `text-embedding-004`), and indexing.
+```mermaid
+graph TD
+    subgraph Client_Tier [Client Tier - React/Vite]
+        UI[Nature Nani UI]
+        Chat[Consultation Interface]
+        Specialist[Feature Handoff Modules]
+        Voice[Voice Mode - Gemini Live]
+    end
+
+    subgraph Intelligence_Tier [Intelligence Tier - Google AI]
+        G3F[Gemini 3 Flash - Orchestrator]
+        Embed[text-embedding-004]
+        TTS[Gemini TTS - Nani's Voice]
+    end
+
+    subgraph Data_Tier [Data Tier - Supabase]
+        Auth[Supabase Auth - OAuth/OTP]
+        PGV[(pgvector Database)]
+        HNSW[HNSW Indexing]
+    end
+
+    %% Interactions
+    UI --> Auth
+    Chat --> Embed
+    Embed --> PGV
+    PGV -- Similarity Search --> G3F
+    Chat -- Prompt + Context --> G3F
+    G3F -- JSON Schema --> Specialist
+    G3F --> TTS
+    Specialist -- Save Protocol --> PGV
+```
 
 ## 🛠 Technical Deep Dive: pgvector Implementation
 
@@ -18,34 +44,67 @@ For our vector search, we moved beyond basic semantic search to focus on precisi
 
 ### 1. Indexing Strategy: HNSW
 To maintain sub-250ms latency as the dataset scales, we implemented **HNSW (Hierarchical Navigable Small World)** indexing on our Supabase instance.
-*   **Why HNSW?** While it has a higher memory footprint during index creation, it offers superior query speed and high recall compared to IVFFlat, which is critical for real-time agentic responses in a health-tech context.
 
-### 2. Distance Metrics
-We utilized **Cosine Distance** ($1 - \cos(\theta)$) for our similarity searches. Given that our embeddings are normalized, Cosine Distance provides the most accurate semantic alignment for the botanical and environmental datasets Nature Nani processes.
+### 2. The RAG Sequence
+Every consultation follows a strict grounding sequence to prevent hallucinations.
 
-$$\text{similarity} = \cos(\theta) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$
+```mermaid
+sequenceDiagram
+    participant User
+    participant App as Nature Nani App
+    participant DB as Supabase (pgvector)
+    participant AI as Gemini 3 Flash
+
+    User->>App: Submits Ailment (e.g., "Knee Pain")
+    App->>App: Generate Embedding (text-embedding-004)
+    App->>DB: Cosine Similarity Match (match_documents)
+    DB-->>App: Returns Relevant Ayurvedic Verses
+    App->>AI: System Prompt + History + RAG Context
+    Note over AI: Agentic Reasoning & Root Cause Analysis
+    AI-->>App: Structured Response + [METADATA_START] JSON
+    App->>App: Validate Schema (Feature Handoff)
+    App->>User: Render Nani's Advice + Specialty Cards
+```
 
 ### 3. The "Feature Handoff" Logic
-Unlike standard chat wrappers, Nature Nani uses a structured **Agentic Handoff** to transition from general consultation to specialized healing modules.
-1.  The LLM is prompted to output specific JSON Schemas following the `[METADATA_START]` marker.
-2.  A middleware layer validates these schemas and triggers specific React UI components (`BotanicalRx`, `YogaAid`, `NutriHeal`).
-3.  This ensures a **"Zero-Hallucination" UI**—the AI can only render components it is explicitly authorized to trigger based on grounded data.
+Nature Nani uses structured **Agentic Handoff** to transition from general consultation to specialized healing modules.
+
+```mermaid
+stateDiagram-v2
+    [*] --> ConsultationInput
+    ConsultationInput --> GeminiProcessing : Augment with RAG
+    
+    state GeminiProcessing {
+        [*] --> Reasoning
+        Reasoning --> OutputGeneration
+    }
+
+    OutputGeneration --> SchemaParser : Detect Metadata Marker
+    
+    state SchemaParser {
+        [*] --> ValidateJSON
+        ValidateJSON --> REMEDY : type is REMEDY
+        ValidateJSON --> YOGA : type is YOGA
+        ValidateJSON --> DIET : type is DIET
+    }
+
+    REMEDY --> BotanicalRx : Render Clinical Table
+    YOGA --> YogaAid : Render Therapeutic Asanas
+    DIET --> NutriHeal : Render Sattvic Meal Plan
+
+    BotanicalRx --> Library : Save Action
+    YogaAid --> Library : Save Action
+    NutriHeal --> Library : Save Action
+```
 
 ## 🥗 Nutri-Heal Philosophy
 The engine is strictly configured for **Sattvic Nutrition**:
 *   **Ayurvedic Purity:** Focus on light, life-promoting foods.
 *   **Strict Restrictions:** Zero red meat or poultry; specialized legumes and whole grains only.
-*   **Ama Detoxification:** Automated suggestions for avoiding toxins based on the user's specific ailment.
 
 ## 🚀 Performance Benchmarks
 *   **Average Query Latency:** <240ms (End-to-End)
 *   **Embedding Dimension:** 768 (Optimized for Gemini `text-embedding-004`)
-*   **Uptime:** 99.9% via automated health checks and failover routing.
-
-## 🚦 Roadmap
-- [ ] Integration with Vertex AI for custom model tuning.
-- [ ] Hybrid Search (combining pgvector with Full-Text Search for specific Sanskrit terms).
-- [ ] Multi-modal grounding (Direct Image-to-Vector search for plant identification).
 
 ---
 *Disclaimer: Nature Nani is an AI-powered educational tool and not a substitute for professional medical advice.*
