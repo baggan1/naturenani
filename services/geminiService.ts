@@ -11,13 +11,14 @@ const getAiClient = () => {
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
+    // The model name is sensitive to the API environment; text-embedding-004 is current.
     const response = await ai.models.embedContent({
       model: 'text-embedding-004',
       contents: { parts: [{ text }] }
     });
     return response.embeddings?.[0]?.values || null;
   } catch (e) { 
-    console.warn("[GeminiService] Embedding failed:", e);
+    console.warn("[GeminiService] Embedding failed, proceeding with internal knowledge:", e);
     return null; 
   }
 };
@@ -72,14 +73,16 @@ export const sendMessageWithRAG = async function* (
 
     if (!isFirstTurn && !isReSync) {
       try {
+        // Wrap RAG retrieval in a race to prevent database timeouts from blocking UI
         const ragPromise = (async () => {
           const queryVector = await generateEmbedding(safeMessage);
           if (queryVector) return await searchVectorDatabase(safeMessage, queryVector);
           return [];
         })();
-        // Tighter timeout (3s) to prevent 500 errors from blocking UI
-        const timeoutPromise = new Promise<RemedyDocument[]>((resolve) => setTimeout(() => resolve([]), 3000));
+        
+        const timeoutPromise = new Promise<RemedyDocument[]>((resolve) => setTimeout(() => resolve([]), 4000));
         contextDocs = await Promise.race([ragPromise, timeoutPromise]);
+        
         if (contextDocs && contextDocs.length > 0) {
           if (onSourcesFound) onSourcesFound(contextDocs);
           hasRAG = true;
