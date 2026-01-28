@@ -11,14 +11,16 @@ const getAiClient = () => {
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   try {
     const ai = getAiClient();
-    // The model name is sensitive to the API environment; text-embedding-004 is current.
+    // Using 'text-embedding-004' as the standard identifier.
+    // If your environment requires a specific version, you can try 'text-embedding-004' 
+    // but the SDK handles the 'models/' prefix automatically.
     const response = await ai.models.embedContent({
       model: 'text-embedding-004',
       contents: { parts: [{ text }] }
     });
     return response.embeddings?.[0]?.values || null;
-  } catch (e) { 
-    console.warn("[GeminiService] Embedding failed, proceeding with internal knowledge:", e);
+  } catch (e: any) { 
+    console.warn(`[GeminiService] Embedding failed (${e?.message || 'Unknown Error'}), proceeding with internal knowledge.`);
     return null; 
   }
 };
