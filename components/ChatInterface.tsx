@@ -56,9 +56,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
-  const [saveLoading, setSaveLoading] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -103,22 +100,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } catch (e) {} finally { setIsSpeaking(false); setPlayingMessageId(null); }
   };
 
-  const handleSaveProtocol = async (metadata: RecommendationMetadata) => {
-    const user = getCurrentUser();
-    if (!user) { onShowAuth(); return; }
-    setSaveLoading(true);
-    setSaveError(null);
-    try {
-      const ailmentName = metadata.id || "General Wellness";
-      const targetData = metadata.detail || localStorage.getItem(`nani_last_${metadata.type}_${ailmentName}`);
-      if (!targetData) throw new Error("Missing protocol data.");
-      const result = await saveRemedy(user, targetData, ailmentName);
-      if (result) { setSaveSuccess(true); setTimeout(() => setSaveSuccess(false), 3000); } 
-      else { throw new Error("Save returned null"); }
-    } catch (e: any) { setSaveError("Timeout or session drift. Please ask Nani to re-sync."); } 
-    finally { setSaveLoading(false); }
-  };
-
   const parseMessageContent = (rawText: string) => {
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
@@ -131,17 +112,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const metadataPart = visibleText.substring(markerIndex + marker.length);
       visibleText = visibleText.substring(0, markerIndex).trim();
       
-      // Attempt to extract JSON from metadataPart (handles code blocks or raw JSON)
-      const jsonMatch = metadataPart.match(/```json\s*([\s\S]*?)\s*```/) || metadataPart.match(/(\{[\s\S]*?\})/);
+      // Clean up metadataPart - remove markdown code fences if present
+      const cleanJson = metadataPart.replace(/```json|```/g, '').trim();
       
-      if (jsonMatch && jsonMatch[1]) {
+      try {
+        // Attempt full parse
+        const data = JSON.parse(cleanJson);
+        if (data.recommendations) metadata = data.recommendations;
+        if (data.suggestions) suggestions = data.suggestions;
+      } catch (e) {
+        // Partial parse for streaming feedback
+        // Look for recommendations array manually if full parse fails
         try {
-          const data = JSON.parse(jsonMatch[1].trim());
-          if (data.recommendations) metadata = data.recommendations;
-          if (data.suggestions) suggestions = data.suggestions;
-        } catch (e) {
-          console.warn("JSON Parsing error in metadata:", e);
-        }
+          const recMatch = cleanJson.match(/"recommendations":\s*(\[[\s\S]*?\])/);
+          if (recMatch) {
+            // Even if the whole block fails, we try to parse the array part
+            const partialRecs = JSON.parse(recMatch[1] + (recMatch[1].endsWith(']') ? '' : ']'));
+            metadata = partialRecs;
+          }
+        } catch (innerE) { /* Silently fail partial parse */ }
       }
     }
     
@@ -231,7 +220,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
               </div>
               <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
-                {msg.content ? renderMarkdown(msg.content) : <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div>}
+                {msg.content ? renderMarkdown(msg.content) : (isLoading && msg.role === 'model' && msg === messages[messages.length-1] ? <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div> : null)}
                 {msg.role === 'model' && msg.content && (
                   <div className="absolute -bottom-3 -right-3 flex items-center gap-1 z-10">
                     <button onClick={() => generateAndPlaySpeech(msg.id, msg.content)} className={`group flex items-center gap-2 px-3.5 py-2 rounded-full shadow-lg border transition-all ${playingMessageId === msg.id ? 'bg-sage-700 text-white animate-pulse' : 'bg-white text-sage-600'}`}>
