@@ -58,10 +58,11 @@ USER QUERY: ${safeMessage}
 ${contextText}
 
 INSTRUCTIONS FOR NANI:
-1. Check if the user mentioned their Age, Sex, and Health History.
-2. If NOT provided, warmly ask for them and do NOT provide the full JSON handoff yet.
-3. If provided, give the holistic remedy and ALWAYS include the [METADATA_START] JSON block at the very end.
-4. Ensure the JSON is valid and the 'detail' field contains a Markdown table.
+1. Check if the user mentioned their Age, Sex, and Health History in current message or chat history.
+2. If NOT provided, warmly acknowledge their concern, explain why you need details, and ask using exactly this phrase: "Tell me your age, sex and any past medical history or other health concerns I should know about?"
+3. Do NOT provide the full protocol or the [METADATA_START] block until you have these details.
+4. If provided, give the holistic remedy and ALWAYS include the [METADATA_START] JSON block at the very end.
+5. Ensure the JSON is valid and the 'detail' field contains a Markdown table.
     `;
 
     const chat = ai.chats.create({
