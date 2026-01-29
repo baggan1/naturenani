@@ -81,18 +81,26 @@ export const logAnalyticsEvent = async (query: string, source: SearchSource, boo
   } catch (e) {}
 };
 
+/**
+ * Searches the documents_gemini table via RPC.
+ * Optimized for 768D embeddings.
+ */
 export const searchVectorDatabase = async (queryText: string, queryEmbedding: number[] | null): Promise<RemedyDocument[]> => {
   if (!supabase || !queryEmbedding || queryEmbedding.length === 0) return [];
+  
   try {
     const { data, error } = await supabase.rpc('match_documents_gemini', {
       query_embedding: queryEmbedding, 
-      match_threshold: 0.5, 
-      match_count: 2       
+      match_threshold: 0.4, // Adjusted for broader semantic matching
+      match_count: 3       
     });
+    
     if (error) {
-      console.warn("[searchVectorDatabase] RPC Handled Error:", error.message);
+      // If the table is empty or the RPC is missing, return empty instead of failing
+      console.warn("[searchVectorDatabase] RPC error (check if re-indexing):", error.message);
       return [];
     }
+
     return (data || []).map((doc: any) => ({
       id: doc.id.toString(),
       condition: 'Related Topic',
@@ -102,6 +110,7 @@ export const searchVectorDatabase = async (queryText: string, queryEmbedding: nu
       similarity: doc.similarity
     }));
   } catch (e) { 
+    console.error("[searchVectorDatabase] Critical Exception:", e);
     return []; 
   }
 };
@@ -228,52 +237,68 @@ export const createStripePortalSession = async () => {
 };
 
 const enforceRollingLimit = async (userId: string, targetTitle: string): Promise<string> => {
-  if (!supabase || !userId) return userId;
-  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-  if (authError || !authUser) throw new Error("Session Expired");
-  const verifiedId = authUser.id;
+  if (!supabase) return userId;
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  const verifiedId = authUser?.id || userId;
+  
   try {
-    const { data } = await supabase.from('nani_saved_plans').select('title, created_at').eq('user_id', verifiedId).order('created_at', { ascending: true });
+    const { data } = await supabase.from('nani_saved_plans')
+      .select('title, created_at')
+      .eq('user_id', verifiedId)
+      .order('created_at', { ascending: true });
+    
     if (!data) return verifiedId;
+    
     const uniqueTitles = Array.from(new Set(data.map((item: any) => item.title.toLowerCase().trim())));
     if (uniqueTitles.length >= 5 && !uniqueTitles.includes(targetTitle.toLowerCase().trim())) {
       const oldestAilmentTitle = data[0].title;
       await supabase.from('nani_saved_plans').delete().eq('user_id', verifiedId).eq('title', oldestAilmentTitle);
     }
     return verifiedId;
-  } catch (e) { return verifiedId; }
+  } catch (e) { 
+    return verifiedId; 
+  }
 };
 
 export const saveYogaPlan = async (user: User, poses: YogaPose[], title: string) => {
   if (!supabase || !user?.id) return null;
-  const verifiedId = await enforceRollingLimit(user.id, title);
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: verifiedId, title: title.trim(), plan_data: poses, type: 'YOGA' }).select().single();
-  return error ? null : data;
+  try {
+    const verifiedId = await enforceRollingLimit(user.id, title);
+    const { data, error } = await supabase.from('nani_saved_plans').insert({ 
+      user_id: verifiedId, 
+      title: title.trim(), 
+      plan_data: poses, 
+      type: 'YOGA' 
+    }).select().single();
+    return error ? null : data;
+  } catch (e) { return null; }
 };
 
 export const saveMealPlan = async (user: User, plan_data: DayPlan[], title: string) => {
   if (!supabase || !user?.id) return null;
-  const verifiedId = await enforceRollingLimit(user.id, title);
-  const { data, error } = await supabase.from('nani_saved_plans').insert({ user_id: verifiedId, title: title.trim(), plan_data: plan_data, type: 'DIET' }).select().single();
-  return error ? null : data;
+  try {
+    const verifiedId = await enforceRollingLimit(user.id, title);
+    const { data, error } = await supabase.from('nani_saved_plans').insert({ 
+      user_id: verifiedId, 
+      title: title.trim(), 
+      plan_data: plan_data, 
+      type: 'DIET' 
+    }).select().single();
+    return error ? null : data;
+  } catch (e) { return null; }
 };
 
 export const saveRemedy = async (user: User, detail: string, title: string) => {
   if (!supabase || !user?.id || !detail) return null;
   try {
     const verifiedId = await enforceRollingLimit(user.id, title);
-    // Explicitly using 'REMEDY' to match the database check constraint
     const { data, error } = await supabase.from('nani_saved_plans').insert({ 
       user_id: verifiedId, 
       title: title.trim(), 
       plan_data: { detail }, 
       type: 'REMEDY' 
     }).select().single();
-    if (error) {
-      console.error("[saveRemedy] DB Save Violation:", error.message);
-      return null;
-    }
-    return data;
+    return error ? null : data;
   } catch (e) { return null; }
 };
 
