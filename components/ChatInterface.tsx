@@ -1,12 +1,12 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Lock, PlayCircle, FileText, BookOpen, ChevronDown, ChevronUp, RefreshCw, Sparkles, Leaf, Info, Star, X, ChevronRight, ShieldCheck, Zap, Stethoscope, Utensils, Flower2, HelpCircle, AlertCircle, Mic, Volume2, Bookmark, BookmarkPlus, Save, Check, MessageSquare } from 'lucide-react';
+import { Send, User, Lock, RefreshCw, Sparkles, Leaf, ChevronRight, Stethoscope, Utensils, Flower2, Mic, Volume2, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { GoogleGenAI, Modality } from "@google/genai";
-import { Message, QueryUsage, RemedyDocument, RecommendationMetadata, AppView, SubscriptionStatus, FeatureContext } from '../types';
+import { Message, QueryUsage, RecommendationMetadata, AppView, SubscriptionStatus, FeatureContext } from '../types';
 import { sendMessageWithRAG } from '../services/geminiService';
-import { saveRemedy, saveYogaPlan, saveMealPlan, getCurrentUser } from '../services/backendService';
+import { saveRemedy, getCurrentUser } from '../services/backendService';
 import { MAX_PROMPT_LENGTH } from '../utils/constants';
 import { Logo } from './Logo';
 import { playRawAudio } from '../utils/audio';
@@ -30,10 +30,9 @@ interface ChatInterfaceProps {
 }
 
 const NANI_VOICE_PROMPT = `
-## Voice Identity: The Global Wellness Guide
-Tone: Warm, rhythmic, slightly slower than average.
-Identity: Wise grandmotherly presence with professional clarity.
-Task: Recite the healing protocol provided with audible smiles and comforting pauses.
+## Voice Identity: Nature Nani
+Tone: Grandmotherly, warm, rhythmic.
+Identity: Wise Ayurvedic guide.
 `;
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -73,7 +72,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleResetChat = useCallback(() => {
     if (isLoading) return; 
-    setMessages([{ id: 'welcome', role: 'model', content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing. To give you the best wisdom from our scrolls, please share your age, sex, and any health history you wish to share.', timestamp: Date.now() }]);
+    setMessages([{ 
+      id: 'welcome', 
+      role: 'model', 
+      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing. To give you the best wisdom from our scrolls, please share your age, sex, and any health history you wish to share.', 
+      timestamp: Date.now() 
+    }]);
     if (onMessageSent) onMessageSent(); 
   }, [setMessages, isLoading, onMessageSent]);
 
@@ -112,25 +116,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const metadataPart = visibleText.substring(markerIndex + marker.length);
       visibleText = visibleText.substring(0, markerIndex).trim();
       
-      // Clean up metadataPart - remove markdown code fences if present
-      const cleanJson = metadataPart.replace(/```json|```/g, '').trim();
+      // Powerful parsing to catch various LLM formatting styles
+      const jsonCandidate = metadataPart.replace(/```json|```/g, '').trim();
       
       try {
-        // Attempt full parse
-        const data = JSON.parse(cleanJson);
+        const data = JSON.parse(jsonCandidate);
         if (data.recommendations) metadata = data.recommendations;
         if (data.suggestions) suggestions = data.suggestions;
       } catch (e) {
-        // Partial parse for streaming feedback
-        // Look for recommendations array manually if full parse fails
+        // Fallback for partial/streaming JSON
         try {
-          const recMatch = cleanJson.match(/"recommendations":\s*(\[[\s\S]*?\])/);
+          const recMatch = jsonCandidate.match(/"recommendations":\s*(\[[\s\S]*?\])/);
           if (recMatch) {
-            // Even if the whole block fails, we try to parse the array part
-            const partialRecs = JSON.parse(recMatch[1] + (recMatch[1].endsWith(']') ? '' : ']'));
-            metadata = partialRecs;
+            const arrText = recMatch[1];
+            metadata = JSON.parse(arrText + (arrText.endsWith(']') ? '' : ']'));
           }
-        } catch (innerE) { /* Silently fail partial parse */ }
+          const sugMatch = jsonCandidate.match(/"suggestions":\s*(\[[\s\S]*?\])/);
+          if (sugMatch) {
+            const arrText = sugMatch[1];
+            suggestions = JSON.parse(arrText + (arrText.endsWith(']') ? '' : ']'));
+          }
+        } catch (innerE) {}
       }
     }
     
@@ -140,8 +146,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleAutoSend = async (text: string, isResuming = false, isVoiceQuery = false) => {
     if (isLoading || !text.trim()) return;
     if (text === "New Consultation") { handleResetChat(); return; }
-    const currentUser = getCurrentUser();
     
+    const currentUser = getCurrentUser();
     if (isGuest || !currentUser) { 
       sessionStorage.setItem('nani_pending_message', text); 
       onShowAuth(); 
@@ -202,16 +208,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <div className="flex flex-col h-full bg-sage-50">
       <div className="bg-white border-b border-sage-200 p-4 shadow-sm flex items-center justify-between sticky top-0 z-20">
         <Logo className="h-8 w-8" textClassName="text-lg" showSlogan={false} />
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-4">
           {!usage.isUnlimited && !isGuest && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sage-50 border border-sage-100 rounded-full shadow-inner">
-               <MessageSquare size={12} className="text-sage-500" />
-               <span className="text-[10px] font-black text-sage-700 uppercase tracking-tighter">{usage.count} / {usage.limit} Daily</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sage-50 border border-sage-100 rounded-full">
+               <span className="text-[10px] font-black text-sage-700 uppercase">{usage.count} / {usage.limit} Daily</span>
             </div>
           )}
           <button onClick={handleResetChat} disabled={isLoading} className="p-2 text-sage-400 hover:text-sage-600 flex items-center gap-2 text-xs font-bold uppercase transition-colors"><RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} /> Reset</button>
         </div>
       </div>
+
       <div className="flex-1 overflow-y-auto p-4 space-y-8 pb-40 scroll-smooth">
         {messages.map((msg) => (
           <div key={msg.id} className="flex flex-col gap-2">
@@ -220,7 +226,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {msg.role === 'user' ? <User size={16} className="text-white" /> : <Leaf size={16} className="text-white" />}
               </div>
               <div className={`max-w-[90%] relative rounded-3xl p-5 shadow-sm ${msg.role === 'user' ? 'bg-earth-50 text-sage-900 ml-12' : 'bg-white text-gray-800 border border-sage-200'}`}>
-                {msg.content ? renderMarkdown(msg.content) : (isLoading && msg.role === 'model' && msg === messages[messages.length-1] ? <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div> : null)}
+                {msg.content ? renderMarkdown(msg.content) : (isLoading && msg.role === 'model' ? <div className="w-2 h-2 bg-sage-400 rounded-full animate-bounce"></div> : null)}
                 {msg.role === 'model' && msg.content && (
                   <div className="absolute -bottom-3 -right-3 flex items-center gap-1 z-10">
                     <button onClick={() => generateAndPlaySpeech(msg.id, msg.content)} className={`group flex items-center gap-2 px-3.5 py-2 rounded-full shadow-lg border transition-all ${playingMessageId === msg.id ? 'bg-sage-700 text-white animate-pulse' : 'bg-white text-sage-600'}`}>
@@ -231,8 +237,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Specialist Healing Cards */}
             {msg.recommendations && msg.recommendations.length > 0 && (
-              <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in slide-in-from-bottom-4">
+              <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in fade-in slide-in-from-bottom-4">
                 {msg.recommendations.map((rec, idx) => (
                   <div key={idx} className="bg-white rounded-2xl border border-sage-100 shadow-lg flex flex-col h-full overflow-hidden hover:ring-2 hover:ring-sage-200 transition-all">
                     <div className="p-6 flex-1">
@@ -242,7 +250,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                          </div>
                          <h4 className="font-serif font-bold text-sage-900 leading-tight">{rec.title}</h4>
                       </div>
-                      <p className="text-sm text-gray-600 leading-relaxed mb-4">{rec.summary}</p>
+                      <p className="text-xs text-gray-600 leading-relaxed mb-6">{rec.summary}</p>
                       <button 
                         onClick={() => {
                           if (!hasAccess) { onUpgradeClick(); return; }
@@ -252,7 +260,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-700'}`}
                       >
                          {!hasAccess && <Lock size={12} />} 
-                         {rec.type === 'REMEDY' ? 'Botanical Rx' : rec.type === 'YOGA' ? 'Yoga Aid' : 'Nutri Heal Plan'} 
+                         Explore {rec.type === 'REMEDY' ? 'Remedy' : rec.type === 'YOGA' ? 'Yoga' : 'Diet'}
                          <ChevronRight size={14} />
                       </button>
                     </div>
@@ -260,10 +268,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ))}
               </div>
             )}
+
+            {/* Follow-up Suggested Prompts */}
             {msg.suggestions && msg.suggestions.length > 0 && (
               <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl">
                 {msg.suggestions.map((s, idx) => (
-                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-xs font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm">{s}</button>
+                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm flex items-center gap-2">
+                    <Sparkles size={12} className="text-yellow-500" />
+                    {s}
+                  </button>
                 ))}
               </div>
             )}
@@ -271,9 +284,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         ))}
         <div ref={messagesEndRef} />
       </div>
+
       <div className="p-4 bg-white border-t border-sage-200 relative z-10">
         <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <textarea value={input} onChange={(e) => setInput(e.target.value.substring(0, MAX_PROMPT_LENGTH))} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder="Share your symptoms with Nani..." className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[64px]" />
+          <textarea value={input} onChange={(e) => setInput(e.target.value.substring(0, MAX_PROMPT_LENGTH))} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder="Share symptoms or follow-up details..." className="w-full bg-sage-50 border border-sage-200 rounded-3xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-sage-400 resize-none h-[64px]" />
           <button onClick={onVoiceClick} className="p-3 text-sage-400 hover:text-sage-600 rounded-2xl transition-all"><Mic size={24} /></button>
           <button onClick={handleSend} disabled={isLoading || !input.trim()} className="p-3 bg-sage-600 text-white rounded-2xl shadow-lg transition-all active:scale-95">
             {isLoading ? <RefreshCw size={24} className="animate-spin" /> : <Send size={24} />}
