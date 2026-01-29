@@ -33,7 +33,7 @@ const App: React.FC = () => {
     {
       id: 'welcome',
       role: 'model',
-      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.',
+      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing. To give you the best wisdom from our scrolls, please share your age, sex, and any health history you wish to share.',
       timestamp: Date.now()
     }
   ]);
@@ -117,7 +117,6 @@ const App: React.FC = () => {
     setShowAuthModal(false); 
   };
 
-  // Fixed: Updated signature to accept FeatureContext as a single object to fix TS2322
   const handleFeatureHandoff = (view: AppView, context: FeatureContext) => {
     const isPremiumView = [AppView.YOGA, AppView.DIET, AppView.LIBRARY, AppView.BOTANICAL].includes(view);
     if (isPremiumView && !subscriptionState.hasAccess) {

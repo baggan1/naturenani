@@ -76,7 +76,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleResetChat = useCallback(() => {
     if (isLoading) return; 
-    setMessages([{ id: 'welcome', role: 'model', content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.', timestamp: Date.now() }]);
+    setMessages([{ id: 'welcome', role: 'model', content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing. To give you the best wisdom from our scrolls, please share your age, sex, and any health history you wish to share.', timestamp: Date.now() }]);
     if (onMessageSent) onMessageSent(); 
   }, [setMessages, isLoading, onMessageSent]);
 
@@ -123,28 +123,42 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let visibleText = rawText;
     let metadata: RecommendationMetadata[] = [];
     let suggestions: string[] = [];
-    let actionTrigger: string | null = null;
-    const actionMatch = rawText.match(/\[ACTION: SAVE_TO_LIBRARY \| TITLE: (.*?) \| BOTANICAL_RX_DATA: (.*?) \| YOGA_ID: (.*?) \| NUTRI_ID: (.*?) \| MODE: ROLLING_REPLACE\]/);
-    if (actionMatch) { actionTrigger = actionMatch[0]; visibleText = visibleText.replace(actionTrigger, '').trim(); }
+    
     const marker = "[METADATA_START]";
     const markerIndex = visibleText.indexOf(marker);
+    
     if (markerIndex !== -1) {
       const metadataPart = visibleText.substring(markerIndex + marker.length);
       visibleText = visibleText.substring(0, markerIndex).trim();
+      
+      // Attempt to extract JSON from metadataPart (handles code blocks or raw JSON)
       const jsonMatch = metadataPart.match(/```json\s*([\s\S]*?)\s*```/) || metadataPart.match(/(\{[\s\S]*?\})/);
-      if (jsonMatch && jsonMatch[1]) { try { const data = JSON.parse(jsonMatch[1].trim()); if (data.recommendations) metadata = data.recommendations; if (data.suggestions) suggestions = data.suggestions; } catch (e) {} }
+      
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          const data = JSON.parse(jsonMatch[1].trim());
+          if (data.recommendations) metadata = data.recommendations;
+          if (data.suggestions) suggestions = data.suggestions;
+        } catch (e) {
+          console.warn("JSON Parsing error in metadata:", e);
+        }
+      }
     }
-    visibleText = visibleText.replace(/\n--\n*$/g, '').trim();
-    return { visibleText, metadata, suggestions, actionTrigger };
+    
+    return { visibleText, metadata, suggestions };
   };
 
   const handleAutoSend = async (text: string, isResuming = false, isVoiceQuery = false) => {
     if (isLoading || !text.trim()) return;
     if (text === "New Consultation") { handleResetChat(); return; }
     const currentUser = getCurrentUser();
-    if (isGuest || !currentUser) { sessionStorage.setItem('nani_pending_message', text); onShowAuth(); return; }
     
-    // Only check limit if it's the START of a consultation (Welcome msg or "New Consultation")
+    if (isGuest || !currentUser) { 
+      sessionStorage.setItem('nani_pending_message', text); 
+      onShowAuth(); 
+      return; 
+    }
+    
     const isConsultationStart = messages.length <= 1;
     if (isConsultationStart && !usage.isUnlimited && usage.remaining <= 0) {
       onUpgradeClick();
@@ -154,28 +168,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() };
     if (!isResuming) setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
+    
     try {
       const botMessageId = crypto.randomUUID();
       let fullRawContent = '';
       setMessages(prev => [...prev, { id: botMessageId, role: 'model', content: '', timestamp: Date.now() }]);
+      
       const stream = sendMessageWithRAG(text, messages, hasAccess ? 'Premium' : 'Free', usage.count, currentUser);
+      
       for await (const chunk of stream) {
         fullRawContent += chunk;
         const { visibleText, metadata, suggestions } = parseMessageContent(fullRawContent);
-        setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, content: visibleText, recommendations: metadata.length > 0 ? metadata : msg.recommendations, suggestions: suggestions.length > 0 ? suggestions : msg.suggestions } : msg));
+        setMessages(prev => prev.map(msg => msg.id === botMessageId ? { 
+          ...msg, 
+          content: visibleText, 
+          recommendations: metadata.length > 0 ? metadata : msg.recommendations, 
+          suggestions: suggestions.length > 0 ? suggestions : msg.suggestions 
+        } : msg));
       }
-      const finalResult = parseMessageContent(fullRawContent);
-      setMessages(prev => prev.map(msg => msg.id === botMessageId ? { ...msg, content: finalResult.visibleText, recommendations: finalResult.metadata, suggestions: finalResult.suggestions } : msg));
-      if (finalResult.metadata.length > 0) {
-        finalResult.metadata.forEach(rec => { if (rec.detail) localStorage.setItem(`nani_last_${rec.type}_${rec.id}`, rec.detail); });
-        if (finalResult.actionTrigger && hasAccess) { 
-          const botanicalRx = finalResult.metadata.find(r => r.type === 'REMEDY'); 
-          if (botanicalRx) handleSaveProtocol(botanicalRx); 
-        }
-      }
+      
       if (onMessageSent) onMessageSent();
-      if (isVoiceQuery && hasAccess && finalResult.visibleText) { generateAndPlaySpeech(botMessageId, finalResult.visibleText); }
-    } catch (error: any) { console.error(error); } finally { setIsLoading(false); }
+    } catch (error: any) { 
+      console.error(error); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const handleSend = () => { if (!input.trim() || isLoading) return; const text = input; setInput(''); handleAutoSend(text); };
