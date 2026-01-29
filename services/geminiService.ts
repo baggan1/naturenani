@@ -9,28 +9,23 @@ const getAiClient = () => {
 };
 
 /**
- * Generates 768D embeddings using gemini-embedding-001.
- * Matches the Supabase schema dimension required for documents_gemini.
+ * Generates 768D embeddings for your Supabase documents_gemini table.
  */
 export const generateEmbedding = async (text: string): Promise<number[] | null> => {
   const ai = getAiClient();
   try {
-    const response = await ai.models.embedContent({
+    const result = await ai.models.embedContent({
       model: 'gemini-embedding-001',
       contents: { parts: [{ text }] },
       config: { 
-        // LOCK TO 768 DIMENSIONS to match your Supabase vector(768) column
         outputDimensionality: 768 
       }
     });
-    
-    if (response.embeddings?.[0]?.values) {
-      return response.embeddings[0].values;
-    }
-  } catch (e: any) {
-    console.error(`[GeminiService] Embedding error:`, e?.message || e);
+    return result.embeddings?.[0]?.values || null;
+  } catch (e) {
+    console.error("[GeminiService] Embedding error:", e);
+    return null;
   }
-  return null;
 };
 
 export const sendMessageWithRAG = async function* (
@@ -47,69 +42,73 @@ export const sendMessageWithRAG = async function* (
     let contextDocs: RemedyDocument[] = [];
     let hasRAG = false;
 
-    // 1. Vector Search (RAG)
-    try {
-      const queryVector = await generateEmbedding(safeMessage);
-      if (queryVector) {
-        contextDocs = await searchVectorDatabase(safeMessage, queryVector);
-        if (contextDocs.length > 0) {
-          if (onSourcesFound) onSourcesFound(contextDocs);
-          hasRAG = true;
-        }
+    // 1. Vector Search for Agentic Handoff Grounding
+    const queryVector = await generateEmbedding(safeMessage);
+    if (queryVector) {
+      contextDocs = await searchVectorDatabase(safeMessage, queryVector);
+      if (contextDocs.length > 0) {
+        if (onSourcesFound) onSourcesFound(contextDocs);
+        hasRAG = true;
       }
-    } catch (ragErr) {
-      console.warn("[GeminiService] RAG retrieval skipped (likely re-indexing):", ragErr);
     }
 
-    // 2. Prepare Augmented Prompt
-    // If no context found (e.g. table is truncated), fallback gracefully
-    const contextText = hasRAG 
-      ? contextDocs.map(d => `[Source: ${d.book_name || 'Ancient Text'}]\n${d.content}`).join('\n\n')
-      : "The ancient archives are currently being updated. Please provide a remedy based on your core Ayurvedic and Naturopathic training.";
-    
-    const augmentedMessage = `CONTEXT FROM ARCHIVES:\n${contextText}\n\nUSER CONSULTATION:\n${safeMessage}\n\nINSTRUCTION: If context is available, prioritize it. Use a warm, grandmotherly tone.`;
+    // 2. Prepare Augmented Prompt with Clear Separation
+    const contextText = contextDocs.length > 0 
+      ? `ANCIENT TEXT CONTEXT (Prioritize this for the Botanical Rx detail):\n${contextDocs.map(d => `[Source: ${d.book_name}]\n${d.content}`).join('\n\n')}`
+      : "The library is currently being re-indexed. Please provide a remedy based on your core knowledge of Ayurveda and Naturopathy.";
 
-    // 3. Streaming Chat
+    const prompt = `
+USER QUERY: ${safeMessage}
+
+${contextText}
+
+INSTRUCTION: 
+1. Greet the user as Nature Nani.
+2. Provide a holistic explanation and 3 quick home tips.
+3. ALWAYS include the [METADATA_START] JSON block at the end with the 3 specialist modules populated. 
+4. For Botanical Rx (REMEDY), provide a detailed Markdown table in the 'detail' field of the JSON.
+    `;
+
+    // 3. Streaming Response
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
       config: { 
-        systemInstruction: SYSTEM_INSTRUCTION, 
-        temperature: 0.7 
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.65 // Slightly lower temperature for more grounded medical advice
       }
     });
 
-    const result = await chat.sendMessageStream({ message: augmentedMessage });
+    const result = await chat.sendMessageStream({ message: prompt });
     for await (const chunk of result) {
       const c = chunk as GenerateContentResponse;
       if (c.text) yield c.text;
     }
-    
-    // 4. Analytics
+
+    // 4. Log usage for Analytics
     if (currentUser) {
-      logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Verified Source'));
+      logAnalyticsEvent(safeMessage, hasRAG ? 'RAG' : 'AI', contextDocs.map(d => d.book_name || 'Verified Tradition'));
     }
-  } catch (error: any) { 
-    console.error("[GeminiService] Consultation Error:", error);
-    yield "My dear, I am having a moment of forgetfulness as I organize my scrolls. Please try once more.";
+  } catch (error) {
+    console.error("[GeminiService] Chat Error:", error);
+    yield "My dear, I am having a moment of silence while I arrange my herbs. Please try once more.";
   }
 };
 
 export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]> => {
   const ai = getAiClient();
-  const prompt = `Recommend 3 therapeutic yoga asanas for: ${ailmentId}. Return JSON.`;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: { parts: [{ text: prompt }] },
-      config: { 
-        responseMimeType: 'application/json',
+      contents: { parts: [{ text: `Provide exactly 3 therapeutic yoga asanas for: ${ailmentId}. Return as JSON.` }] },
+      config: {
+        responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
             properties: {
               pose_name: { type: Type.STRING },
-              type: { type: Type.STRING },
+              type: { type: Type.STRING, enum: ["Asana", "Pranayama"] },
               benefit: { type: Type.STRING },
               instructions: { type: Type.STRING },
               contraindications: { type: Type.STRING }
@@ -125,13 +124,12 @@ export const generateYogaRoutine = async (ailmentId: string): Promise<YogaPose[]
 
 export const generateDietPlan = async (ailmentId: string): Promise<{ meals: Meal[] }> => {
   const ai = getAiClient();
-  const prompt = `Provide a 3-day sattvic meal plan for: ${ailmentId}. Return JSON.`;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: { parts: [{ text: prompt }] },
-      config: { 
-        responseMimeType: 'application/json',
+      contents: { parts: [{ text: `Generate a 3-day sattvic vegetarian diet plan for: ${ailmentId}. Return as JSON.` }] },
+      config: {
+        responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -140,20 +138,20 @@ export const generateDietPlan = async (ailmentId: string): Promise<{ meals: Meal
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  type: { type: Type.STRING },
+                  type: { type: Type.STRING, enum: ["Breakfast", "Lunch", "Dinner", "Snack"] },
                   dish_name: { type: Type.STRING },
                   search_query: { type: Type.STRING },
                   ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
                   benefit: { type: Type.STRING },
                   preparation_instructions: { type: Type.STRING }
                 },
-                required: ["type", "dish_name", "ingredients"]
+                required: ["type", "dish_name", "ingredients", "benefit"]
               }
             }
           }
         }
       }
     });
-    return JSON.parse(response.text || '{"meals": []}');
+    return JSON.parse(response.text || '{"meals":[]}');
   } catch (e) { return { meals: [] }; }
 };
