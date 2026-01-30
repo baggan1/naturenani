@@ -12,13 +12,13 @@ export const fetchImageFromSearch = async (query: string, category: 'yoga' | 'fo
   }
 
   // Simplified query to ensure higher hit rate while maintaining quality
-  const fullQuery = category === 'yoga' ? `yoga pose ${query}` : `healthy ${query} recipe`;
+  const fullQuery = category === 'yoga' ? `yoga pose ${query}` : `${query} food photo`;
   const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(fullQuery)}&searchType=image&num=1`;
 
   try {
     const response = await fetch(url);
     const data = await response.json();
-    
+
     if (data.error) {
       console.error("[SearchService] API Error:", data.error.message);
       return '';
