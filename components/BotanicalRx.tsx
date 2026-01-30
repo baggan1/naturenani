@@ -20,7 +20,14 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
   useEffect(() => {
     if (activeContext) {
       setTitle(activeContext.title || "Botanical Rx Protocol");
-      setDetail(activeContext.detail || null);
+      
+      // Sanitize detail: Remove prefixes that break markdown table rendering
+      let rawDetail = activeContext.detail || null;
+      if (rawDetail) {
+        // Remove common LLM prefixes like "Detailed Markdown Table:" or "Here is the table:"
+        rawDetail = rawDetail.replace(/^(Detailed Markdown Table:|Here is the|The following table:)\s*/i, '').trim();
+      }
+      setDetail(rawDetail);
       setSourceBook(activeContext.sourceBook || null);
     }
   }, [activeContext]);
@@ -43,7 +50,7 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
   };
 
   const trimPdfExtension = (name: string) => {
-    return name.replace(/\.pdf$/i, '');
+    return name.replace(/\.pdf$/i, '').replace(/_/g, ' ');
   };
 
   const renderMarkdown = (content: string) => (
@@ -53,9 +60,19 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
         components={{
           h3: ({node, ...props}: any) => <h3 className="font-serif font-bold text-sage-800 text-lg mt-6 mb-3 border-b border-sage-50 pb-2" {...props} />,
           p: ({node, ...props}: any) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700" {...props} />,
-          table: ({node, ...props}: any) => <div className="overflow-x-auto my-4 rounded-xl border border-sage-100 shadow-sm"><table className="min-w-full" {...props} /></div>,
-          th: ({node, ...props}: any) => <th className="px-3 py-3 text-left text-[10px] font-bold text-white uppercase tracking-wider bg-sage-600" {...props} />,
-          td: ({node, ...props}: any) => <td className="px-3 py-3 text-sm text-gray-700 border-b border-sage-50" {...props} />,
+          table: ({node, ...props}: any) => (
+            <div className="overflow-x-auto my-6 rounded-2xl border border-sage-100 shadow-md">
+              <table className="min-w-full border-collapse" {...props} />
+            </div>
+          ),
+          thead: ({node, ...props}: any) => <thead className="bg-[#568356]" {...props} />,
+          th: ({node, ...props}: any) => (
+            <th className="px-4 py-4 text-left text-[10px] font-bold text-white uppercase tracking-wider border-r border-white/10 last:border-r-0" {...props} />
+          ),
+          td: ({node, ...props}: any) => (
+            <td className="px-4 py-4 text-sm text-gray-700 border-b border-sage-50" {...props} />
+          ),
+          tr: ({node, ...props}: any) => <tr className="even:bg-sage-50/30" {...props} />,
         }}
       >
         {content}
@@ -84,7 +101,7 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
             className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg ${
               saveSuccess 
               ? 'bg-green-100 text-green-700 border border-green-200' 
-              : 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-[#3B6EB1] text-white hover:bg-[#2e568a]'
             }`}
           >
             {saveLoading ? <RefreshCw className="animate-spin" size={16} /> : saveSuccess ? <Check size={16} /> : <Save size={16} />}
@@ -123,7 +140,7 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
                 </div>
                 <div>
                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-1 block">Validating Ancient Scriptures</span>
-                   <h2 className="text-4xl font-serif font-bold text-slate-900 capitalize leading-tight">{title}</h2>
+                   <h2 className="text-4xl font-serif font-bold text-slate-900 capitalize leading-tight">{title.replace(/_/g, ' ')}</h2>
                 </div>
               </div>
 

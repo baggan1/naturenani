@@ -63,15 +63,15 @@ INSTRUCTIONS FOR NANI:
 3. **CRITICAL:** Do NOT add a question mark (?) at the end of the phrase.
 4. Do NOT provide the full protocol or the [METADATA_START] block until you have these details.
 5. If provided, give the holistic remedy and ALWAYS include the [METADATA_START] JSON block at the very end.
-6. Ensure the JSON is valid and the 'detail' field contains a Markdown table.
-7. The Markdown table for the REMEDY protocol MUST have 5 columns: BOTANICAL RX, DOSAGE, PREPARATION, FREQUENCY, CLINICAL EFFECTS.
+6. The Markdown table for the REMEDY protocol MUST have 5 columns: BOTANICAL RX, DOSAGE, PREPARATION, FREQUENCY, CLINICAL EFFECTS.
+7. Ensure the JSON 'detail' field starts exactly with the markdown table (no "Detailed table:" prefix).
     `;
 
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
       config: { 
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.5 // Lower temperature for more consistent JSON structure
+        temperature: 0.3 // Even lower temperature for stricter formatting
       }
     });
 

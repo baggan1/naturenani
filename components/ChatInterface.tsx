@@ -92,7 +92,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: `${NANI_VOICE_PROMPT}\n\nCONTENT:\n${fullText}` }] }],
         config: {
-          // Fix typo: responseModalities instead of responseModalities
           responseModalities: [Modality.AUDIO],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
         },
@@ -117,7 +116,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const metadataPart = visibleText.substring(markerIndex + marker.length);
       visibleText = visibleText.substring(0, markerIndex).trim();
       
-      // Powerful parsing to catch various LLM formatting styles
       const jsonCandidate = metadataPart.replace(/```json|```/g, '').trim();
       
       try {
@@ -125,7 +123,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         if (data.recommendations) metadata = data.recommendations;
         if (data.suggestions) suggestions = data.suggestions;
       } catch (e) {
-        // Fallback for partial/streaming JSON
         try {
           const recMatch = jsonCandidate.match(/"recommendations":\s*(\[[\s\S]*?\])/);
           if (recMatch) {
@@ -239,7 +236,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             </div>
 
-            {/* Specialist Healing Cards */}
             {msg.recommendations && msg.recommendations.length > 0 && (
               <div className="ml-11 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl animate-in fade-in slide-in-from-bottom-4">
                 {msg.recommendations.map((rec, idx) => (
@@ -258,12 +254,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           const view = rec.type === 'REMEDY' ? AppView.BOTANICAL : rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
                           onNavigateToFeature(view, { 
                             id: rec.id, 
-                            title: rec.id, 
+                            title: rec.title, 
                             detail: rec.detail,
                             sourceBook: rec.sourceBook
                           });
                         }} 
-                        className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-700'}`}
+                        className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-[#3B6EB1] hover:bg-[#2e568a]'}`}
                       >
                          {!hasAccess && <Lock size={12} />} 
                          Explore {rec.type === 'REMEDY' ? 'Remedy' : rec.type === 'YOGA' ? 'Yoga' : 'Diet'}
@@ -275,7 +271,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             )}
 
-            {/* Follow-up Suggested Prompts */}
             {msg.suggestions && msg.suggestions.length > 0 && (
               <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl">
                 {msg.suggestions.map((s, idx) => (
