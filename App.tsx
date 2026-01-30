@@ -7,8 +7,8 @@ import ChatInterface from './components/ChatInterface';
 import SubscriptionModal from './components/SubscriptionModal';
 import AccountSettings from './components/AccountSettings';
 import Library from './components/Library';
-import YogaAid from './components/YogaStudio'; 
-import NutriHeal from './components/DietKitchen'; 
+import YogaAid from './components/YogaStudio';
+import NutriHeal from './components/DietKitchen';
 import BotanicalRx from './components/BotanicalRx';
 import { LegalNotice } from './components/LegalNotice';
 import { AboutView } from './components/AboutView';
@@ -23,7 +23,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.CHAT);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const authInitialized = useRef(false);
-  
+
   const [chatMessages, setChatMessages] = useState<Message[]>([
     { id: 'welcome', role: 'model', content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing, and I shall look into the ancient wisdom of Naturopathy and Ayurveda for you.', timestamp: Date.now() }
   ]);
@@ -44,11 +44,11 @@ const App: React.FC = () => {
       const [usage, subStatus] = await Promise.all([checkDailyQueryLimit(activeUser), checkSubscriptionStatus(activeUser)]);
       setQueryUsage(usage);
       setSubscriptionState({ hasAccess: subStatus.hasAccess, daysRemaining: subStatus.daysRemaining, isTrialExpired: subStatus.isTrialExpired, status: subStatus.status as SubscriptionStatus });
-    } catch (err) {}
+    } catch (err) { }
   }, []);
 
   const handleAuthChange = useCallback((u: User | null) => {
-    if (u) { setUser(u); setShowAuthModal(false); refreshAppData(u); } 
+    if (u) { setUser(u); setShowAuthModal(false); refreshAppData(u); }
     else { setUser(null); setQueryUsage({ count: 0, limit: DAILY_QUERY_LIMIT, remaining: DAILY_QUERY_LIMIT, isUnlimited: false }); setSubscriptionState({ hasAccess: false, daysRemaining: 0, isTrialExpired: false, status: 'free' as SubscriptionStatus }); setCurrentView(AppView.CHAT); }
   }, [refreshAppData]);
 
@@ -62,7 +62,7 @@ const App: React.FC = () => {
     setCurrentView(view);
     setFeatureContext(null);
     setIsMobileMenuOpen(false);
-    setShowAuthModal(false); 
+    setShowAuthModal(false);
   };
 
   // Fixed: Unified handleFeatureHandoff to accept FeatureContext as a single object for consistency
@@ -85,8 +85,8 @@ const App: React.FC = () => {
       <div className={`fixed md:relative inset-y-0 left-0 z-50 w-72 md:w-64 bg-white border-r border-sage-200 p-4 flex flex-col justify-between shadow-xl md:shadow-none transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="flex-1 overflow-y-auto scrollbar-hide">
           <div className="mb-6 px-2 flex items-center justify-between">
-             <Logo className="h-10 w-10" textClassName="text-2xl" showSlogan={false} />
-             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={20} /></button>
+            <Logo className="h-10 w-10" textClassName="text-2xl" showSlogan={false} />
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden p-2 text-gray-400 hover:text-sage-600 transition-colors"><X size={20} /></button>
           </div>
           <div className="space-y-2">
             <button onClick={() => handleNav(AppView.CHAT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.CHAT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><MessageSquare size={18} /> Consultation</button>
@@ -98,6 +98,11 @@ const App: React.FC = () => {
               <button onClick={() => handleNav(AppView.DIET, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.DIET ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><Utensils size={18} className="text-orange-500" /> Nutri Heal</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
             </div>
             <button onClick={() => handleNav(AppView.LIBRARY, true)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center justify-between transition-colors ${currentView === AppView.LIBRARY ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><div className="flex items-center gap-3"><BookMarked size={18} className="text-blue-500" /> Saved Library</div>{!subscriptionState.hasAccess && <Lock size={12} className="text-gray-400" />}</button>
+            <div className="pt-4 pb-2">
+              <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">More</p>
+              <button onClick={() => handleNav(AppView.ABOUT)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.ABOUT ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><Info size={18} /> About NatureNani</button>
+              <button onClick={() => handleNav(AppView.FAQ)} className={`w-full text-left px-4 py-2 rounded-lg font-medium flex items-center gap-3 transition-colors ${currentView === AppView.FAQ ? 'bg-sage-100 text-sage-800' : 'text-gray-600 hover:bg-gray-50'}`}><HelpCircle size={18} /> FAQ</button>
+            </div>
           </div>
         </div>
         <div className="pt-4 border-t border-sage-100">
