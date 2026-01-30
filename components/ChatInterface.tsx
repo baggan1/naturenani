@@ -274,7 +274,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {msg.suggestions && msg.suggestions.length > 0 && (
               <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl">
                 {msg.suggestions.map((s, idx) => (
-                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-[10px] font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm flex items-center gap-2">
+                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-[13px] font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm flex items-center gap-2">
                     <Sparkles size={12} className="text-yellow-500" />
                     {s}
                   </button>
