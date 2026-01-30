@@ -50,7 +50,7 @@ Once intake is complete, generate the response in this strict order:
       "title": "🌿 Botanical Rx", 
       "summary": "Herbal summary.",
       "sourceBook": "Name of the most relevant book from context",
-      "detail": "| BOTANICAL RX | DOSAGE | PREPARATION | FREQUENCY | CLINICAL EFFECTS |\\n|---|---|---|---|---|\\n| Punarnava (Boerhavia diffusa) | 500mg | Capsule or Powder | Twice daily with water | Reduces edema and rejuvenates kidney nephrons |" 
+      "detail": "| BOTANICAL RX | DOSAGE | PREPARATION | FREQUENCY | CLINICAL EFFECTS |\\n|---|---|---|---|---|\\n| Herb 1 (Common Name) | 500mg | Capsule | Twice daily | Primary effect |\\n| Herb 2 (Common Name) | 1 tsp | Decoction | Once daily | Synergistic effect |" 
     },
     { 
       "type": "YOGA", 
@@ -72,6 +72,7 @@ Once intake is complete, generate the response in this strict order:
 
 ## Critical JSON Rules:
 - The 'detail' field for REMEDY type MUST be a Markdown table starting immediately with the header pipe (|).
+- **Suggest more than 1 remedy if available (up to 4 rows in the table is ideal).**
 - Use \\n for newlines in the 'detail' field.
 - Escape double quotes inside strings as \\".
 `;
