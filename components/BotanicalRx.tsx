@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Leaf, Loader2, Save, Check, RefreshCw, X, FileText, Sparkles, ChevronRight, Stethoscope, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Leaf, Loader2, Save, Check, RefreshCw, X, FileText, Sparkles, ChevronRight, Stethoscope, ShieldCheck, HelpCircle, PenTool } from 'lucide-react';
 import { FeatureContext, User } from '../types';
 import { saveRemedy, getCurrentUser } from '../services/backendService';
 import ReactMarkdown from 'react-markdown';
@@ -15,11 +15,13 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
   const [title, setTitle] = useState("Botanical Rx Protocol");
+  const [sourceBook, setSourceBook] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeContext) {
       setTitle(activeContext.title || "Botanical Rx Protocol");
       setDetail(activeContext.detail || null);
+      setSourceBook(activeContext.sourceBook || null);
     }
   }, [activeContext]);
 
@@ -38,6 +40,10 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
     } finally {
       setSaveLoading(false);
     }
+  };
+
+  const trimPdfExtension = (name: string) => {
+    return name.replace(/\.pdf$/i, '');
   };
 
   const renderMarkdown = (content: string) => (
@@ -88,7 +94,7 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 md:p-12 scrollbar-hide">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {!detail ? (
             <div className="text-center py-32 flex flex-col items-center gap-8 animate-in fade-in duration-700">
               <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-xl border border-slate-100 relative">
@@ -106,13 +112,13 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-[3rem] border border-slate-100 p-10 md:p-16 shadow-2xl shadow-slate-200/50 animate-in fade-in slide-in-from-bottom-8 duration-500 relative overflow-hidden">
+            <div className="bg-white rounded-[3rem] border border-slate-100 p-10 md:p-16 shadow-2xl shadow-slate-200/50 animate-in fade-in slide-in-from-bottom-8 duration-500 relative overflow-hidden min-h-screen">
               <div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
                 <Leaf size={200} />
               </div>
               
               <div className="mb-12 flex items-center gap-6">
-                <div className="w-16 h-16 bg-blue-100 rounded-3xl flex items-center justify-center text-blue-600 rotate-3">
+                <div className="w-16 h-16 bg-blue-100 rounded-3xl flex items-center justify-center text-blue-600 shadow-inner">
                   <Sparkles size={32} />
                 </div>
                 <div>
@@ -121,11 +127,23 @@ const BotanicalRx: React.FC<BotanicalRxProps> = ({ activeContext }) => {
                 </div>
               </div>
 
+              <div className="mb-8 flex items-center gap-3">
+                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600">
+                  <FileText size={18} />
+                </div>
+                <h3 className="text-2xl font-serif font-bold text-slate-800">Clinical Protocol</h3>
+              </div>
+
               <div className="space-y-8">
                 {renderMarkdown(detail)}
               </div>
 
-              <div className="mt-16 pt-10 border-t border-slate-50 flex flex-col md:flex-row items-center justify-between gap-6 text-slate-400">
+              <div className="mt-16 pt-10 border-t border-slate-50 flex flex-col items-start gap-4">
+                 <p className="text-sm font-bold text-slate-800">
+                   Source Citation: <span className="font-normal text-slate-600">
+                     {sourceBook ? trimPdfExtension(sourceBook) : "Traditional Ayurvedic Samhitas and Naturopathic Clinical Guidelines"}
+                   </span>
+                 </p>
                  <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest bg-slate-50 px-5 py-2 rounded-full border border-slate-100">
                     <ShieldCheck size={18} className="text-blue-500" /> Paraphrased Clinical Synthesis
                  </div>

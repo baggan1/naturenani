@@ -30,6 +30,7 @@ export interface RecommendationMetadata {
   title: string;
   summary: string;
   detail?: string; 
+  sourceBook?: string;
 }
 
 export interface Message {
@@ -70,6 +71,7 @@ export interface FeatureContext {
   id: string; 
   title: string;
   detail?: string;
+  sourceBook?: string;
   cachedPoses?: YogaPose[];
   cachedPlan?: DayPlan[];
 }

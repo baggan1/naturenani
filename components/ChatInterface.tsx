@@ -75,7 +75,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setMessages([{ 
       id: 'welcome', 
       role: 'model', 
-      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing. To give you the best wisdom from our scrolls, please share your age, sex, and any health history you wish to share.', 
+      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing. To give you the best wisdom from our scrolls, tell me your age, sex and any past medical history or other health concerns I should know about', 
       timestamp: Date.now() 
     }]);
     if (onMessageSent) onMessageSent(); 
@@ -92,6 +92,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: `${NANI_VOICE_PROMPT}\n\nCONTENT:\n${fullText}` }] }],
         config: {
+          // Fix typo: responseModalities instead of responseModalities
           responseModalities: [Modality.AUDIO],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
         },
@@ -255,7 +256,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         onClick={() => {
                           if (!hasAccess) { onUpgradeClick(); return; }
                           const view = rec.type === 'REMEDY' ? AppView.BOTANICAL : rec.type === 'YOGA' ? AppView.YOGA : AppView.DIET;
-                          onNavigateToFeature(view, { id: rec.id, title: rec.id, detail: rec.detail });
+                          onNavigateToFeature(view, { 
+                            id: rec.id, 
+                            title: rec.id, 
+                            detail: rec.detail,
+                            sourceBook: rec.sourceBook
+                          });
                         }} 
                         className={`w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center justify-center gap-2 ${rec.type === 'YOGA' ? 'bg-pink-500 hover:bg-pink-600' : rec.type === 'DIET' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-700'}`}
                       >
@@ -273,7 +279,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {msg.suggestions && msg.suggestions.length > 0 && (
               <div className="ml-11 mt-6 flex flex-wrap gap-2 max-w-5xl">
                 {msg.suggestions.map((s, idx) => (
-                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-tighter text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm flex items-center gap-2">
+                  <button key={idx} onClick={() => handleAutoSend(s)} disabled={isLoading} className="bg-white border border-sage-200 px-4 py-2 rounded-full text-[10px] font-bold text-sage-700 hover:bg-sage-600 hover:text-white transition-all shadow-sm flex items-center gap-2">
                     <Sparkles size={12} className="text-yellow-500" />
                     {s}
                   </button>

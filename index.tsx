@@ -33,7 +33,7 @@ const App: React.FC = () => {
     {
       id: 'welcome',
       role: 'model',
-      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing. To give you the best wisdom from our scrolls, tell me your age, sex and any past medical history or other health concerns I should know about?',
+      content: 'Namaste. I am Nature Nani. Tell me what ailments you are experiencing. To give you the best wisdom from our scrolls, tell me your age, sex and any past medical history or other health concerns I should know about',
       timestamp: Date.now()
     }
   ]);
